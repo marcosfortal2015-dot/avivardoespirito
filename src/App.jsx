@@ -17,12 +17,21 @@ const C = {
   cream: "#FFFDF8",
   ember: "#C4622D",
   emberDeep: "#9C4A20",
-  gold: "#B8923D",
+  gold: "#CBA135",
+  goldBright: "#E9C765",
+  goldDeep: "#8B6F1F",
+  black: "#0B0B0C",
+  blackSoft: "#1A1A1D",
   violet: "#4A3B6B",
   violetDeep: "#2C2340",
   stone: "#8A8272",
   line: "#00000018",
 };
+
+const LOGO_ICON = "/logo-icone.png";
+const LOGO_BLACK_BG = "/logo-fundo-preto.jpg";
+const LOGO_WHITE_BG = "/logo-fundo-branco.jpg";
+const HERO_BANNER = "/hero-banner.jpg";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -65,7 +74,7 @@ const getEmbedUrl = (url) => {
 const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
   heroSlides: [
-    { id: uid(), titulo: "Bem-vindo ao Ministério Avivar do Espírito", subtitulo: "Uma igreja interdenominacional de portas abertas", imageUrl: "", linkTo: "home" },
+    { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
     { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: "", linkTo: "codigos" },
     { id: uid(), titulo: "Participe dos nossos eventos", subtitulo: "Confira a agenda de cultos e encontros especiais", imageUrl: "", linkTo: "eventos" },
   ],
@@ -114,7 +123,7 @@ function FlameMark({ size = 28, color = C.ember }) {
   );
 }
 
-function Btn({ children, onClick, variant = "primary", color = C.ember, className = "", type = "button", ...rest }) {
+function Btn({ children, onClick, variant = "primary", color = C.gold, className = "", type = "button", ...rest }) {
   const base = "inline-flex items-center gap-2 rounded-md text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 px-4 py-2";
   const style =
     variant === "primary"
@@ -142,7 +151,7 @@ function Field({ label, children }) {
 
 const inputCls = "w-full rounded-md border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2";
 
-function DynamicForm({ fields, accent = C.ember, onSubmit, submitLabel = "Adicionar" }) {
+function DynamicForm({ fields, accent = C.gold, onSubmit, submitLabel = "Adicionar" }) {
   const empty = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, ""])), [fields]);
   const [vals, setVals] = useState(empty);
   const set = (k, v) => setVals((s) => ({ ...s, [k]: v }));
@@ -191,7 +200,7 @@ function ImgOrPlaceholder({ url, alt, className, ph = "Espaço reservado para im
   );
 }
 
-function Eyebrow({ children, color = C.ember }) {
+function Eyebrow({ children, color = C.gold }) {
   return (
     <div className="uppercase text-xs tracking-[0.2em] font-mono font-semibold mb-2" style={{ color }}>
       {children}
@@ -212,18 +221,22 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
   if (!slides.length) return <Empty text="Nenhum banner cadastrado ainda." />;
   const s = slides[i];
   return (
-    <div className={`relative w-full ${height} overflow-hidden`}>
-      <ImgOrPlaceholder url={s.imageUrl} alt={s.titulo} className="absolute inset-0 w-full h-full object-cover" ph="Banner sem imagem — adicionar depois" />
-      <div className="absolute inset-0" style={{ background: dark ? "linear-gradient(180deg, #00000010, #1F1B2EAA)" : "transparent" }} />
+    <div className={`relative w-full ${height} overflow-hidden`} style={{ background: C.black }}>
+      <ImgOrPlaceholder url={s.imageUrl} alt={s.titulo} className={`absolute inset-0 w-full h-full ${s.selfContained ? "object-contain" : "object-cover"}`} ph="Banner sem imagem — adicionar depois" />
+      {!s.selfContained && <div className="absolute inset-0" style={{ background: dark ? "linear-gradient(180deg, #00000010, #1F1B2EAA)" : "transparent" }} />}
       <button
         onClick={() => onSlideClick && onSlideClick(s)}
-        className="absolute inset-0 w-full h-full flex flex-col items-start justify-end text-left p-6 sm:p-12 focus:outline-none focus:ring-2 focus:ring-inset"
+        className={`absolute inset-0 w-full h-full flex flex-col text-left focus:outline-none focus:ring-2 focus:ring-inset ${s.selfContained ? "items-stretch justify-end" : "items-start justify-end p-6 sm:p-12"}`}
         style={{ color: "#fff" }}
       >
-        <Eyebrow color={C.gold}>{i + 1 < 10 ? `0${i + 1}` : i + 1} / {slides.length}</Eyebrow>
-        <h2 className="font-display text-3xl sm:text-5xl font-semibold max-w-2xl leading-tight">{s.titulo}</h2>
-        {s.subtitulo && <p className="mt-3 max-w-xl text-sm sm:text-base opacity-90">{s.subtitulo}</p>}
-        <span className="mt-4 text-xs font-mono tracking-wide underline decoration-dotted">toque para ver mais</span>
+        {!s.selfContained && (
+          <>
+            <Eyebrow color={C.gold}>{i + 1 < 10 ? `0${i + 1}` : i + 1} / {slides.length}</Eyebrow>
+            <h2 className="font-script text-4xl sm:text-6xl leading-tight" style={{ color: C.goldBright }}>{s.titulo}</h2>
+            {s.subtitulo && <p className="mt-3 max-w-xl text-sm sm:text-base opacity-90">{s.subtitulo}</p>}
+            <span className="mt-4 text-xs font-mono tracking-wide underline decoration-dotted">toque para ver mais</span>
+          </>
+        )}
       </button>
       {slides.length > 1 && (
         <>
@@ -271,11 +284,11 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     setSubOpen(false);
   };
   return (
-    <header className="sticky top-0 z-40 border-b" style={{ background: C.cream, borderColor: C.gold + "55" }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        <button onClick={() => go("home")} className="flex items-center gap-2 focus:outline-none focus:ring-2 rounded-md p-1">
-          <FlameMark />
-          <span className="font-display font-semibold text-lg leading-tight" style={{ color: C.ink }}>
+    <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
+        <button onClick={() => go("home")} className="flex items-center gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
+          <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
+          <span className="font-script text-2xl sm:text-3xl leading-tight" style={{ color: C.goldBright }}>
             {churchName}
           </span>
         </button>
@@ -285,41 +298,41 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
               key={n.key}
               onClick={() => go(n.key)}
               className="px-3 py-2 text-sm font-medium rounded-md transition focus:outline-none focus:ring-2"
-              style={{ color: page === n.key ? C.ember : C.ink, background: page === n.key ? C.ember + "14" : "transparent" }}
+              style={{ color: page === n.key ? C.goldBright : C.gold, background: page === n.key ? C.gold + "22" : "transparent" }}
             >
               {n.label}
             </button>
           ))}
           <div className="relative">
-            <button onClick={() => setSubOpen((v) => !v)} className="px-3 py-2 text-sm font-medium rounded-md flex items-center gap-1 focus:outline-none focus:ring-2" style={{ color: C.ink }}>
+            <button onClick={() => setSubOpen((v) => !v)} className="px-3 py-2 text-sm font-medium rounded-md flex items-center gap-1 focus:outline-none focus:ring-2" style={{ color: C.gold }}>
               Mais <ChevronDown size={14} />
             </button>
             {subOpen && (
-              <div className="absolute right-0 mt-1 w-56 rounded-lg shadow-lg border py-1 z-50" style={{ background: C.cream, borderColor: C.line }}>
+              <div className="absolute right-0 mt-1 w-56 rounded-lg shadow-lg border py-1 z-50" style={{ background: C.black, borderColor: C.gold + "33" }}>
                 {SUBMENU.map((n) => (
-                  <button key={n.key} onClick={() => go(n.key)} className="w-full text-left px-4 py-2 text-sm hover:bg-black/5 flex items-center gap-2" style={{ color: C.ink }}>
+                  <button key={n.key} onClick={() => go(n.key)} className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex items-center gap-2" style={{ color: C.gold }}>
                     <n.icon size={15} /> {n.label}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <button onClick={onAdminClick} className="ml-2 p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.violet : "transparent", color: adminMode ? "#fff" : C.stone }}>
+          <button onClick={onAdminClick} className="ml-2 p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
             {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
           </button>
         </nav>
-        <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)}>
+        <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
           {open ? <X /> : <Menu />}
         </button>
       </div>
       {open && (
-        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1" style={{ borderColor: C.line, background: C.cream }}>
+        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1" style={{ borderColor: C.gold + "33", background: C.black }}>
           {[...NAV, ...SUBMENU].map((n) => (
-            <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: page === n.key ? C.ember : C.ink }}>
+            <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: page === n.key ? C.goldBright : C.gold }}>
               <n.icon size={15} /> {n.label}
             </button>
           ))}
-          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: C.violet }}>
+          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: C.goldBright }}>
             {adminMode ? <ShieldCheck size={15} /> : <Lock size={15} />} {adminMode ? "Sair do modo admin" : "Entrar como admin"}
           </button>
         </div>
@@ -332,22 +345,22 @@ function AdminGateModal({ onClose, onSuccess }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000066" }}>
-      <div className="w-full max-w-sm rounded-xl p-6" style={{ background: C.cream }}>
-        <div className="flex items-center gap-2 mb-3" style={{ color: C.violet }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000088" }}>
+      <div className="w-full max-w-sm rounded-xl p-6 border" style={{ background: C.black, borderColor: C.gold + "44" }}>
+        <div className="flex items-center gap-2 mb-3" style={{ color: C.gold }}>
           <ShieldCheck size={20} />
-          <h3 className="font-display text-lg font-semibold">Acesso administrativo</h3>
+          <h3 className="font-display text-lg font-semibold text-white">Acesso administrativo</h3>
         </div>
-        <p className="text-xs mb-4" style={{ color: C.stone }}>
+        <p className="text-xs mb-4" style={{ color: "#ffffff99" }}>
           Protótipo de demonstração — em produção, isto exige autenticação real no backend.
         </p>
         <Field label="Senha master">
           <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
         </Field>
-        {err && <p className="text-xs mt-2" style={{ color: "#B03428" }}>{err}</p>}
+        {err && <p className="text-xs mt-2" style={{ color: "#F2A6A6" }}>{err}</p>}
         <div className="flex gap-2 mt-4">
           <Btn
-            color={C.violet}
+            color={C.gold}
             onClick={() => {
               if (pw === MASTER_ADMIN_PASSWORD) onSuccess();
               else setErr("Senha incorreta.");
@@ -366,13 +379,10 @@ function AdminGateModal({ onClose, onSuccess }) {
 
 function Footer({ churchName }) {
   return (
-    <footer className="border-t mt-16 py-10 px-4 sm:px-6" style={{ borderColor: C.line, background: C.parchmentDeep }}>
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <FlameMark size={20} />
-          <span className="font-display font-semibold" style={{ color: C.ink }}>{churchName}</span>
-        </div>
-        <p className="text-xs font-mono" style={{ color: C.stone }}>Doutrina embasada nos princípios da fé cristã · {new Date().getFullYear()}</p>
+    <footer className="border-t mt-16 py-10 px-4 sm:px-6" style={{ borderColor: C.gold + "33", background: C.black }}>
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center sm:items-center justify-between gap-6">
+        <img src={LOGO_BLACK_BG} alt={churchName} className="h-20 w-auto rounded-md" />
+        <p className="text-xs font-mono text-center sm:text-right" style={{ color: C.gold + "cc" }}>Doutrina embasada nos princípios da fé cristã · {new Date().getFullYear()}</p>
       </div>
     </footer>
   );
@@ -410,7 +420,7 @@ function Home({ site, setPage, visitantes }) {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
         <div>
           <Eyebrow>Sobre nós</Eyebrow>
-          <h2 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Uma casa de fé aberta a todos</h2>
+          <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Uma casa de fé aberta a todos</h2>
           <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
             O {site.churchName} é uma igreja interdenominacional, fundamentada na doutrina cristã, dedicada ao ensino da
             Palavra, à comunhão entre irmãos e ao cuidado com quem chega pela primeira vez.
@@ -544,7 +554,7 @@ function CodigosAvivar({ data, save, adminMode }) {
         <div className="flex items-center justify-between">
           <div>
             <Eyebrow color={C.gold}>Área reservada</Eyebrow>
-            <h2 className="font-display text-3xl font-semibold text-white">Bem-vindo(a), {holderName}</h2>
+            <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.goldBright }}>Bem-vindo(a), {holderName}</h2>
             <p className="text-sm mt-1" style={{ color: "#D9D2EA" }}>Segredos dos profetas, milagres, curas e a ponte entre ciência e espiritualidade.</p>
           </div>
           <button onClick={() => setUnlocked(false)} className="flex items-center gap-1 text-xs px-3 py-2 rounded-md" style={{ color: "#fff", background: "#ffffff1a" }}>
@@ -672,11 +682,11 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Vida em comunidade</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Eventos & Galeria</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Eventos & Galeria</h2>
 
       <div className="flex gap-2 mt-6 mb-6">
         {["eventos", "galeria"].map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.ember : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.ember}55` }}>
+          <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
             {t}
           </button>
         ))}
@@ -771,7 +781,7 @@ function AoVivo({ data, save, adminMode }) {
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: data.isLive ? "#E14D3A" : C.stone, boxShadow: data.isLive ? "0 0 0 4px #E14D3A33" : "none" }} />
         <Eyebrow color={data.isLive ? "#E14D3A" : C.stone}>{data.isLive ? "AO VIVO AGORA" : "Sem transmissão no momento"}</Eyebrow>
       </div>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Transmissões</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Transmissões</h2>
 
       {data.isLive && data.embedUrl ? (
         <div className="aspect-video rounded-xl overflow-hidden bg-black mt-6">
@@ -890,7 +900,7 @@ function Igrejas({ igrejas, save, adminMode }) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Uma família, várias casas</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Unidades do Ministério</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Unidades do Ministério</h2>
       {igrejas.length === 0 && <div className="mt-6"><Empty text="Nenhuma unidade cadastrada ainda." /></div>}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
         {igrejas.map((i) => (
@@ -925,7 +935,7 @@ function Colaboradores({ items, save, adminMode }) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Quem serve conosco</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Colaboradores</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Colaboradores</h2>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
       <div className="grid sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
         {items.map((c) => (
@@ -966,7 +976,7 @@ function Estudos({ items, save, adminMode }) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Palavra e vida</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Estudos Bíblicos</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Estudos Bíblicos</h2>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum estudo publicado ainda." /></div>}
       <div className="space-y-4 mt-6">
         {items.map((e) => (
@@ -1020,7 +1030,7 @@ function Visitantes({ items, save }) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Cadastro de Visitantes</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Cadastro de Visitantes</h2>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Registre a visita e, se desejar, receba uma mensagem de agradecimento no WhatsApp.</p>
 
       <div className="mt-6">
@@ -1079,7 +1089,7 @@ function OracoesLares({ items, save, adminMode }) {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Orações nos Lares</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Orações nos Lares</h2>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
       <div className="mt-6"><DynamicForm fields={ORACAO_FIELDS} onSubmit={(v) => v.nome && v.pedido && add(v)} submitLabel="Enviar pedido" /></div>
 
@@ -1123,7 +1133,7 @@ function Contato({ items, save, adminMode }) {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Fale conosco</Eyebrow>
-      <h2 className="font-display text-3xl font-semibold" style={{ color: C.ink }}>Contato</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Contato</h2>
       <div className="mt-6"><DynamicForm fields={CONTATO_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Enviar mensagem" /></div>
       {adminMode && (
         <div className="mt-10 space-y-2">
@@ -1203,8 +1213,9 @@ export default function App() {
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        .font-display { font-family: 'Fraunces', serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Tangerine:wght@700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-script { font-family: 'Tangerine', cursive; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
         .font-mono { font-family: 'IBM Plex Mono', monospace; }
         @keyframes marquee { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
