@@ -22,6 +22,7 @@ const C = {
   goldDeep: "#8B6F1F",
   black: "#0B0B0C",
   blackSoft: "#1A1A1D",
+  liveRed: "#C1272D",
   violet: "#4A3B6B",
   violetDeep: "#2C2340",
   stone: "#8A8272",
@@ -222,6 +223,15 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
   const s = slides[i];
   return (
     <div className={`relative w-full ${height} overflow-hidden`} style={{ background: C.black }}>
+      {s.selfContained && (
+        <img
+          src={s.imageUrl}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover scale-110"
+          style={{ filter: "blur(28px) brightness(0.55)" }}
+        />
+      )}
       <ImgOrPlaceholder url={s.imageUrl} alt={s.titulo} className={`absolute inset-0 w-full h-full ${s.selfContained ? "object-contain" : "object-cover"}`} ph="Banner sem imagem — adicionar depois" />
       {!s.selfContained && <div className="absolute inset-0" style={{ background: dark ? "linear-gradient(180deg, #00000010, #1F1B2EAA)" : "transparent" }} />}
       <button
@@ -391,17 +401,18 @@ function Footer({ churchName }) {
 /* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
-function QuickCard({ icon: Icon, title, desc, onClick, tone = "light" }) {
-  const light = tone === "light";
+function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold" }) {
+  const bg = tone === "violet" ? C.violet : tone === "red" ? C.liveRed : C.gold;
+  const border = tone === "violet" ? C.violetDeep : tone === "red" ? "#8A241B" : C.goldDeep;
   return (
     <button
       onClick={onClick}
       className="text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2"
-      style={{ background: light ? C.cream : C.violet, borderColor: light ? C.line : C.violetDeep, color: light ? C.ink : "#fff" }}
+      style={{ background: bg, borderColor: border, color: "#fff" }}
     >
-      <Icon size={20} color={light ? C.ember : C.gold} />
-      <h3 className="font-display font-semibold mt-3">{title}</h3>
-      <p className="text-xs mt-1 opacity-80">{desc}</p>
+      <Icon size={20} color="#fff" />
+      <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white">{title}</h3>
+      <p className="text-xs mt-1 opacity-90 text-white">{desc}</p>
     </button>
   );
 }
@@ -412,9 +423,9 @@ function Home({ site, setPage, visitantes }) {
     <div>
       <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-10 grid sm:grid-cols-3 gap-4">
-        <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Área reservada a cadastrados: profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="dark" />
-        <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Confira a agenda e reviva os melhores momentos." onClick={() => setPage("eventos")} />
-        <QuickCard icon={Radio} title="Ao Vivo" desc="Acompanhe nossas transmissões em tempo real." onClick={() => setPage("aovivo")} />
+        <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Área reservada a cadastrados: profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="violet" />
+        <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Confira a agenda e reviva os melhores momentos." onClick={() => setPage("eventos")} tone="gold" />
+        <QuickCard icon={Radio} title="Ao Vivo" desc="Acompanhe nossas transmissões em tempo real." onClick={() => setPage("aovivo")} tone="red" />
       </div>
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
