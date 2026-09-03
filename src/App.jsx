@@ -33,6 +33,7 @@ const LOGO_ICON = "/logo-icone.png";
 const LOGO_BLACK_BG = "/logo-fundo-preto.jpg";
 const LOGO_WHITE_BG = "/logo-fundo-branco.jpg";
 const HERO_BANNER = "/hero-banner.jpg";
+const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -283,12 +284,19 @@ const SUBMENU = [
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
   { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
+  { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
 ];
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   const [open, setOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
   const go = (k) => {
+    if (k === "biblia") {
+      window.open(BIBLIA_URL, "_blank", "noopener,noreferrer");
+      setOpen(false);
+      setSubOpen(false);
+      return;
+    }
     setPage(k);
     setOpen(false);
     setSubOpen(false);
@@ -401,13 +409,13 @@ function Footer({ churchName }) {
 /* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
-function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold" }) {
+function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "" }) {
   const bg = tone === "violet" ? C.violet : tone === "red" ? C.liveRed : C.gold;
   const border = tone === "violet" ? C.violetDeep : tone === "red" ? "#8A241B" : C.goldDeep;
   return (
     <button
       onClick={onClick}
-      className="text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2"
+      className={`text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 ${className}`}
       style={{ background: bg, borderColor: border, color: "#fff" }}
     >
       <Icon size={20} color="#fff" />
@@ -426,6 +434,10 @@ function Home({ site, setPage, visitantes }) {
         <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Área reservada a cadastrados: profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="violet" />
         <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Confira a agenda e reviva os melhores momentos." onClick={() => setPage("eventos")} tone="gold" />
         <QuickCard icon={Radio} title="Ao Vivo" desc="Acompanhe nossas transmissões em tempo real." onClick={() => setPage("aovivo")} tone="red" />
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-4 relative z-10">
+        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra e estude cada livro, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" className="w-full" />
       </div>
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
