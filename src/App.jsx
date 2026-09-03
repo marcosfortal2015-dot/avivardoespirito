@@ -33,6 +33,10 @@ const LOGO_ICON = "/logo-icone.png";
 const LOGO_BLACK_BG = "/logo-fundo-preto.jpg";
 const LOGO_WHITE_BG = "/logo-fundo-branco.jpg";
 const HERO_BANNER = "/hero-banner.jpg";
+const CODIGOS_BANNER = "/codigos-avivar-banner.jpg";
+const EVENTOS_BANNER = "/eventos-banner.jpg";
+const BIBLIA_CARD_BG = "/biblia-avivar-banner.jpg";
+const AVIVARNEWS_BANNER = "/avivarnews-banner.jpg";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
@@ -77,8 +81,8 @@ const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
   heroSlides: [
     { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
-    { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: "", linkTo: "codigos" },
-    { id: uid(), titulo: "Participe dos nossos eventos", subtitulo: "Confira a agenda de cultos e encontros especiais", imageUrl: "", linkTo: "eventos" },
+    { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: CODIGOS_BANNER, linkTo: "codigos" },
+    { id: uid(), titulo: "Participe dos nossos eventos", subtitulo: "Confira a agenda de cultos e encontros especiais", imageUrl: EVENTOS_BANNER, linkTo: "eventos" },
   ],
 };
 
@@ -282,6 +286,7 @@ const NAV = [
 const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
+  { key: "avivarnews", label: "Avivar News", icon: Video },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
   { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
   { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
@@ -409,18 +414,26 @@ function Footer({ churchName }) {
 /* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
-function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "" }) {
+function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage }) {
   const bg = tone === "violet" ? C.violet : tone === "red" ? C.liveRed : C.gold;
   const border = tone === "violet" ? C.violetDeep : tone === "red" ? "#8A241B" : C.goldDeep;
   return (
     <button
       onClick={onClick}
-      className={`text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 ${className}`}
-      style={{ background: bg, borderColor: border, color: "#fff" }}
+      className={`relative text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
+      style={{ background: bgImage ? C.black : bg, borderColor: border, color: "#fff" }}
     >
-      <Icon size={20} color="#fff" />
-      <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white">{title}</h3>
-      <p className="text-xs mt-1 opacity-90 text-white">{desc}</p>
+      {bgImage && (
+        <>
+          <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000033, #000000AA)" }} />
+        </>
+      )}
+      <div className="relative">
+        <Icon size={20} color="#fff" />
+        <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white">{title}</h3>
+        <p className="text-xs mt-1 opacity-90 text-white">{desc}</p>
+      </div>
     </button>
   );
 }
@@ -437,7 +450,7 @@ function Home({ site, setPage, visitantes }) {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-4 relative z-10">
-        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra e estude cada livro, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" className="w-full" />
+        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra e estude cada livro, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" className="w-full" bgImage={BIBLIA_CARD_BG} />
       </div>
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
@@ -1022,6 +1035,58 @@ function Estudos({ items, save, adminMode }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Avivar News                                                          */
+/* ---------------------------------------------------------------- */
+const AVIVARNEWS_FIELDS = [
+  { key: "titulo", label: "Título da reportagem" },
+  { key: "imageUrl", label: "URL da imagem de capa (opcional)", type: "url" },
+  { key: "videoUrl", label: "URL do vídeo (YouTube ou Vimeo, opcional)", type: "url" },
+  { key: "texto", label: "Texto da reportagem", type: "textarea" },
+];
+
+function AvivarNews({ items, save, adminMode }) {
+  const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO() }]);
+  const del = (id) => save(items.filter((i) => i.id !== id));
+  const sorted = [...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return (
+    <div>
+      <div className="w-full h-48 sm:h-64 overflow-hidden">
+        <ImgOrPlaceholder url={AVIVARNEWS_BANNER} alt="Avivar News" className="w-full h-full object-cover" ph="Banner Avivar News — adicionar depois" />
+      </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+        <Eyebrow>Reportagens do ministério</Eyebrow>
+        <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Avivar News</h2>
+        {sorted.length === 0 && <div className="mt-6"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
+        <div className="space-y-6 mt-6">
+          {sorted.map((n) => (
+            <div key={n.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-48 object-cover" />}
+              <div className="p-5">
+                <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
+                <h3 className="font-display font-semibold text-lg mt-1">{n.titulo}</h3>
+                {n.videoUrl && (
+                  <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
+                    <iframe title={n.titulo} src={getEmbedUrl(n.videoUrl)} className="w-full h-full" allowFullScreen />
+                  </div>
+                )}
+                {n.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{n.texto}</p>}
+                {adminMode && <button onClick={() => del(n.id)} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+        {adminMode && (
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova reportagem</p>
+            <DynamicForm fields={AVIVARNEWS_FIELDS} onSubmit={(v) => v.titulo && add(v)} submitLabel="Publicar reportagem" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Visitantes                                                          */
 /* ---------------------------------------------------------------- */
 const VISITANTE_FIELDS = [
@@ -1191,6 +1256,7 @@ export default function App() {
   const [igrejas, setIgrejas] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [estudos, setEstudos] = useState([]);
+  const [avivarNews, setAvivarNews] = useState([]);
   const [visitantes, setVisitantes] = useState([]);
   const [oracoes, setOracoes] = useState([]);
   const [mensagens, setMensagens] = useState([]);
@@ -1205,6 +1271,7 @@ export default function App() {
       setIgrejas(await loadKey("avivar:igrejas", []));
       setColaboradores(await loadKey("avivar:colaboradores", []));
       setEstudos(await loadKey("avivar:estudos", []));
+      setAvivarNews(await loadKey("avivar:avivarnews", []));
       setVisitantes(await loadKey("avivar:visitantes", []));
       setOracoes(await loadKey("avivar:oracoes", []));
       setMensagens(await loadKey("avivar:mensagens", []));
@@ -1220,6 +1287,7 @@ export default function App() {
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
     estudos: (v) => { setEstudos(v); saveKey("avivar:estudos", v); },
+    avivarNews: (v) => { setAvivarNews(v); saveKey("avivar:avivarnews", v); },
     visitantes: (v) => { setVisitantes(v); saveKey("avivar:visitantes", v); },
     oracoes: (v) => { setOracoes(v); saveKey("avivar:oracoes", v); },
     mensagens: (v) => { setMensagens(v); saveKey("avivar:mensagens", v); },
@@ -1238,7 +1306,7 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Tangerine:wght@700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         .font-display { font-family: 'Playfair Display', serif; }
-        .font-script { font-family: 'Tangerine', cursive; font-weight: 700; }
+        .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
         .font-mono { font-family: 'IBM Plex Mono', monospace; }
         @keyframes marquee { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
@@ -1256,6 +1324,7 @@ export default function App() {
         {page === "igrejas" && <Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} />}
         {page === "colaboradores" && <Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} />}
         {page === "estudos" && <Estudos items={estudos} save={persist.estudos} adminMode={adminMode} />}
+        {page === "avivarnews" && <AvivarNews items={avivarNews} save={persist.avivarNews} adminMode={adminMode} />}
         {page === "visitantes" && <Visitantes items={visitantes} save={persist.visitantes} />}
         {page === "oracoes" && <OracoesLares items={oracoes} save={persist.oracoes} adminMode={adminMode} />}
         {page === "contato" && <Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} />}
