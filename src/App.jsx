@@ -35,8 +35,14 @@ const LOGO_WHITE_BG = "/logo-fundo-branco.jpg";
 const HERO_BANNER = "/hero-banner.jpg";
 const CODIGOS_BANNER = "/codigos-avivar-banner.jpg";
 const EVENTOS_BANNER = "/eventos-banner.jpg";
+const AOVIVO_BANNER = "/aovivo-banner.jpg";
 const BIBLIA_CARD_BG = "/biblia-avivar-banner.jpg";
 const AVIVARNEWS_BANNER = "/avivarnews-banner.jpg";
+const IGREJAS_BANNER = "/igrejas-avivar-banner.jpg";
+const DOACOES_BANNER = "/doacoes-banner.jpg";
+const ORACOES_BANNER = "/oracoes-banner.jpg";
+const ESTUDOS_BANNER = "/estudos-banner.jpg";
+const VISITANTES_BANNER = "/visitantes-banner.jpg";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
@@ -81,8 +87,8 @@ const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
   heroSlides: [
     { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
-    { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: CODIGOS_BANNER, linkTo: "codigos" },
-    { id: uid(), titulo: "Participe dos nossos eventos", subtitulo: "Confira a agenda de cultos e encontros especiais", imageUrl: EVENTOS_BANNER, linkTo: "eventos" },
+    { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: CODIGOS_BANNER, linkTo: "codigos", mist: true, taglines: ["Os segredos espirituais serão revelados.", "O Espírito Santo convoca os Profetas dos Últimos Dias.", "Conheça os mistérios revelados pelo Senhor.", "Esse é o tempo. O que está esperando?"] },
+    { id: uid(), titulo: "Participe dos nossos eventos", subtitulo: "Confira a agenda de cultos e encontros especiais", imageUrl: EVENTOS_BANNER, linkTo: "eventos", titleColor: "#FFFFFF", titleShadowBlack: true },
   ],
 };
 
@@ -96,6 +102,7 @@ const DEFAULT_CODIGOS = {
 };
 
 const DEFAULT_AOVIVO = { isLive: false, instagramUrl: "", xUrl: "", youtubeUrl: "", embedUrl: "", mensagem: "Nenhuma transmissão no momento. Volte em breve." };
+const DEFAULT_DOACOES = { pixKey: "", mercadoPagoUrl: "" };
 
 /* ---------------------------------------------------------------- */
 /* Storage helpers                                                   */
@@ -239,6 +246,9 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
       )}
       <ImgOrPlaceholder url={s.imageUrl} alt={s.titulo} className={`absolute inset-0 w-full h-full ${s.selfContained ? "object-contain" : "object-cover"}`} ph="Banner sem imagem — adicionar depois" />
       {!s.selfContained && <div className="absolute inset-0" style={{ background: dark ? "linear-gradient(180deg, #00000010, #1F1B2EAA)" : "transparent" }} />}
+      {s.mist && (
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 75% 35%, #CBA13566 0%, transparent 55%), radial-gradient(circle at 15% 85%, #4A3B6B77 0%, transparent 60%)" }} />
+      )}
       <button
         onClick={() => onSlideClick && onSlideClick(s)}
         className={`absolute inset-0 w-full h-full flex flex-col text-left focus:outline-none focus:ring-2 focus:ring-inset ${s.selfContained ? "items-stretch justify-end" : "items-start justify-end p-6 sm:p-12"}`}
@@ -247,8 +257,15 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
         {!s.selfContained && (
           <>
             <Eyebrow color={C.gold}>{i + 1 < 10 ? `0${i + 1}` : i + 1} / {slides.length}</Eyebrow>
-            <h2 className="font-script text-4xl sm:text-6xl leading-tight" style={{ color: C.goldBright }}>{s.titulo}</h2>
+            <h2 className="font-script text-4xl sm:text-6xl leading-tight" style={{ color: s.titleColor || C.goldBright, textShadow: s.titleShadowBlack ? "0 3px 12px #000000cc" : "none" }}>{s.titulo}</h2>
             {s.subtitulo && <p className="mt-3 max-w-xl text-sm sm:text-base opacity-90">{s.subtitulo}</p>}
+            {s.taglines && (
+              <div className="mt-4 ml-auto text-right max-w-sm">
+                {s.taglines.map((t, idx) => (
+                  <p key={idx} className="text-sm sm:text-base italic mb-1" style={{ color: C.goldBright, textShadow: "0 2px 8px #000000cc" }}>{t}</p>
+                ))}
+              </div>
+            )}
             <span className="mt-4 text-xs font-mono tracking-wide underline decoration-dotted">toque para ver mais</span>
           </>
         )}
@@ -280,16 +297,17 @@ const NAV = [
   { key: "codigos", label: "Códigos Avivar", icon: KeyRound },
   { key: "eventos", label: "Eventos/Galeria", icon: Calendar },
   { key: "aovivo", label: "Ao Vivo", icon: Radio },
-  { key: "igrejas", label: "Igrejas", icon: Church },
+  { key: "igrejas", label: "Igrejas Avivar", icon: Church },
+  { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
   { key: "contato", label: "Contato", icon: Mail },
 ];
 const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "avivarnews", label: "Avivar News", icon: Video },
+  { key: "doacoes", label: "Doações", icon: Send },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
   { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
-  { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
 ];
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
@@ -442,15 +460,18 @@ function Home({ site, setPage, visitantes }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   return (
     <div>
-      <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-10 grid sm:grid-cols-3 gap-4">
-        <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Área reservada a cadastrados: profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="violet" />
-        <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Confira a agenda e reviva os melhores momentos." onClick={() => setPage("eventos")} tone="gold" />
-        <QuickCard icon={Radio} title="Ao Vivo" desc="Acompanhe nossas transmissões em tempo real." onClick={() => setPage("aovivo")} tone="red" />
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-4 relative z-10">
-        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra e estude cada livro, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" className="w-full" bgImage={BIBLIA_CARD_BG} />
+      <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} height="h-screen" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="violet" bgImage={CODIGOS_BANNER} />
+        <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Agenda e melhores momentos." onClick={() => setPage("eventos")} tone="gold" bgImage={EVENTOS_BANNER} />
+        <QuickCard icon={Radio} title="Ao Vivo" desc="Transmissões em tempo real." onClick={() => setPage("aovivo")} tone="red" bgImage={AOVIVO_BANNER} />
+        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" bgImage={BIBLIA_CARD_BG} />
+        <QuickCard icon={Video} title="Avivar News" desc="Reportagens do ministério." onClick={() => setPage("avivarnews")} tone="gold" bgImage={AVIVARNEWS_BANNER} />
+        <QuickCard icon={Church} title="Igrejas Avivar" desc="Conheça nossas unidades." onClick={() => setPage("igrejas")} tone="violet" bgImage={IGREJAS_BANNER} />
+        <QuickCard icon={Send} title="Doações" desc="Dízimos e ofertas." onClick={() => setPage("doacoes")} tone="gold" bgImage={DOACOES_BANNER} />
+        <QuickCard icon={Sparkles} title="Orações nos Lares" desc="Peça oração ou visita de intercessão." onClick={() => setPage("oracoes")} tone="red" bgImage={ORACOES_BANNER} />
+        <QuickCard icon={BookOpen} title="Estudos Bíblicos" desc="Palavra e vida." onClick={() => setPage("estudos")} tone="violet" bgImage={ESTUDOS_BANNER} />
+        <QuickCard icon={HandHeart} title="Visitantes" desc="Registre sua visita." onClick={() => setPage("visitantes")} tone="gold" bgImage={VISITANTES_BANNER} />
       </div>
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
@@ -845,6 +866,44 @@ function AoVivo({ data, save, adminMode }) {
             <Field label="Link Instagram"><input className={inputCls} style={{ borderColor: C.line }} value={data.instagramUrl} onChange={(e) => save({ ...data, instagramUrl: e.target.value })} /></Field>
             <Field label="Link X"><input className={inputCls} style={{ borderColor: C.line }} value={data.xUrl} onChange={(e) => save({ ...data, xUrl: e.target.value })} /></Field>
             <Field label="Link YouTube"><input className={inputCls} style={{ borderColor: C.line }} value={data.youtubeUrl} onChange={(e) => save({ ...data, youtubeUrl: e.target.value })} /></Field>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Doações                                                              */
+/* ---------------------------------------------------------------- */
+function Doacoes({ data, save, adminMode }) {
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><HandHeart size={12} className="inline mr-1" />Semeando com generosidade</Eyebrow>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Dízimos e Ofertas</h2>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Sua contribuição sustenta a obra do Ministério Avivar do Espírito.</p>
+
+      <div className="grid sm:grid-cols-2 gap-4 mt-6">
+        <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
+          <p className="font-display font-semibold mb-2">PIX</p>
+          <p className="text-sm font-mono break-all" style={{ color: C.ink }}>{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
+        </div>
+        <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
+          <p className="font-display font-semibold mb-2">Mercado Pago</p>
+          {data.mercadoPagoUrl ? (
+            <a href={data.mercadoPagoUrl} target="_blank" rel="noreferrer" className="text-sm underline" style={{ color: C.ember }}>Doar pelo Mercado Pago</a>
+          ) : (
+            <p className="text-sm" style={{ color: C.stone }}>Link ainda não cadastrado</p>
+          )}
+        </div>
+      </div>
+
+      {adminMode && (
+        <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar doações</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Chave PIX"><input className={inputCls} style={{ borderColor: C.line }} value={data.pixKey} onChange={(e) => save({ ...data, pixKey: e.target.value })} /></Field>
+            <Field label="Link Mercado Pago"><input className={inputCls} style={{ borderColor: C.line }} value={data.mercadoPagoUrl} onChange={(e) => save({ ...data, mercadoPagoUrl: e.target.value })} /></Field>
           </div>
         </div>
       )}
@@ -1253,6 +1312,7 @@ export default function App() {
   const [eventos, setEventos] = useState([]);
   const [galeria, setGaleria] = useState([]);
   const [aoVivo, setAoVivo] = useState(DEFAULT_AOVIVO);
+  const [doacoes, setDoacoes] = useState(DEFAULT_DOACOES);
   const [igrejas, setIgrejas] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [estudos, setEstudos] = useState([]);
@@ -1268,6 +1328,7 @@ export default function App() {
       setEventos(await loadKey("avivar:eventos", []));
       setGaleria(await loadKey("avivar:galeria", []));
       setAoVivo(await loadKey("avivar:aovivo", DEFAULT_AOVIVO));
+      setDoacoes(await loadKey("avivar:doacoes", DEFAULT_DOACOES));
       setIgrejas(await loadKey("avivar:igrejas", []));
       setColaboradores(await loadKey("avivar:colaboradores", []));
       setEstudos(await loadKey("avivar:estudos", []));
@@ -1284,6 +1345,7 @@ export default function App() {
     eventos: (v) => { setEventos(v); saveKey("avivar:eventos", v); },
     galeria: (v) => { setGaleria(v); saveKey("avivar:galeria", v); },
     aoVivo: (v) => { setAoVivo(v); saveKey("avivar:aovivo", v); },
+    doacoes: (v) => { setDoacoes(v); saveKey("avivar:doacoes", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
     estudos: (v) => { setEstudos(v); saveKey("avivar:estudos", v); },
@@ -1321,6 +1383,7 @@ export default function App() {
         {page === "codigos" && <CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} />}
         {page === "eventos" && <EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} />}
         {page === "aovivo" && <AoVivo data={aoVivo} save={persist.aoVivo} adminMode={adminMode} />}
+        {page === "doacoes" && <Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} />}
         {page === "igrejas" && <Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} />}
         {page === "colaboradores" && <Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} />}
         {page === "estudos" && <Estudos items={estudos} save={persist.estudos} adminMode={adminMode} />}
