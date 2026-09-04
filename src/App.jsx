@@ -83,8 +83,35 @@ const getEmbedUrl = (url) => {
 /* ---------------------------------------------------------------- */
 /* Default seed data                                                 */
 /* ---------------------------------------------------------------- */
+const CARD_ICONS = {
+  codigos: KeyRound,
+  eventos: Calendar,
+  aovivo: Radio,
+  biblia: BookOpen,
+  avivarnews: Video,
+  igrejas: Church,
+  doacoes: Send,
+  oracoes: Sparkles,
+  estudos: BookOpen,
+  visitantes: HandHeart,
+};
+
+const DEFAULT_HOMECARDS = [
+  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
+  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
+  { key: "aovivo", titulo: "Ao Vivo", desc: "Transmissões em tempo real.", imageUrl: AOVIVO_BANNER, tone: "red" },
+  { key: "biblia", titulo: "Bíblia Sagrada", desc: "Leia a Palavra, capítulo por capítulo.", imageUrl: BIBLIA_CARD_BG, tone: "violet", externalUrl: BIBLIA_URL },
+  { key: "avivarnews", titulo: "Avivar News", desc: "Reportagens do ministério.", imageUrl: AVIVARNEWS_BANNER, tone: "gold" },
+  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
+  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
+  { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
+  { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
+];
+
 const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
+  homeCards: DEFAULT_HOMECARDS,
   heroSlides: [
     { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
     { id: uid(), titulo: "Códigos Avivar", subtitulo: "Um caminho de revelação, ciência e espiritualidade — acesso restrito a cadastrados", imageUrl: CODIGOS_BANNER, linkTo: "codigos", mist: true, taglines: ["Os segredos espirituais serão revelados.", "O Espírito Santo convoca os Profetas dos Últimos Dias.", "Conheça os mistérios revelados pelo Senhor.", "Esse é o tempo. O que está esperando?"] },
@@ -110,13 +137,15 @@ const DEFAULT_DOACOES = { pixKey: "", mercadoPagoUrl: "" };
 async function loadKey(key, fallback) {
   try {
     const res = await storageGet(key);
-    if (res && res.value) return JSON.parse(res.value);
+    if (res && res.value !== undefined && res.value !== null) {
+      return typeof res.value === "string" ? JSON.parse(res.value) : res.value;
+    }
   } catch (e) {}
   return fallback;
 }
 async function saveKey(key, value) {
   try {
-    await storageSet(key, JSON.stringify(value));
+    await storageSet(key, value);
   } catch (e) {
     console.error("Falha ao salvar", key, e);
   }
@@ -329,8 +358,10 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
         <button onClick={() => go("home")} className="flex items-center gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
           <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
-          <span className="font-script text-2xl sm:text-3xl leading-tight" style={{ color: C.goldBright }}>
-            {churchName}
+          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px", color: C.goldBright }}>
+            <span className="block">Avivar</span>
+            <span className="block">do</span>
+            <span className="block">Espírito</span>
           </span>
         </button>
         <nav className="hidden lg:flex items-center gap-1">
@@ -430,6 +461,102 @@ function Footer({ churchName }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Carrossel lateral fixo (disponível em todas as páginas)             */
+/* ---------------------------------------------------------------- */
+const SIDE_COLORS = ["#6C3FA8", "#E07B39", "#2E8B57", "#B39DDB", "#CBA135", "#B03428", "#4A3B6B", "#1B8A55", "#9C4A20", "#8B6F1F"];
+
+function SideCarousel({ cards, setPage }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!cards || cards.length < 2) return;
+    const t = setInterval(() => setI((v) => (v + 1) % cards.length), 4000);
+    return () => clearInterval(t);
+  }, [cards]);
+  if (!cards || !cards.length) return null;
+  const card = cards[i % cards.length];
+  const Icon = CARD_ICONS[card.key] || Sparkles;
+  const color = SIDE_COLORS[i % SIDE_COLORS.length];
+  return (
+    <button
+      onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
+      className="fixed left-0 top-1/2 -translate-y-1/2 z-30 w-24 sm:w-28 rounded-r-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2"
+      style={{ background: color, color: "#fff" }}
+    >
+      <Icon size={18} color="#fff" />
+      <p className="text-[11px] font-display font-bold uppercase tracking-wide mt-2 leading-tight">{card.titulo}</p>
+    </button>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Fórum (coluna fixa à direita / botão flutuante no celular)         */
+/* ---------------------------------------------------------------- */
+const FORUM_FIELDS = [
+  { key: "autor", label: "Seu nome" },
+  { key: "mensagem", label: "Mensagem", type: "textarea" },
+];
+
+function Forum({ posts, addPost }) {
+  const [open, setOpen] = useState(false);
+  const [nome, setNome] = useState("");
+  const [msg, setMsg] = useState("");
+
+  const send = () => {
+    if (!nome.trim() || !msg.trim()) return;
+    addPost({ id: uid(), autor: nome.trim(), mensagem: msg.trim(), timestamp: nowISO() });
+    setMsg("");
+  };
+
+  const sorted = [...posts].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const Feed = (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto space-y-3 p-3">
+        {sorted.length === 0 && <p className="text-xs italic" style={{ color: C.stone }}>Seja o primeiro a comentar.</p>}
+        {sorted.map((p) => (
+          <div key={p.id} className="text-sm p-2 rounded-md" style={{ background: C.parchment }}>
+            <p className="font-semibold text-xs" style={{ color: C.ember }}>{p.autor}</p>
+            <p style={{ color: C.ink }}>{p.mensagem}</p>
+            <p className="text-[10px] font-mono mt-1" style={{ color: C.stone }}>{fmtDateTime(p.timestamp)}</p>
+          </div>
+        ))}
+      </div>
+      <div className="p-3 border-t space-y-2" style={{ borderColor: C.line }}>
+        <input placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+        <textarea placeholder="Escreva algo..." rows={2} value={msg} onChange={(e) => setMsg(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+        <Btn className="w-full justify-center" onClick={send}><Send size={14} /> Enviar</Btn>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="hidden lg:flex fixed right-0 top-24 bottom-4 w-72 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
+        <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
+          <MessageCircle size={16} color={C.ember} />
+          <p className="font-display font-semibold text-sm">Fórum</p>
+        </div>
+        {Feed}
+      </div>
+      <button onClick={() => setOpen(true)} className="lg:hidden fixed right-4 bottom-4 z-30 p-3 rounded-full shadow-xl focus:outline-none focus:ring-2" style={{ background: C.ember, color: "#fff" }}>
+        <MessageCircle size={20} />
+      </button>
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end" style={{ background: "#00000077" }}>
+          <div className="w-full h-[70vh] rounded-t-2xl flex flex-col" style={{ background: C.cream }}>
+            <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: C.line }}>
+              <p className="font-display font-semibold">Fórum</p>
+              <button onClick={() => setOpen(false)}><X size={18} /></button>
+            </div>
+            {Feed}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
 function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage }) {
@@ -456,23 +583,77 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
   );
 }
 
-function Home({ site, setPage, visitantes }) {
+function HomeCardsAdmin({ cards, onSave }) {
+  const [vals, setVals] = useState(cards);
+  useEffect(() => setVals(cards), [cards]);
+  const update = (idx, patch) => setVals((v) => v.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  return (
+    <div className="mt-4 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+      <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · editar cards da Home (título, descrição, imagem)</p>
+      <div className="space-y-2">
+        {vals.map((c, idx) => (
+          <div key={c.key} className="grid sm:grid-cols-3 gap-2 p-2 rounded-md" style={{ background: C.parchment }}>
+            <Field label={`Título (${c.key})`}><input className={inputCls} style={{ borderColor: C.line }} value={c.titulo} onChange={(e) => update(idx, { titulo: e.target.value })} /></Field>
+            <Field label="Descrição"><input className={inputCls} style={{ borderColor: C.line }} value={c.desc} onChange={(e) => update(idx, { desc: e.target.value })} /></Field>
+            <Field label="URL da imagem"><input className={inputCls} style={{ borderColor: C.line }} value={c.imageUrl} onChange={(e) => update(idx, { imageUrl: e.target.value })} /></Field>
+          </div>
+        ))}
+      </div>
+      <Btn className="mt-3" onClick={() => onSave(vals)}>Salvar cards</Btn>
+    </div>
+  );
+}
+
+function HeroSlidesAdmin({ slides, onSave }) {
+  const [vals, setVals] = useState(slides);
+  useEffect(() => setVals(slides), [slides]);
+  const update = (idx, patch) => setVals((v) => v.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  return (
+    <div className="mt-4 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+      <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · editar banners do carrossel de entrada</p>
+      <div className="space-y-2">
+        {vals.map((s, idx) => (
+          <div key={s.id} className="grid sm:grid-cols-3 gap-2 p-2 rounded-md" style={{ background: C.parchment }}>
+            <Field label="Título"><input className={inputCls} style={{ borderColor: C.line }} value={s.titulo} onChange={(e) => update(idx, { titulo: e.target.value })} /></Field>
+            <Field label="Subtítulo"><input className={inputCls} style={{ borderColor: C.line }} value={s.subtitulo || ""} onChange={(e) => update(idx, { subtitulo: e.target.value })} /></Field>
+            <Field label="URL da imagem"><input className={inputCls} style={{ borderColor: C.line }} value={s.imageUrl} onChange={(e) => update(idx, { imageUrl: e.target.value })} /></Field>
+          </div>
+        ))}
+      </div>
+      <Btn className="mt-3" onClick={() => onSave(vals)}>Salvar banners</Btn>
+    </div>
+  );
+}
+
+function Home({ site, setPage, visitantes, saveSite, adminMode }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
+  const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} height="h-screen" />
+      <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} height="h-[66vh]" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <QuickCard icon={KeyRound} title="Códigos Avivar" desc="Profecia, ciência e espiritualidade." onClick={() => setPage("codigos")} tone="violet" bgImage={CODIGOS_BANNER} />
-        <QuickCard icon={Calendar} title="Eventos & Galeria" desc="Agenda e melhores momentos." onClick={() => setPage("eventos")} tone="gold" bgImage={EVENTOS_BANNER} />
-        <QuickCard icon={Radio} title="Ao Vivo" desc="Transmissões em tempo real." onClick={() => setPage("aovivo")} tone="red" bgImage={AOVIVO_BANNER} />
-        <QuickCard icon={BookOpen} title="Bíblia Sagrada" desc="Leia a Palavra, capítulo por capítulo." onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} tone="violet" bgImage={BIBLIA_CARD_BG} />
-        <QuickCard icon={Video} title="Avivar News" desc="Reportagens do ministério." onClick={() => setPage("avivarnews")} tone="gold" bgImage={AVIVARNEWS_BANNER} />
-        <QuickCard icon={Church} title="Igrejas Avivar" desc="Conheça nossas unidades." onClick={() => setPage("igrejas")} tone="violet" bgImage={IGREJAS_BANNER} />
-        <QuickCard icon={Send} title="Doações" desc="Dízimos e ofertas." onClick={() => setPage("doacoes")} tone="gold" bgImage={DOACOES_BANNER} />
-        <QuickCard icon={Sparkles} title="Orações nos Lares" desc="Peça oração ou visita de intercessão." onClick={() => setPage("oracoes")} tone="red" bgImage={ORACOES_BANNER} />
-        <QuickCard icon={BookOpen} title="Estudos Bíblicos" desc="Palavra e vida." onClick={() => setPage("estudos")} tone="violet" bgImage={ESTUDOS_BANNER} />
-        <QuickCard icon={HandHeart} title="Visitantes" desc="Registre sua visita." onClick={() => setPage("visitantes")} tone="gold" bgImage={VISITANTES_BANNER} />
+        {homeCards.map((c) => {
+          const Icon = CARD_ICONS[c.key] || Sparkles;
+          return (
+            <QuickCard
+              key={c.key}
+              icon={Icon}
+              title={c.titulo}
+              desc={c.desc}
+              onClick={() => (c.externalUrl ? window.open(c.externalUrl, "_blank", "noopener,noreferrer") : setPage(c.key))}
+              tone={c.tone}
+              bgImage={c.imageUrl}
+            />
+          );
+        })}
       </div>
+
+      {adminMode && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+          <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
+          <HeroSlidesAdmin slides={site.heroSlides} onSave={(v) => saveSite({ ...site, heroSlides: v })} />
+        </div>
+      )}
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
         <div>
@@ -1320,6 +1501,7 @@ export default function App() {
   const [visitantes, setVisitantes] = useState([]);
   const [oracoes, setOracoes] = useState([]);
   const [mensagens, setMensagens] = useState([]);
+  const [forumPosts, setForumPosts] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -1336,11 +1518,13 @@ export default function App() {
       setVisitantes(await loadKey("avivar:visitantes", []));
       setOracoes(await loadKey("avivar:oracoes", []));
       setMensagens(await loadKey("avivar:mensagens", []));
+      setForumPosts(await loadKey("avivar:forum", []));
       setLoading(false);
     })();
   }, []);
 
   const persist = {
+    site: (v) => { setSite(v); saveKey("avivar:site", v); },
     codigos: (v) => { setCodigos(v); saveKey("avivar:codigos", v); },
     eventos: (v) => { setEventos(v); saveKey("avivar:eventos", v); },
     galeria: (v) => { setGaleria(v); saveKey("avivar:galeria", v); },
@@ -1353,6 +1537,7 @@ export default function App() {
     visitantes: (v) => { setVisitantes(v); saveKey("avivar:visitantes", v); },
     oracoes: (v) => { setOracoes(v); saveKey("avivar:oracoes", v); },
     mensagens: (v) => { setMensagens(v); saveKey("avivar:mensagens", v); },
+    forum: (v) => { setForumPosts(v); saveKey("avivar:forum", v); },
   };
 
   if (loading) {
@@ -1377,9 +1562,11 @@ export default function App() {
       `}</style>
 
       <NavBar page={page} setPage={setPage} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
+      <SideCarousel cards={site.homeCards || DEFAULT_HOMECARDS} setPage={setPage} />
+      <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main>
-        {page === "home" && <Home site={site} setPage={setPage} visitantes={visitantes} />}
+        {page === "home" && <Home site={site} setPage={setPage} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} />}
         {page === "codigos" && <CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} />}
         {page === "eventos" && <EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} />}
         {page === "aovivo" && <AoVivo data={aoVivo} save={persist.aoVivo} adminMode={adminMode} />}
