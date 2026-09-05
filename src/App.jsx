@@ -3,7 +3,7 @@ import {
   Flame, Menu, X, ChevronLeft, ChevronRight, Lock, Unlock, Plus, Trash2,
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
-  KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles
+  KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 
@@ -43,6 +43,8 @@ const DOACOES_BANNER = "/doacoes-banner.jpg";
 const ORACOES_BANNER = "/oracoes-banner.jpg";
 const ESTUDOS_BANNER = "/estudos-banner.jpg";
 const VISITANTES_BANNER = "/visitantes-banner.jpg";
+const LOJA_BANNER = "/loja-avivar-banner.jpg";
+const COLABORADORES_BANNER = "/colaboradores-banner.jpg";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
@@ -94,19 +96,23 @@ const CARD_ICONS = {
   oracoes: Sparkles,
   estudos: BookOpen,
   visitantes: HandHeart,
+  loja: ShoppingBag,
+  colaboradores: Users,
 };
 
 const DEFAULT_HOMECARDS = [
-  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
-  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
   { key: "aovivo", titulo: "Ao Vivo", desc: "Transmissões em tempo real.", imageUrl: AOVIVO_BANNER, tone: "red" },
-  { key: "biblia", titulo: "Bíblia Sagrada", desc: "Leia a Palavra, capítulo por capítulo.", imageUrl: BIBLIA_CARD_BG, tone: "violet", externalUrl: BIBLIA_URL },
   { key: "avivarnews", titulo: "Avivar News", desc: "Reportagens do ministério.", imageUrl: AVIVARNEWS_BANNER, tone: "gold" },
-  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
-  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
-  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
+  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
+  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
+  { key: "biblia", titulo: "Bíblia Sagrada", desc: "Leia a Palavra, capítulo por capítulo.", imageUrl: BIBLIA_CARD_BG, tone: "violet", externalUrl: BIBLIA_URL },
   { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
+  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
   { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
+  { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", imageUrl: LOJA_BANNER, tone: "gold" },
+  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
+  { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
 ];
 
 const DEFAULT_SITE = {
@@ -278,6 +284,13 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
       {s.mist && (
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 75% 35%, #CBA13566 0%, transparent 55%), radial-gradient(circle at 15% 85%, #4A3B6B77 0%, transparent 60%)" }} />
       )}
+      {s.taglines && (
+        <div className="hidden sm:block absolute top-6 right-6 sm:right-12 z-10 text-right max-w-xs sm:max-w-sm pointer-events-none">
+          {s.taglines.map((t, idx) => (
+            <p key={idx} className="text-sm sm:text-base italic mb-1" style={{ color: C.goldBright, textShadow: "0 2px 8px #000000cc" }}>{t}</p>
+          ))}
+        </div>
+      )}
       <button
         onClick={() => onSlideClick && onSlideClick(s)}
         className={`absolute inset-0 w-full h-full flex flex-col text-left focus:outline-none focus:ring-2 focus:ring-inset ${s.selfContained ? "items-stretch justify-end" : "items-start justify-end p-6 sm:p-12"}`}
@@ -288,13 +301,6 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
             <Eyebrow color={C.gold}>{i + 1 < 10 ? `0${i + 1}` : i + 1} / {slides.length}</Eyebrow>
             <h2 className="font-script text-4xl sm:text-6xl leading-tight" style={{ color: s.titleColor || C.goldBright, textShadow: s.titleShadowBlack ? "0 3px 12px #000000cc" : "none" }}>{s.titulo}</h2>
             {s.subtitulo && <p className="mt-3 max-w-xl text-sm sm:text-base opacity-90">{s.subtitulo}</p>}
-            {s.taglines && (
-              <div className="mt-4 ml-auto text-right max-w-sm">
-                {s.taglines.map((t, idx) => (
-                  <p key={idx} className="text-sm sm:text-base italic mb-1" style={{ color: C.goldBright, textShadow: "0 2px 8px #000000cc" }}>{t}</p>
-                ))}
-              </div>
-            )}
             <span className="mt-4 text-xs font-mono tracking-wide underline decoration-dotted">toque para ver mais</span>
           </>
         )}
@@ -334,6 +340,7 @@ const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "avivarnews", label: "Avivar News", icon: Video },
+  { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "doacoes", label: "Doações", icon: Send },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
   { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
@@ -464,27 +471,37 @@ function Footer({ churchName }) {
 /* Carrossel lateral fixo (disponível em todas as páginas)             */
 /* ---------------------------------------------------------------- */
 const SIDE_COLORS = ["#6C3FA8", "#E07B39", "#2E8B57", "#B39DDB", "#CBA135", "#B03428", "#4A3B6B", "#1B8A55", "#9C4A20", "#8B6F1F"];
+const SIDE_PER_PAGE = 4;
 
 function SideCarousel({ cards, setPage }) {
-  const [i, setI] = useState(0);
+  const [pageIdx, setPageIdx] = useState(0);
+  const totalPages = cards ? Math.ceil(cards.length / SIDE_PER_PAGE) : 0;
   useEffect(() => {
-    if (!cards || cards.length < 2) return;
-    const t = setInterval(() => setI((v) => (v + 1) % cards.length), 4000);
+    if (totalPages < 2) return;
+    const t = setInterval(() => setPageIdx((v) => (v + 1) % totalPages), 5000);
     return () => clearInterval(t);
-  }, [cards]);
+  }, [totalPages]);
   if (!cards || !cards.length) return null;
-  const card = cards[i % cards.length];
-  const Icon = CARD_ICONS[card.key] || Sparkles;
-  const color = SIDE_COLORS[i % SIDE_COLORS.length];
+  const visible = cards.slice(pageIdx * SIDE_PER_PAGE, pageIdx * SIDE_PER_PAGE + SIDE_PER_PAGE);
   return (
-    <button
-      onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
-      className="fixed left-0 top-1/2 -translate-y-1/2 z-30 w-24 sm:w-28 rounded-r-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2"
-      style={{ background: color, color: "#fff" }}
-    >
-      <Icon size={18} color="#fff" />
-      <p className="text-[11px] font-display font-bold uppercase tracking-wide mt-2 leading-tight">{card.titulo}</p>
-    </button>
+    <div className="hidden lg:flex fixed left-0 top-24 bottom-8 z-30 w-28 flex-col gap-2">
+      {visible.map((card, idx) => {
+        const globalIdx = pageIdx * SIDE_PER_PAGE + idx;
+        const Icon = CARD_ICONS[card.key] || Sparkles;
+        const color = SIDE_COLORS[globalIdx % SIDE_COLORS.length];
+        return (
+          <button
+            key={card.key}
+            onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
+            className="flex-1 rounded-r-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
+            style={{ background: color, color: "#fff" }}
+          >
+            <Icon size={16} color="#fff" />
+            <p className="text-[10px] font-display font-bold uppercase tracking-wide mt-1 leading-tight">{card.titulo}</p>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -523,7 +540,7 @@ function Forum({ posts, addPost }) {
       </div>
       <div className="p-3 border-t space-y-2" style={{ borderColor: C.line }}>
         <input placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
-        <textarea placeholder="Escreva algo..." rows={2} value={msg} onChange={(e) => setMsg(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+        <textarea placeholder="Escreva algo..." rows={1} value={msg} onChange={(e) => setMsg(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
         <Btn className="w-full justify-center" onClick={send}><Send size={14} /> Enviar</Btn>
       </div>
     </div>
@@ -531,7 +548,7 @@ function Forum({ posts, addPost }) {
 
   return (
     <>
-      <div className="hidden lg:flex fixed right-0 top-24 bottom-4 w-72 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
+      <div className="hidden lg:flex fixed right-0 top-24 bottom-8 w-72 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
           <MessageCircle size={16} color={C.ember} />
           <p className="font-display font-semibold text-sm">Fórum</p>
@@ -565,7 +582,7 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
   return (
     <button
       onClick={onClick}
-      className={`relative text-left p-5 rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
+      className={`relative text-left p-6 min-h-[140px] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
       style={{ background: bgImage ? C.black : bg, borderColor: border, color: "#fff" }}
     >
       {bgImage && (
@@ -575,9 +592,9 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
         </>
       )}
       <div className="relative">
-        <Icon size={20} color="#fff" />
-        <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white">{title}</h3>
-        <p className="text-xs mt-1 opacity-90 text-white">{desc}</p>
+        <Icon size={26} color="#fff" />
+        <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white text-base">{title}</h3>
+        <p className="text-sm mt-1.5 opacity-90 text-white">{desc}</p>
       </div>
     </button>
   );
@@ -631,7 +648,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode }) {
   return (
     <div>
       <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} height="h-[66vh]" />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:pr-80 -mt-10 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -649,7 +666,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode }) {
       </div>
 
       {adminMode && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:pr-80 relative z-10">
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
           <HeroSlidesAdmin slides={site.heroSlides} onSave={(v) => saveSite({ ...site, heroSlides: v })} />
         </div>
@@ -979,7 +996,7 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
                 {g.fotos.map((f, idx) => (
-                  <img key={idx} src={f} className="w-full h-24 object-cover rounded-md" />
+                  <img key={idx} src={f} className="w-full h-24 object-cover object-top rounded-md" />
                 ))}
                 {g.videos.map((v, idx) => (
                   <div key={idx} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
@@ -1050,6 +1067,62 @@ function AoVivo({ data, save, adminMode }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Loja Avivar                                                          */
+/* ---------------------------------------------------------------- */
+const LOJA_FIELDS = [
+  { key: "nome", label: "Nome do produto" },
+  { key: "categoria", label: "Categoria (Livros, Roupas, Utensílios...)" },
+  { key: "preco", label: "Preço (ex: R$ 49,90)" },
+  { key: "descricao", label: "Descrição", type: "textarea" },
+  { key: "imageUrl", label: "URL da imagem", type: "url" },
+  { key: "linkCompra", label: "Link de compra (Mercado Pago ou WhatsApp)", type: "url" },
+];
+
+function Loja({ items, save, adminMode }) {
+  const add = (v) => save([...items, { id: uid(), ...v }]);
+  const del = (id) => save(items.filter((i) => i.id !== id));
+  return (
+    <div>
+      <div className="w-full h-48 sm:h-64 overflow-hidden">
+        <ImgOrPlaceholder url={LOJA_BANNER} alt="Loja Avivar" className="w-full h-full object-cover" ph="Banner Loja Avivar — adicionar depois" />
+      </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
+        <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Loja Avivar</h2>
+        {items.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+          {items.map((p) => (
+            <div key={p.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+              <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-44 object-cover" />
+              <div className="p-4">
+                {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
+                <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
+                {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
+                <div className="flex items-center justify-between mt-3">
+                  <span className="font-display font-bold" style={{ color: C.ember }}>{p.preco}</span>
+                  {p.linkCompra && (
+                    <a href={p.linkCompra} target="_blank" rel="noreferrer">
+                      <Btn>Comprar</Btn>
+                    </a>
+                  )}
+                </div>
+                {adminMode && <button onClick={() => del(p.id)} className="text-xs underline mt-2" style={{ color: "#B03428" }}>excluir</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+        {adminMode && (
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo produto</p>
+            <DynamicForm fields={LOJA_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Publicar produto" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1494,6 +1567,7 @@ export default function App() {
   const [galeria, setGaleria] = useState([]);
   const [aoVivo, setAoVivo] = useState(DEFAULT_AOVIVO);
   const [doacoes, setDoacoes] = useState(DEFAULT_DOACOES);
+  const [loja, setLoja] = useState([]);
   const [igrejas, setIgrejas] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [estudos, setEstudos] = useState([]);
@@ -1511,6 +1585,7 @@ export default function App() {
       setGaleria(await loadKey("avivar:galeria", []));
       setAoVivo(await loadKey("avivar:aovivo", DEFAULT_AOVIVO));
       setDoacoes(await loadKey("avivar:doacoes", DEFAULT_DOACOES));
+      setLoja(await loadKey("avivar:loja", []));
       setIgrejas(await loadKey("avivar:igrejas", []));
       setColaboradores(await loadKey("avivar:colaboradores", []));
       setEstudos(await loadKey("avivar:estudos", []));
@@ -1530,6 +1605,7 @@ export default function App() {
     galeria: (v) => { setGaleria(v); saveKey("avivar:galeria", v); },
     aoVivo: (v) => { setAoVivo(v); saveKey("avivar:aovivo", v); },
     doacoes: (v) => { setDoacoes(v); saveKey("avivar:doacoes", v); },
+    loja: (v) => { setLoja(v); saveKey("avivar:loja", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
     estudos: (v) => { setEstudos(v); saveKey("avivar:estudos", v); },
@@ -1571,6 +1647,7 @@ export default function App() {
         {page === "eventos" && <EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} />}
         {page === "aovivo" && <AoVivo data={aoVivo} save={persist.aoVivo} adminMode={adminMode} />}
         {page === "doacoes" && <Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} />}
+        {page === "loja" && <Loja items={loja} save={persist.loja} adminMode={adminMode} />}
         {page === "igrejas" && <Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} />}
         {page === "colaboradores" && <Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} />}
         {page === "estudos" && <Estudos items={estudos} save={persist.estudos} adminMode={adminMode} />}
