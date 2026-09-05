@@ -285,7 +285,7 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 75% 35%, #CBA13566 0%, transparent 55%), radial-gradient(circle at 15% 85%, #4A3B6B77 0%, transparent 60%)" }} />
       )}
       {s.taglines && (
-        <div className="hidden sm:block absolute top-6 right-6 sm:right-12 z-10 text-right max-w-xs sm:max-w-sm pointer-events-none">
+        <div className="hidden sm:block absolute top-6 left-1/2 -translate-x-1/2 z-20 text-center max-w-md pointer-events-none">
           {s.taglines.map((t, idx) => (
             <p key={idx} className="text-sm sm:text-base italic mb-1" style={{ color: C.goldBright, textShadow: "0 2px 8px #000000cc" }}>{t}</p>
           ))}
@@ -484,7 +484,7 @@ function SideCarousel({ cards, setPage }) {
   if (!cards || !cards.length) return null;
   const visible = cards.slice(pageIdx * SIDE_PER_PAGE, pageIdx * SIDE_PER_PAGE + SIDE_PER_PAGE);
   return (
-    <div className="hidden lg:flex fixed left-0 top-24 bottom-8 z-30 w-28 flex-col gap-2">
+    <div className="hidden lg:flex fixed left-3 top-24 bottom-8 z-30 w-28 flex-col gap-2">
       {visible.map((card, idx) => {
         const globalIdx = pageIdx * SIDE_PER_PAGE + idx;
         const Icon = CARD_ICONS[card.key] || Sparkles;
@@ -493,7 +493,7 @@ function SideCarousel({ cards, setPage }) {
           <button
             key={card.key}
             onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
-            className="flex-1 rounded-r-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
+            className="flex-1 rounded-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
             style={{ background: color, color: "#fff" }}
           >
             <Icon size={16} color="#fff" />
@@ -994,9 +994,9 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
                 </div>
                 {adminMode && <button onClick={() => delSessao(g.id)}><Trash2 size={15} color={C.stone} /></button>}
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-4">
                 {g.fotos.map((f, idx) => (
-                  <img key={idx} src={f} className="w-full h-24 object-cover object-top rounded-md" />
+                  <img key={idx} src={f} className="w-full h-44 object-cover object-top rounded-md" />
                 ))}
                 {g.videos.map((v, idx) => (
                   <div key={idx} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
