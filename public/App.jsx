@@ -3,9 +3,11 @@ import {
   Flame, Menu, X, ChevronLeft, ChevronRight, Lock, Unlock, Plus, Trash2,
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
-  KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag
+  KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
+  Music, Wallet, Package, UserPlus
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
+import { QRCodeSVG } from "qrcode.react";
 
 /* ---------------------------------------------------------------- */
 /* Tokens                                                            */
@@ -45,6 +47,7 @@ const ESTUDOS_BANNER = "/estudos-banner.jpg";
 const VISITANTES_BANNER = "/visitantes-banner.jpg";
 const LOJA_BANNER = "/loja-avivar-banner.jpg";
 const COLABORADORES_BANNER = "/colaboradores-banner.jpg";
+const BIBLIA_DESTAQUE_BANNER = "/biblia-avivar-destaque.jpg";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
@@ -61,6 +64,29 @@ const fmtDate = (str) => {
   return d ? `${d}/${m}/${y}` : str;
 };
 const digitsOnly = (s) => (s || "").replace(/\D/g, "");
+const printReport = (title, bodyHtml) => {
+  const win = window.open("", "_blank", "width=850,height=1000");
+  if (!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title><meta charset="utf-8" />
+    <style>
+      body { font-family: Georgia, 'Times New Roman', serif; padding: 28px; color: #1F1B2E; }
+      h1 { font-size: 20px; border-bottom: 2px solid #CBA135; padding-bottom: 8px; margin-bottom: 4px; }
+      .sub { font-size: 12px; color: #8A8272; margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border: 1px solid #ccc; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; }
+      th { background: #F1E7D3; }
+      .totais { margin-top: 16px; font-size: 13px; }
+      @media print { body { padding: 0; } }
+    </style>
+    </head><body>
+      <h1>${title}</h1>
+      <p class="sub">Ministério Avivar do Espírito · gerado em ${new Date().toLocaleString("pt-BR")}</p>
+      ${bodyHtml}
+    </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+};
 const waLink = (phone, msg) => `https://wa.me/${digitsOnly(phone)}?text=${encodeURIComponent(msg)}`;
 const getEmbedUrl = (url) => {
   if (!url) return "";
@@ -101,18 +127,15 @@ const CARD_ICONS = {
 };
 
 const DEFAULT_HOMECARDS = [
-  { key: "aovivo", titulo: "Ao Vivo", desc: "Transmissões em tempo real.", imageUrl: AOVIVO_BANNER, tone: "red" },
-  { key: "avivarnews", titulo: "Avivar News", desc: "Reportagens do ministério.", imageUrl: AVIVARNEWS_BANNER, tone: "gold" },
-  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
-  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
-  { key: "biblia", titulo: "Bíblia Sagrada", desc: "Leia a Palavra, capítulo por capítulo.", imageUrl: BIBLIA_CARD_BG, tone: "violet", externalUrl: BIBLIA_URL },
-  { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
-  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
-  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
-  { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
   { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", imageUrl: LOJA_BANNER, tone: "gold" },
-  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
+  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
+  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
+  { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
+  { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
   { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
+  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
+  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
 ];
 
 const DEFAULT_SITE = {
@@ -210,6 +233,13 @@ function DynamicForm({ fields, accent = C.gold, onSubmit, submitLabel = "Adicion
           <Field label={f.label}>
             {f.type === "textarea" ? (
               <textarea rows={3} value={vals[f.key]} onChange={(e) => set(f.key, e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+            ) : f.type === "select" ? (
+              <select value={vals[f.key]} onChange={(e) => set(f.key, e.target.value)} className={inputCls} style={{ borderColor: C.line }}>
+                <option value="">Selecione...</option>
+                {(f.options || []).map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             ) : (
               <input type={f.type || "text"} value={vals[f.key]} onChange={(e) => set(f.key, e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
             )}
@@ -285,7 +315,7 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 75% 35%, #CBA13566 0%, transparent 55%), radial-gradient(circle at 15% 85%, #4A3B6B77 0%, transparent 60%)" }} />
       )}
       {s.taglines && (
-        <div className="hidden sm:block absolute top-6 right-6 sm:right-12 z-10 text-right max-w-xs sm:max-w-sm pointer-events-none">
+        <div className="hidden sm:block absolute top-6 left-1/2 -translate-x-1/2 z-20 text-center max-w-md pointer-events-none">
           {s.taglines.map((t, idx) => (
             <p key={idx} className="text-sm sm:text-base italic mb-1" style={{ color: C.goldBright, textShadow: "0 2px 8px #000000cc" }}>{t}</p>
           ))}
@@ -293,7 +323,7 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
       )}
       <button
         onClick={() => onSlideClick && onSlideClick(s)}
-        className={`absolute inset-0 w-full h-full flex flex-col text-left focus:outline-none focus:ring-2 focus:ring-inset ${s.selfContained ? "items-stretch justify-end" : "items-start justify-end p-6 sm:p-12"}`}
+        className={`absolute inset-0 w-full h-full flex flex-col text-center focus:outline-none focus:ring-2 focus:ring-inset ${s.selfContained ? "items-stretch justify-end" : "items-center justify-center p-6 sm:p-12"}`}
         style={{ color: "#fff" }}
       >
         {!s.selfContained && (
@@ -339,11 +369,16 @@ const NAV = [
 const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
-  { key: "avivarnews", label: "Avivar News", icon: Video },
   { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "doacoes", label: "Doações", icon: Send },
+  { key: "membros", label: "Membros", icon: UserPlus },
+  { key: "avivarmusic", label: "Avivar Music", icon: Music },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
   { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
+];
+const ADMIN_MENU = [
+  { key: "caixa", label: "Caixa", icon: Wallet },
+  { key: "bens", label: "Bens", icon: Package },
 ];
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
@@ -393,6 +428,16 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
                     <n.icon size={15} /> {n.label}
                   </button>
                 ))}
+                {adminMode && (
+                  <>
+                    <div className="my-1 border-t" style={{ borderColor: C.gold + "22" }} />
+                    {ADMIN_MENU.map((n) => (
+                      <button key={n.key} onClick={() => go(n.key)} className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex items-center gap-2" style={{ color: C.goldBright }}>
+                        <n.icon size={15} /> {n.label}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -406,7 +451,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
       </div>
       {open && (
         <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1" style={{ borderColor: C.gold + "33", background: C.black }}>
-          {[...NAV, ...SUBMENU].map((n) => (
+          {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
             <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: page === n.key ? C.goldBright : C.gold }}>
               <n.icon size={15} /> {n.label}
             </button>
@@ -459,8 +504,12 @@ function AdminGateModal({ onClose, onSuccess }) {
 function Footer({ churchName }) {
   return (
     <footer className="border-t mt-16 py-10 px-4 sm:px-6" style={{ borderColor: C.gold + "33", background: C.black }}>
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center sm:items-center justify-between gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
         <img src={LOGO_BLACK_BG} alt={churchName} className="h-20 w-auto rounded-md" />
+        <div className="flex items-center gap-3 bg-white p-2 rounded-lg">
+          <QRCodeSVG value="https://avivardoespirito.com.br" size={64} bgColor="#ffffff" fgColor="#0B0B0C" />
+          <p className="text-xs font-mono max-w-[120px]" style={{ color: C.black }}>Aponte a câmera e visite o site</p>
+        </div>
         <p className="text-xs font-mono text-center sm:text-right" style={{ color: C.gold + "cc" }}>Doutrina embasada nos princípios da fé cristã · {new Date().getFullYear()}</p>
       </div>
     </footer>
@@ -484,7 +533,7 @@ function SideCarousel({ cards, setPage }) {
   if (!cards || !cards.length) return null;
   const visible = cards.slice(pageIdx * SIDE_PER_PAGE, pageIdx * SIDE_PER_PAGE + SIDE_PER_PAGE);
   return (
-    <div className="hidden lg:flex fixed left-0 top-24 bottom-8 z-30 w-28 flex-col gap-2">
+    <div className="hidden lg:flex fixed left-3 top-24 bottom-8 z-30 w-28 flex-col gap-2">
       {visible.map((card, idx) => {
         const globalIdx = pageIdx * SIDE_PER_PAGE + idx;
         const Icon = CARD_ICONS[card.key] || Sparkles;
@@ -493,7 +542,7 @@ function SideCarousel({ cards, setPage }) {
           <button
             key={card.key}
             onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
-            className="flex-1 rounded-r-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
+            className="flex-1 rounded-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
             style={{ background: color, color: "#fff" }}
           >
             <Icon size={16} color="#fff" />
@@ -582,12 +631,12 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
   return (
     <button
       onClick={onClick}
-      className={`relative text-left p-6 min-h-[140px] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
+      className={`relative text-left p-6 min-h-[220px] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
       style={{ background: bgImage ? C.black : bg, borderColor: border, color: "#fff" }}
     >
       {bgImage && (
         <>
-          <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000033, #000000AA)" }} />
         </>
       )}
@@ -642,13 +691,69 @@ function HeroSlidesAdmin({ slides, onSave }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode }) {
+function LiveHomeCard({ aoVivo, onClick }) {
+  return (
+    <div className="rounded-xl overflow-hidden border-2 shadow-xl" style={{ borderColor: C.gold, background: C.black }}>
+      <div className="aspect-video bg-black relative">
+        {aoVivo.isLive && aoVivo.embedUrl ? (
+          <iframe title="ao-vivo-home" src={getEmbedUrl(aoVivo.embedUrl)} className="w-full h-full" allow="autoplay; encrypted-media" allowFullScreen />
+        ) : (
+          <button onClick={onClick} className="w-full h-full relative focus:outline-none">
+            <img src={AOVIVO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#00000066" }}>
+              <Radio size={32} color={C.gold} />
+            </div>
+          </button>
+        )}
+        {aoVivo.isLive && (
+          <span className="absolute top-2 left-2 text-[10px] font-mono px-2 py-1 rounded-full text-white flex items-center gap-1" style={{ background: "#E14D3A" }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-white" /> AO VIVO
+          </span>
+        )}
+      </div>
+      <button onClick={onClick} className="w-full text-left p-3 focus:outline-none">
+        <p className="font-display font-semibold text-sm" style={{ color: C.goldBright }}>{aoVivo.isLive ? "Estamos ao vivo agora" : "Ao Vivo & Avivar News"}</p>
+        <p className="text-xs mt-0.5" style={{ color: "#ffffffaa" }}>Toque para ver transmissões anteriores e notícias.</p>
+      </button>
+    </div>
+  );
+}
+
+function FeaturedBibliaCard({ onClick }) {
+  return (
+    <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left relative focus:outline-none focus:ring-2" style={{ borderColor: C.gold }}>
+      <ImgOrPlaceholder url={BIBLIA_DESTAQUE_BANNER} alt="Bíblia Avivar" className="w-full aspect-video object-cover" ph="Banner Bíblia Avivar — adicionar depois" />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, transparent 40%, #000000cc)" }} />
+      <div className="absolute bottom-0 left-0 right-0 p-3">
+        <p className="font-display font-semibold text-sm text-white">Bíblia Avivar</p>
+        <p className="text-xs text-white/80">A Palavra que transforma vidas — acessar agora</p>
+      </div>
+    </button>
+  );
+}
+
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <Carousel slides={site.heroSlides} onSlideClick={(s) => setPage(s.linkTo || "home")} height="h-[66vh]" />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:pr-80 -mt-10 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="relative h-[46vh] sm:h-[52vh] overflow-hidden" style={{ background: C.black }}>
+        <img src={HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(3px) brightness(0.45)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000066, #1F1B2ECC)" }} />
+        <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
+          <h1 className="font-script text-5xl sm:text-7xl" style={{ color: C.goldBright }}>{site.churchName}</h1>
+          <p className="mt-3 text-sm sm:text-base max-w-xl" style={{ color: "#ffffffdd" }}>
+            Um ministério comprometido em resgatar vidas, restaurar corações e avivar a Igreja com o poder do Espírito Santo.
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 gap-5">
+        <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
+        <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 mt-8 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -666,13 +771,12 @@ function Home({ site, setPage, visitantes, saveSite, adminMode }) {
       </div>
 
       {adminMode && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:pr-80 relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
-          <HeroSlidesAdmin slides={site.heroSlides} onSave={(v) => saveSite({ ...site, heroSlides: v })} />
         </div>
       )}
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-2 gap-8 items-start">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
           <Eyebrow>Sobre nós</Eyebrow>
           <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Uma casa de fé aberta a todos</h2>
@@ -994,9 +1098,9 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
                 </div>
                 {adminMode && <button onClick={() => delSessao(g.id)}><Trash2 size={15} color={C.stone} /></button>}
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-4">
                 {g.fotos.map((f, idx) => (
-                  <img key={idx} src={f} className="w-full h-24 object-cover object-top rounded-md" />
+                  <img key={idx} src={f} className="w-full h-44 object-cover object-top rounded-md" />
                 ))}
                 {g.videos.map((v, idx) => (
                   <div key={idx} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
@@ -1029,14 +1133,28 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
 /* ---------------------------------------------------------------- */
 /* Ao Vivo                                                             */
 /* ---------------------------------------------------------------- */
-function AoVivo({ data, save, adminMode }) {
+const PASSADA_FIELDS = [
+  { key: "titulo", label: "Título da transmissão" },
+  { key: "data", label: "Data", type: "date" },
+  { key: "videoUrl", label: "Link do vídeo (YouTube ou Vimeo)", type: "url" },
+];
+
+function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode }) {
+  const addPassada = (v) => savePassadas([...passadas, { id: uid(), ...v }]);
+  const delPassada = (id) => savePassadas(passadas.filter((p) => p.id !== id));
+  const sortedPassadas = [...passadas].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  const addNews = (v) => saveNews([...news, { id: uid(), ...v, timestamp: nowISO() }]);
+  const delNews = (id) => saveNews(news.filter((n) => n.id !== id));
+  const sortedNews = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: data.isLive ? "#E14D3A" : C.stone, boxShadow: data.isLive ? "0 0 0 4px #E14D3A33" : "none" }} />
         <Eyebrow color={data.isLive ? "#E14D3A" : C.stone}>{data.isLive ? "AO VIVO AGORA" : "Sem transmissão no momento"}</Eyebrow>
       </div>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Transmissões</h2>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Ao Vivo</h2>
 
       {data.isLive && data.embedUrl ? (
         <div className="aspect-video rounded-xl overflow-hidden bg-black mt-6">
@@ -1067,6 +1185,65 @@ function AoVivo({ data, save, adminMode }) {
           </div>
         </div>
       )}
+
+      {/* Transmissões anteriores */}
+      <div className="mt-14 pt-8 border-t" style={{ borderColor: C.line }}>
+        <Eyebrow>Já se passou</Eyebrow>
+        <h3 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Transmissões Anteriores</h3>
+        <div className="grid sm:grid-cols-2 gap-4 mt-4">
+          {sortedPassadas.length === 0 && <Empty text="Nenhuma transmissão anterior cadastrada ainda." />}
+          {sortedPassadas.map((p) => (
+            <div key={p.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line }}>
+              <div className="aspect-video bg-black">
+                <iframe title={p.titulo} src={getEmbedUrl(p.videoUrl)} className="w-full h-full" allowFullScreen />
+              </div>
+              <div className="p-3 flex justify-between items-start">
+                <div>
+                  <p className="font-medium text-sm">{p.titulo}</p>
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(p.data)}</p>
+                </div>
+                {adminMode && <button onClick={() => delPassada(p.id)}><Trash2 size={14} color={C.stone} /></button>}
+              </div>
+            </div>
+          ))}
+        </div>
+        {adminMode && (
+          <div className="mt-4">
+            <DynamicForm fields={PASSADA_FIELDS} onSubmit={(v) => v.titulo && addPassada(v)} submitLabel="Adicionar transmissão" />
+          </div>
+        )}
+      </div>
+
+      {/* Avivar News */}
+      <div className="mt-14 pt-8 border-t" style={{ borderColor: C.line }}>
+        <Eyebrow>Reportagens do ministério</Eyebrow>
+        <h3 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Avivar News</h3>
+        {sortedNews.length === 0 && <div className="mt-4"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
+        <div className="space-y-6 mt-4">
+          {sortedNews.map((n) => (
+            <div key={n.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-48 object-cover" />}
+              <div className="p-5">
+                <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
+                <h4 className="font-display font-semibold text-lg mt-1">{n.titulo}</h4>
+                {n.videoUrl && (
+                  <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
+                    <iframe title={n.titulo} src={getEmbedUrl(n.videoUrl)} className="w-full h-full" allowFullScreen />
+                  </div>
+                )}
+                {n.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{n.texto}</p>}
+                {adminMode && <button onClick={() => delNews(n.id)} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+        {adminMode && (
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova reportagem</p>
+            <DynamicForm fields={AVIVARNEWS_FIELDS} onSubmit={(v) => v.titulo && addNews(v)} submitLabel="Publicar reportagem" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1161,6 +1338,166 @@ function Doacoes({ data, save, adminMode }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Caixa (financeiro) — área restrita ao admin                          */
+/* ---------------------------------------------------------------- */
+const CAIXA_FIELDS = [
+  { key: "tipo", label: "Tipo", type: "select", options: ["Entrada", "Saída"] },
+  { key: "categoria", label: "Categoria", type: "select", options: ["Dízimo", "Oferta", "Água", "Luz", "Internet", "Manutenção", "Bens", "Outro"] },
+  { key: "descricao", label: "Descrição" },
+  { key: "valor", label: "Valor (R$)", type: "number" },
+  { key: "data", label: "Data", type: "date" },
+];
+
+function Caixa({ items, save, adminMode }) {
+  const add = (v) => save([...items, { id: uid(), ...v }]);
+  const del = (id) => save(items.filter((i) => i.id !== id));
+  const sorted = [...items].sort((a, b) => new Date(b.data) - new Date(a.data));
+  const totalEntradas = items.filter((i) => i.tipo === "Entrada").reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
+  const totalSaidas = items.filter((i) => i.tipo === "Saída").reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
+  const saldo = totalEntradas - totalSaidas;
+  const fmtR = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const gerarPDF = () => {
+    const rows = sorted
+      .map((i) => `<tr><td>${fmtDate(i.data)}</td><td>${i.tipo}</td><td>${i.categoria}</td><td>${i.descricao || ""}</td><td>${fmtR(parseFloat(i.valor) || 0)}</td></tr>`)
+      .join("");
+    printReport(
+      "Relatório de Caixa",
+      `<table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>
+       <div class="totais">
+         <p><strong>Total de entradas:</strong> ${fmtR(totalEntradas)}</p>
+         <p><strong>Total de saídas:</strong> ${fmtR(totalSaidas)}</p>
+         <p><strong>Saldo:</strong> ${fmtR(saldo)}</p>
+       </div>`
+    );
+  };
+
+  if (!adminMode) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <Lock size={28} className="mx-auto" color={C.stone} />
+        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow>Área administrativa</Eyebrow>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Caixa</h2>
+
+      <div className="grid sm:grid-cols-3 gap-4 mt-6">
+        <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#2E7D4F11" }}>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>Entradas</p>
+          <p className="font-display font-bold text-lg" style={{ color: "#2E7D4F" }}>{fmtR(totalEntradas)}</p>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#B0342811" }}>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>Saídas</p>
+          <p className="font-display font-bold text-lg" style={{ color: "#B03428" }}>{fmtR(totalSaidas)}</p>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: C.parchment }}>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>Saldo</p>
+          <p className="font-display font-bold text-lg" style={{ color: C.ink }}>{fmtR(saldo)}</p>
+        </div>
+      </div>
+
+      <Btn className="mt-4" onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
+
+      <div className="mt-6 space-y-2">
+        {sorted.length === 0 && <Empty text="Nenhum lançamento ainda." />}
+        {sorted.map((i) => (
+          <div key={i.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+            <div>
+              <p className="font-medium">{i.categoria} {i.descricao && `· ${i.descricao}`}</p>
+              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(i.data)}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-display font-semibold" style={{ color: i.tipo === "Entrada" ? "#2E7D4F" : "#B03428" }}>{i.tipo === "Saída" ? "-" : "+"}{fmtR(parseFloat(i.valor) || 0)}</span>
+              <button onClick={() => del(i.id)}><Trash2 size={14} color={C.stone} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo lançamento</p>
+        <DynamicForm fields={CAIXA_FIELDS} onSubmit={(v) => v.tipo && v.categoria && add(v)} submitLabel="Lançar" />
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Bens (patrimônio) — área restrita ao admin                           */
+/* ---------------------------------------------------------------- */
+const BENS_FIELDS = [
+  { key: "nome", label: "Nome do bem" },
+  { key: "categoria", label: "Categoria" },
+  { key: "valor", label: "Valor estimado (R$)", type: "number" },
+  { key: "dataAquisicao", label: "Data de aquisição", type: "date" },
+  { key: "observacao", label: "Observação", type: "textarea" },
+];
+
+function Bens({ items, save, adminMode }) {
+  const add = (v) => save([...items, { id: uid(), ...v }]);
+  const del = (id) => save(items.filter((i) => i.id !== id));
+  const fmtR = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const totalValor = items.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
+
+  const gerarPDF = () => {
+    const rows = items
+      .map((i) => `<tr><td>${i.nome}</td><td>${i.categoria || ""}</td><td>${fmtDate(i.dataAquisicao)}</td><td>${fmtR(parseFloat(i.valor) || 0)}</td><td>${i.observacao || ""}</td></tr>`)
+      .join("");
+    printReport(
+      "Relatório de Bens",
+      `<table><thead><tr><th>Bem</th><th>Categoria</th><th>Aquisição</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${rows}</tbody></table>
+       <div class="totais"><p><strong>Valor total do patrimônio:</strong> ${fmtR(totalValor)}</p></div>`
+    );
+  };
+
+  if (!adminMode) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <Lock size={28} className="mx-auto" color={C.stone} />
+        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow>Área administrativa</Eyebrow>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Bens</h2>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Valor total do patrimônio: <strong>{fmtR(totalValor)}</strong></p>
+
+      <Btn className="mt-4" onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
+
+      <div className="grid sm:grid-cols-2 gap-3 mt-6">
+        {items.length === 0 && <Empty text="Nenhum bem cadastrado ainda." />}
+        {items.map((i) => (
+          <div key={i.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-display font-semibold">{i.nome}</p>
+                <p className="text-xs" style={{ color: C.stone }}>{i.categoria} {i.dataAquisicao && `· ${fmtDate(i.dataAquisicao)}`}</p>
+              </div>
+              <button onClick={() => del(i.id)}><Trash2 size={14} color={C.stone} /></button>
+            </div>
+            <p className="text-sm mt-1 font-mono">{fmtR(parseFloat(i.valor) || 0)}</p>
+            {i.observacao && <p className="text-xs mt-1" style={{ color: C.stone }}>{i.observacao}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo bem</p>
+        <DynamicForm fields={BENS_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Cadastrar" />
+      </div>
     </div>
   );
 }
@@ -1357,48 +1694,6 @@ const AVIVARNEWS_FIELDS = [
   { key: "texto", label: "Texto da reportagem", type: "textarea" },
 ];
 
-function AvivarNews({ items, save, adminMode }) {
-  const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO() }]);
-  const del = (id) => save(items.filter((i) => i.id !== id));
-  const sorted = [...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  return (
-    <div>
-      <div className="w-full h-48 sm:h-64 overflow-hidden">
-        <ImgOrPlaceholder url={AVIVARNEWS_BANNER} alt="Avivar News" className="w-full h-full object-cover" ph="Banner Avivar News — adicionar depois" />
-      </div>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        <Eyebrow>Reportagens do ministério</Eyebrow>
-        <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Avivar News</h2>
-        {sorted.length === 0 && <div className="mt-6"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
-        <div className="space-y-6 mt-6">
-          {sorted.map((n) => (
-            <div key={n.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-48 object-cover" />}
-              <div className="p-5">
-                <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
-                <h3 className="font-display font-semibold text-lg mt-1">{n.titulo}</h3>
-                {n.videoUrl && (
-                  <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
-                    <iframe title={n.titulo} src={getEmbedUrl(n.videoUrl)} className="w-full h-full" allowFullScreen />
-                  </div>
-                )}
-                {n.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{n.texto}</p>}
-                {adminMode && <button onClick={() => del(n.id)} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
-              </div>
-            </div>
-          ))}
-        </div>
-        {adminMode && (
-          <div className="mt-8">
-            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova reportagem</p>
-            <DynamicForm fields={AVIVARNEWS_FIELDS} onSubmit={(v) => v.titulo && add(v)} submitLabel="Publicar reportagem" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- */
 /* Visitantes                                                          */
 /* ---------------------------------------------------------------- */
@@ -1410,7 +1705,8 @@ const VISITANTE_FIELDS = [
   { key: "local", label: "Local / culto" },
 ];
 
-function Visitantes({ items, save }) {
+function Visitantes({ items, save, refresh }) {
+  const [modoProjecao, setModoProjecao] = useState(false);
   const grouped = useMemo(() => {
     const byDay = {};
     [...items]
@@ -1422,6 +1718,16 @@ function Visitantes({ items, save }) {
       });
     return byDay;
   }, [items]);
+
+  useEffect(() => {
+    if (!modoProjecao || !refresh) return;
+    refresh();
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, [modoProjecao]);
+
+  const hojeStr = new Date().toLocaleDateString("pt-BR");
+  const visitantesHoje = [...items].filter((v) => new Date(v.timestamp).toLocaleDateString("pt-BR") === hojeStr).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   const add = (v) => {
     const entry = { id: uid(), ...v, timestamp: nowISO() };
@@ -1437,6 +1743,10 @@ function Visitantes({ items, save }) {
       <div className="mt-6">
         <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
       </div>
+
+      <Btn variant="ghost" className="mt-4" onClick={() => setModoProjecao(true)}>
+        <Video size={14} /> Abrir tela de projeção (culto de hoje)
+      </Btn>
 
       <div className="mt-10 space-y-6">
         {Object.keys(grouped).length === 0 && <Empty text="Nenhuma visita registrada ainda." />}
@@ -1470,6 +1780,30 @@ function Visitantes({ items, save }) {
       <p className="text-xs mt-6 italic" style={{ color: C.stone }}>
         Neste protótipo, a mensagem de agradecimento é enviada com um toque (via WhatsApp Web/App). Envio 100% automático, sem toque, requer integração com a API oficial do WhatsApp Business em um backend real.
       </p>
+
+      {modoProjecao && (
+        <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.black }}>
+          <div className="flex justify-between items-center p-6 border-b" style={{ borderColor: C.gold + "33" }}>
+            <div>
+              <p className="text-xs font-mono" style={{ color: C.gold }}>{hojeStr}</p>
+              <h2 className="font-script text-4xl" style={{ color: C.goldBright }}>Visitantes de Hoje</h2>
+            </div>
+            <button onClick={() => setModoProjecao(false)} className="text-white p-2"><X size={28} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-8 space-y-4">
+            {visitantesHoje.length === 0 && <p className="text-white/60 text-xl text-center mt-10">Nenhum visitante registrado ainda hoje.</p>}
+            {visitantesHoje.map((v) => (
+              <div key={v.id} className="flex items-center justify-between p-4 rounded-lg" style={{ background: "#ffffff11" }}>
+                <div>
+                  <p className="text-2xl font-display font-semibold text-white">{v.nome}</p>
+                  <p className="text-base" style={{ color: C.gold }}>{v.cargoEclesiastico} {v.igreja && `· ${v.igreja}`}</p>
+                </div>
+                <span className="text-sm font-mono" style={{ color: "#ffffff88" }}>{fmtDateTime(v.timestamp)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1521,6 +1855,211 @@ function OracoesLares({ items, save, adminMode }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Membros — formulário público, lista restrita ao admin                */
+/* ---------------------------------------------------------------- */
+const MEMBRO_FIELDS = [
+  { key: "nome", label: "Nome completo" },
+  { key: "nomePai", label: "Nome do pai" },
+  { key: "nomeMae", label: "Nome da mãe" },
+  { key: "dataNascimento", label: "Data de nascimento", type: "date" },
+  { key: "localNascimento", label: "Local de nascimento" },
+  { key: "endereco", label: "Endereço" },
+  { key: "whatsapp", label: "WhatsApp", type: "tel" },
+  { key: "anoConversao", label: "Ano de conversão" },
+  { key: "igrejaAnterior", label: "Igreja anterior (se houver)" },
+  { key: "cargoEclesiastico", label: "Cargo eclesiástico (se houver)" },
+  { key: "pretendeServir", label: "Pretende servir na igreja?", type: "select", options: ["Não", "Sim"] },
+  { key: "funcaoServir", label: "Se sim, em qual função?" },
+];
+
+function Membros({ items, save, adminMode }) {
+  const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO() }]);
+  const del = (id) => save(items.filter((i) => i.id !== id));
+
+  const gerarPDF = () => {
+    const rows = items
+      .map(
+        (m) =>
+          `<tr><td>${m.nome}</td><td>${fmtDate(m.dataNascimento)}</td><td>${m.whatsapp || ""}</td><td>${m.endereco || ""}</td><td>${m.cargoEclesiastico || ""}</td><td>${m.pretendeServir === "Sim" ? `Sim — ${m.funcaoServir || ""}` : "Não"}</td></tr>`
+      )
+      .join("");
+    printReport(
+      "Relatório de Membros",
+      `<table><thead><tr><th>Nome</th><th>Nascimento</th><th>WhatsApp</th><th>Endereço</th><th>Cargo</th><th>Deseja servir</th></tr></thead><tbody>${rows}</tbody></table>
+       <p class="totais"><strong>Total de membros cadastrados:</strong> ${items.length}</p>`
+    );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow>Faça parte</Eyebrow>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Cadastro de Membros</h2>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Preencha seus dados para integrar o cadastro oficial de membros do ministério.</p>
+
+      <div className="mt-6">
+        <DynamicForm fields={MEMBRO_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Enviar cadastro" />
+      </div>
+
+      {adminMode ? (
+        <div className="mt-10">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-mono" style={{ color: C.stone }}>ADMIN · {items.length} membro(s) cadastrado(s)</p>
+            <Btn onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
+          </div>
+          <div className="mt-4 space-y-2">
+            {items.length === 0 && <Empty text="Nenhum membro cadastrado ainda." />}
+            {items.map((m) => (
+              <div key={m.id} className="p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium">{m.nome}</p>
+                    <p className="text-xs" style={{ color: C.stone }}>
+                      {fmtDate(m.dataNascimento)} {m.whatsapp && `· ${m.whatsapp}`} {m.cargoEclesiastico && `· ${m.cargoEclesiastico}`}
+                    </p>
+                    <p className="text-xs" style={{ color: C.stone }}>{m.endereco}</p>
+                    {m.pretendeServir === "Sim" && <p className="text-xs mt-1" style={{ color: C.ember }}>Deseja servir: {m.funcaoServir}</p>}
+                  </div>
+                  <button onClick={() => del(m.id)}><Trash2 size={14} color={C.stone} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs mt-8 italic" style={{ color: C.stone }}>A lista completa de membros é visível apenas para a administração, por privacidade dos dados cadastrados.</p>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Avivar Music — músicos e repertório por culto                        */
+/* ---------------------------------------------------------------- */
+const MUSICO_FIELDS = [
+  { key: "nome", label: "Nome do músico" },
+  { key: "instrumento", label: "Instrumento / habilidade" },
+  { key: "cantor", label: "É cantor(a)?", type: "select", options: ["Não", "Sim"] },
+  { key: "disponibilidade", label: "Disponibilidade" },
+];
+
+const CULTO_FIELDS = [
+  { key: "titulo", label: "Culto (ex: Culto de Domingo)" },
+  { key: "data", label: "Data", type: "date" },
+];
+
+const MUSICA_FIELDS = [
+  { key: "titulo", label: "Título da música" },
+  { key: "tom", label: "Tom" },
+  { key: "grupo", label: "Grupo / estilo" },
+  { key: "letra", label: "Letra (opcional)", type: "textarea" },
+  { key: "cifra", label: "Cifra (opcional)", type: "textarea" },
+  { key: "youtubeUrl", label: "Link do YouTube", type: "url" },
+];
+
+function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, adminMode }) {
+  const [tab, setTab] = useState("repertorio");
+
+  const addCulto = (v) => saveRepertorio([...repertorio, { id: uid(), musicas: [], ...v }]);
+  const delCulto = (id) => saveRepertorio(repertorio.filter((c) => c.id !== id));
+  const addMusica = (cultoId, v) =>
+    saveRepertorio(repertorio.map((c) => (c.id === cultoId ? { ...c, musicas: [...c.musicas, { id: uid(), ...v }] } : c)));
+  const delMusica = (cultoId, musicaId) =>
+    saveRepertorio(repertorio.map((c) => (c.id === cultoId ? { ...c, musicas: c.musicas.filter((m) => m.id !== musicaId) } : c)));
+
+  const addMusico = (v) => saveMusicos([...musicos, { id: uid(), ...v }]);
+  const delMusico = (id) => saveMusicos(musicos.filter((m) => m.id !== id));
+
+  const sortedCultos = [...repertorio].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><Sparkles size={12} className="inline mr-1" />Grupo de louvor</Eyebrow>
+      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Avivar Music</h2>
+
+      <div className="flex gap-2 mt-6 mb-6">
+        {["repertorio", "musicos"].map((t) => (
+          <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
+            {t === "repertorio" ? "Repertório" : "Músicos"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "repertorio" && (
+        <div className="space-y-6">
+          {sortedCultos.length === 0 && <Empty text="Nenhum culto cadastrado ainda." />}
+          {sortedCultos.map((c) => (
+            <div key={c.id} className="rounded-xl border p-5" style={{ borderColor: C.line }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-display font-semibold text-lg">{c.titulo}</h3>
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(c.data)}</p>
+                </div>
+                {adminMode && <button onClick={() => delCulto(c.id)}><Trash2 size={15} color={C.stone} /></button>}
+              </div>
+              <div className="mt-4 space-y-3">
+                {c.musicas.length === 0 && <p className="text-xs italic" style={{ color: C.stone }}>Nenhuma música adicionada ainda.</p>}
+                {c.musicas.map((m) => (
+                  <div key={m.id} className="p-3 rounded-lg" style={{ background: C.parchment }}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">{m.titulo} {m.tom && <span className="font-mono text-xs" style={{ color: C.ember }}>· Tom: {m.tom}</span>}</p>
+                        {m.grupo && <p className="text-xs" style={{ color: C.stone }}>{m.grupo}</p>}
+                      </div>
+                      {adminMode && <button onClick={() => delMusica(c.id, m.id)}><Trash2 size={13} color={C.stone} /></button>}
+                    </div>
+                    {m.youtubeUrl && (
+                      <a href={m.youtubeUrl} target="_blank" rel="noreferrer" className="text-xs underline mt-1 inline-block" style={{ color: C.ember }}>ver no YouTube</a>
+                    )}
+                    {m.cifra && <p className="text-xs mt-2 whitespace-pre-line font-mono">{m.cifra}</p>}
+                    {m.letra && <p className="text-xs mt-2 whitespace-pre-line">{m.letra}</p>}
+                  </div>
+                ))}
+              </div>
+              {adminMode && (
+                <div className="mt-4 border-t pt-3" style={{ borderColor: C.line }}>
+                  <DynamicForm fields={MUSICA_FIELDS} submitLabel="Adicionar música" onSubmit={(v) => v.titulo && addMusica(c.id, v)} />
+                </div>
+              )}
+            </div>
+          ))}
+          {adminMode && (
+            <div>
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo culto</p>
+              <DynamicForm fields={CULTO_FIELDS} onSubmit={(v) => v.titulo && addCulto(v)} submitLabel="Criar culto" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "musicos" && (
+        <div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {musicos.length === 0 && <Empty text="Nenhum músico cadastrado ainda." />}
+            {musicos.map((m) => (
+              <div key={m.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-display font-semibold">{m.nome}</p>
+                    <p className="text-xs" style={{ color: C.ember }}>{m.instrumento}</p>
+                    {m.cantor === "Sim" && <p className="text-xs" style={{ color: C.stone }}>Também canta</p>}
+                    {m.disponibilidade && <p className="text-xs mt-1" style={{ color: C.stone }}>Disponibilidade: {m.disponibilidade}</p>}
+                  </div>
+                  {adminMode && <button onClick={() => delMusico(m.id)}><Trash2 size={14} color={C.stone} /></button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Cadastro de músico</p>
+            <DynamicForm fields={MUSICO_FIELDS} onSubmit={(v) => v.nome && addMusico(v)} submitLabel="Cadastrar" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Contato                                                              */
 /* ---------------------------------------------------------------- */
 const CONTATO_FIELDS = [
@@ -1557,6 +2096,13 @@ function Contato({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 export default function App() {
   const [page, setPage] = useState("home");
+  const scrollToSection = (key) => {
+    setPage(key);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(key);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [adminMode, setAdminMode] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
@@ -1566,6 +2112,7 @@ export default function App() {
   const [eventos, setEventos] = useState([]);
   const [galeria, setGaleria] = useState([]);
   const [aoVivo, setAoVivo] = useState(DEFAULT_AOVIVO);
+  const [transmissoesPassadas, setTransmissoesPassadas] = useState([]);
   const [doacoes, setDoacoes] = useState(DEFAULT_DOACOES);
   const [loja, setLoja] = useState([]);
   const [igrejas, setIgrejas] = useState([]);
@@ -1576,6 +2123,11 @@ export default function App() {
   const [oracoes, setOracoes] = useState([]);
   const [mensagens, setMensagens] = useState([]);
   const [forumPosts, setForumPosts] = useState([]);
+  const [caixa, setCaixa] = useState([]);
+  const [bens, setBens] = useState([]);
+  const [membros, setMembros] = useState([]);
+  const [repertorio, setRepertorio] = useState([]);
+  const [musicos, setMusicos] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -1584,6 +2136,7 @@ export default function App() {
       setEventos(await loadKey("avivar:eventos", []));
       setGaleria(await loadKey("avivar:galeria", []));
       setAoVivo(await loadKey("avivar:aovivo", DEFAULT_AOVIVO));
+      setTransmissoesPassadas(await loadKey("avivar:transmissoespassadas", []));
       setDoacoes(await loadKey("avivar:doacoes", DEFAULT_DOACOES));
       setLoja(await loadKey("avivar:loja", []));
       setIgrejas(await loadKey("avivar:igrejas", []));
@@ -1594,6 +2147,11 @@ export default function App() {
       setOracoes(await loadKey("avivar:oracoes", []));
       setMensagens(await loadKey("avivar:mensagens", []));
       setForumPosts(await loadKey("avivar:forum", []));
+      setCaixa(await loadKey("avivar:caixa", []));
+      setBens(await loadKey("avivar:bens", []));
+      setMembros(await loadKey("avivar:membros", []));
+      setRepertorio(await loadKey("avivar:repertorio", []));
+      setMusicos(await loadKey("avivar:musicos", []));
       setLoading(false);
     })();
   }, []);
@@ -1604,6 +2162,7 @@ export default function App() {
     eventos: (v) => { setEventos(v); saveKey("avivar:eventos", v); },
     galeria: (v) => { setGaleria(v); saveKey("avivar:galeria", v); },
     aoVivo: (v) => { setAoVivo(v); saveKey("avivar:aovivo", v); },
+    transmissoesPassadas: (v) => { setTransmissoesPassadas(v); saveKey("avivar:transmissoespassadas", v); },
     doacoes: (v) => { setDoacoes(v); saveKey("avivar:doacoes", v); },
     loja: (v) => { setLoja(v); saveKey("avivar:loja", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
@@ -1614,6 +2173,11 @@ export default function App() {
     oracoes: (v) => { setOracoes(v); saveKey("avivar:oracoes", v); },
     mensagens: (v) => { setMensagens(v); saveKey("avivar:mensagens", v); },
     forum: (v) => { setForumPosts(v); saveKey("avivar:forum", v); },
+    caixa: (v) => { setCaixa(v); saveKey("avivar:caixa", v); },
+    bens: (v) => { setBens(v); saveKey("avivar:bens", v); },
+    membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
+    repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
+    musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
   };
 
   if (loading) {
@@ -1628,6 +2192,7 @@ export default function App() {
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Tangerine:wght@700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        html { scroll-behavior: smooth; }
         .font-display { font-family: 'Playfair Display', serif; }
         .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
@@ -1637,24 +2202,27 @@ export default function App() {
         @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
       `}</style>
 
-      <NavBar page={page} setPage={setPage} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
-      <SideCarousel cards={site.homeCards || DEFAULT_HOMECARDS} setPage={setPage} />
+      <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
+      <SideCarousel cards={site.homeCards || DEFAULT_HOMECARDS} setPage={scrollToSection} />
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main>
-        {page === "home" && <Home site={site} setPage={setPage} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} />}
-        {page === "codigos" && <CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} />}
-        {page === "eventos" && <EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} />}
-        {page === "aovivo" && <AoVivo data={aoVivo} save={persist.aoVivo} adminMode={adminMode} />}
-        {page === "doacoes" && <Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} />}
-        {page === "loja" && <Loja items={loja} save={persist.loja} adminMode={adminMode} />}
-        {page === "igrejas" && <Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} />}
-        {page === "colaboradores" && <Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} />}
-        {page === "estudos" && <Estudos items={estudos} save={persist.estudos} adminMode={adminMode} />}
-        {page === "avivarnews" && <AvivarNews items={avivarNews} save={persist.avivarNews} adminMode={adminMode} />}
-        {page === "visitantes" && <Visitantes items={visitantes} save={persist.visitantes} />}
-        {page === "oracoes" && <OracoesLares items={oracoes} save={persist.oracoes} adminMode={adminMode} />}
-        {page === "contato" && <Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} />}
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} /></section>
+        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} /></section>
+        <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} /></section>
+        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} /></section>
+        <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
+        <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
+        <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} /></section>
+        <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
+        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} adminMode={adminMode} /></section>
+        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} /></section>
+        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} adminMode={adminMode} /></section>
+        <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
+        <section id="bens" className="scroll-mt-24"><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
+        <section id="contato" className="scroll-mt-24"><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>
       </main>
 
       <Footer churchName={site.churchName} />
