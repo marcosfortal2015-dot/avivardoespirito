@@ -50,6 +50,7 @@ const VISITANTES_BANNER = "/visitantes-banner.jpg";
 const LOJA_BANNER = "/loja-avivar-banner.jpg";
 const COLABORADORES_BANNER = "/colaboradores-banner.jpg";
 const BIBLIA_DESTAQUE_BANNER = "/biblia-avivar-destaque.jpg";
+const DIVULGACAO_BANNER = "/divulgacao-youtube.jpg";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
@@ -391,6 +392,56 @@ const ADMIN_MENU = [
   { key: "bens", label: "Bens", icon: Package },
   { key: "operadores", label: "Operadores", icon: KeyRound },
 ];
+
+/* Carrossel de notícias — busca ao vivo do Google News (RSS público, via
+   proxy de CORS já que RSS não libera acesso direto do navegador). Se a
+   busca falhar por qualquer motivo, o componente simplesmente não aparece
+   — nunca quebra o resto do site. */
+function NoticiasCarousel() {
+  const [noticias, setNoticias] = useState([]);
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const feedUrl = "https://news.google.com/rss/search?q=evangelho+igreja+avivamento&hl=pt-BR&gl=BR&ceid=BR:pt-419";
+    const proxied = "https://api.allorigins.win/raw?url=" + encodeURIComponent(feedUrl);
+    fetch(proxied)
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
+      .then((xmlText) => {
+        const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+        const items = Array.from(xml.querySelectorAll("item"))
+          .slice(0, 10)
+          .map((item) => ({
+            titulo: item.querySelector("title")?.textContent || "",
+            link: item.querySelector("link")?.textContent || "",
+          }))
+          .filter((n) => n.titulo);
+        setNoticias(items);
+      })
+      .catch(() => setNoticias([]));
+  }, []);
+
+  useEffect(() => {
+    if (noticias.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % noticias.length), 6000);
+    return () => clearInterval(t);
+  }, [noticias.length]);
+
+  if (noticias.length === 0) return null;
+  const n = noticias[idx % noticias.length];
+
+  return (
+    <div className="border-b overflow-hidden" style={{ background: C.purpleDeep, borderColor: C.gold + "33" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-3">
+        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
+          Notícias Avivar
+        </span>
+        <a href={n.link} target="_blank" rel="noreferrer" className="text-xs text-white truncate hover:underline">
+          {n.titulo}
+        </a>
+      </div>
+    </div>
+  );
+}
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   const [open, setOpen] = useState(false);
@@ -1165,6 +1216,10 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Vida em comunidade</Eyebrow>
       <SectionTitle>Eventos & Galeria</SectionTitle>
+
+      <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="block rounded-xl overflow-hidden border mb-6">
+        <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-auto" />
+      </a>
 
       <div className="flex gap-2 mt-6 mb-6">
         {["eventos", "galeria"].map((t) => (
@@ -2496,6 +2551,7 @@ export default function App() {
       `}</style>
 
       <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
+      <NoticiasCarousel />
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
