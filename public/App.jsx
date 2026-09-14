@@ -4,7 +4,7 @@ import {
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
-  Music, Wallet, Package, UserPlus
+  Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,6 +27,8 @@ const C = {
   liveRed: "#C1272D",
   violet: "#4A3B6B",
   violetDeep: "#2C2340",
+  purple: "#6B2FA5",
+  purpleDeep: "#4A1F73",
   stone: "#8A8272",
   line: "#00000018",
 };
@@ -130,7 +132,7 @@ const DEFAULT_HOMECARDS = [
   { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", imageUrl: LOJA_BANNER, tone: "gold" },
   { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
   { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
-  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "red" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: null, tone: "violet" },
   { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
   { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
   { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
@@ -158,7 +160,7 @@ const DEFAULT_CODIGOS = {
 };
 
 const DEFAULT_AOVIVO = { isLive: false, instagramUrl: "", xUrl: "", youtubeUrl: "", embedUrl: "", mensagem: "Nenhuma transmissão no momento. Volte em breve." };
-const DEFAULT_DOACOES = { pixKey: "", mercadoPagoUrl: "" };
+const DEFAULT_DOACOES = { pixKey: "codigosavivar2026@gmail.com", mercadoPagoUrl: "" };
 
 /* ---------------------------------------------------------------- */
 /* Storage helpers                                                   */
@@ -286,6 +288,14 @@ function Eyebrow({ children, color = C.gold }) {
   );
 }
 
+function SectionTitle({ children }) {
+  return (
+    <div className="inline-block px-4 py-1.5 rounded-md mb-3" style={{ background: C.purple }}>
+      <h2 className="font-script text-2xl sm:text-3xl" style={{ color: "#fff" }}>{children}</h2>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- */
 /* Carousel                                                           */
 /* ---------------------------------------------------------------- */
@@ -379,22 +389,24 @@ const SUBMENU = [
 const ADMIN_MENU = [
   { key: "caixa", label: "Caixa", icon: Wallet },
   { key: "bens", label: "Bens", icon: Package },
+  { key: "operadores", label: "Operadores", icon: KeyRound },
 ];
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   const [open, setOpen] = useState(false);
-  const [subOpen, setSubOpen] = useState(false);
   const go = (k) => {
     if (k === "biblia") {
       window.open(BIBLIA_URL, "_blank", "noopener,noreferrer");
       setOpen(false);
-      setSubOpen(false);
       return;
     }
     setPage(k);
     setOpen(false);
-    setSubOpen(false);
   };
+  const pillStyle = (active) => ({
+    background: active ? C.purpleDeep : C.purple,
+    color: "#fff",
+  });
   return (
     <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
@@ -406,41 +418,12 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <span className="block">Espírito</span>
           </span>
         </button>
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-2">
           {NAV.map((n) => (
-            <button
-              key={n.key}
-              onClick={() => go(n.key)}
-              className="px-3 py-2 text-sm font-medium rounded-md transition focus:outline-none focus:ring-2"
-              style={{ color: page === n.key ? C.goldBright : C.gold, background: page === n.key ? C.gold + "22" : "transparent" }}
-            >
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3.5 py-1.5 text-sm font-semibold rounded-full transition focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
               {n.label}
             </button>
           ))}
-          <div className="relative">
-            <button onClick={() => setSubOpen((v) => !v)} className="px-3 py-2 text-sm font-medium rounded-md flex items-center gap-1 focus:outline-none focus:ring-2" style={{ color: C.gold }}>
-              Mais <ChevronDown size={14} />
-            </button>
-            {subOpen && (
-              <div className="absolute right-0 mt-1 w-56 rounded-lg shadow-lg border py-1 z-50" style={{ background: C.black, borderColor: C.gold + "33" }}>
-                {SUBMENU.map((n) => (
-                  <button key={n.key} onClick={() => go(n.key)} className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex items-center gap-2" style={{ color: C.gold }}>
-                    <n.icon size={15} /> {n.label}
-                  </button>
-                ))}
-                {adminMode && (
-                  <>
-                    <div className="my-1 border-t" style={{ borderColor: C.gold + "22" }} />
-                    {ADMIN_MENU.map((n) => (
-                      <button key={n.key} onClick={() => go(n.key)} className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex items-center gap-2" style={{ color: C.goldBright }}>
-                        <n.icon size={15} /> {n.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
           <button onClick={onAdminClick} className="ml-2 p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
             {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
           </button>
@@ -449,11 +432,26 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           {open ? <X /> : <Menu />}
         </button>
       </div>
+
+      {/* Barra de submenu — sempre visível no desktop, sem esconder num dropdown */}
+      <div className="hidden lg:flex items-center gap-2 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 pb-3">
+        {SUBMENU.map((n) => (
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+            <n.icon size={12} /> {n.label}
+          </button>
+        ))}
+        {adminMode && ADMIN_MENU.map((n) => (
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={{ background: C.goldDeep, color: "#fff" }}>
+            <n.icon size={12} /> {n.label}
+          </button>
+        ))}
+      </div>
+
       {open && (
-        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1" style={{ borderColor: C.gold + "33", background: C.black }}>
+        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1.5" style={{ borderColor: C.gold + "33", background: C.black }}>
           {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
-            <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: page === n.key ? C.goldBright : C.gold }}>
-              <n.icon size={15} /> {n.label}
+            <button key={n.key} onClick={() => go(n.key)} className="text-left px-3 py-2 text-sm rounded-full flex items-center gap-2" style={pillStyle(page === n.key)}>
+              {n.icon && <n.icon size={15} />} {n.label}
             </button>
           ))}
           <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: C.goldBright }}>
@@ -501,6 +499,93 @@ function AdminGateModal({ onClose, onSuccess }) {
   );
 }
 
+function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000088" }}>
+      <div className="w-full max-w-sm rounded-xl p-6 border" style={{ background: "#fff", borderColor: C.line }}>
+        <div className="flex items-center gap-2 mb-3" style={{ color: C.purple }}>
+          <KeyRound size={20} />
+          <h3 className="font-display text-lg font-semibold">Acesso restrito</h3>
+        </div>
+        <p className="text-xs mb-4" style={{ color: C.stone }}>Peça o código de acesso à administração da igreja (portaria, RH, ou equivalente).</p>
+        <Field label="Código de acesso">
+          <input type="password" autoFocus value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+        </Field>
+        {err && <p className="text-xs mt-2" style={{ color: "#B03428" }}>{err}</p>}
+        <div className="flex gap-2 mt-4">
+          <Btn
+            color={C.purple}
+            onClick={() => {
+              const ok = code === MASTER_ADMIN_PASSWORD || operatorCodes.some((o) => o.codigo === code);
+              if (ok) onSuccess();
+              else setErr("Código inválido.");
+            }}
+          >
+            Entrar
+          </Btn>
+          <Btn variant="ghost" color={C.stone} onClick={onClose}>
+            Cancelar
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RestrictedNotice({ onUnlock }) {
+  return (
+    <div className="max-w-md mx-auto text-center py-16">
+      <Lock size={28} className="mx-auto" color={C.stone} />
+      <p className="text-sm mt-3" style={{ color: C.stone }}>Este cadastro é restrito à administração ou a pessoas autorizadas (ex: portaria, RH).</p>
+      <Btn className="mt-4" color={C.purple} onClick={onUnlock}>Inserir código de acesso</Btn>
+    </div>
+  );
+}
+
+const OPERADOR_FIELDS = [
+  { key: "nome", label: "Nome da pessoa ou função (ex: Portaria, RH — Maria)" },
+  { key: "codigo", label: "Código de acesso" },
+];
+
+function OperadoresAdmin({ codes, save, adminMode }) {
+  const add = (v) => save([...codes, { id: uid(), ...v }]);
+  const del = (id) => save(codes.filter((c) => c.id !== id));
+  if (!adminMode) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <Lock size={28} className="mx-auto" color={C.stone} />
+        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow>Área administrativa</Eyebrow>
+      <SectionTitle>Códigos de Operador</SectionTitle>
+      <p className="text-sm mb-4" style={{ color: C.stone }}>
+        Cada código dá acesso aos cadastros de Membros, Visitantes e à agenda de Orações nos Lares, sem liberar o resto da administração (Caixa, Bens, edição do site). Entregue um código diferente pra cada pessoa/função.
+      </p>
+      <div className="space-y-2">
+        {codes.length === 0 && <Empty text="Nenhum código cadastrado ainda." />}
+        {codes.map((c) => (
+          <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+            <div>
+              <p className="font-medium">{c.nome}</p>
+              <p className="text-xs font-mono" style={{ color: C.stone }}>{c.codigo}</p>
+            </div>
+            <button onClick={() => del(c.id)}><Trash2 size={14} color={C.stone} /></button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6">
+        <DynamicForm fields={OPERADOR_FIELDS} onSubmit={(v) => v.nome && v.codigo && add(v)} submitLabel="Adicionar código" />
+      </div>
+    </div>
+  );
+}
+
 function Footer({ churchName }) {
   return (
     <footer className="border-t mt-16 py-10 px-4 sm:px-6" style={{ borderColor: C.gold + "33", background: C.black }}>
@@ -522,34 +607,40 @@ function Footer({ churchName }) {
 const SIDE_COLORS = ["#6C3FA8", "#E07B39", "#2E8B57", "#B39DDB", "#CBA135", "#B03428", "#4A3B6B", "#1B8A55", "#9C4A20", "#8B6F1F"];
 const SIDE_PER_PAGE = 4;
 
-function SideCarousel({ cards, setPage }) {
-  const [pageIdx, setPageIdx] = useState(0);
-  const totalPages = cards ? Math.ceil(cards.length / SIDE_PER_PAGE) : 0;
-  useEffect(() => {
-    if (totalPages < 2) return;
-    const t = setInterval(() => setPageIdx((v) => (v + 1) % totalPages), 5000);
-    return () => clearInterval(t);
-  }, [totalPages]);
-  if (!cards || !cards.length) return null;
-  const visible = cards.slice(pageIdx * SIDE_PER_PAGE, pageIdx * SIDE_PER_PAGE + SIDE_PER_PAGE);
+function FilmSprockets({ side }) {
   return (
-    <div className="hidden lg:flex fixed left-3 top-24 bottom-8 z-30 w-28 flex-col gap-2">
-      {visible.map((card, idx) => {
-        const globalIdx = pageIdx * SIDE_PER_PAGE + idx;
-        const Icon = CARD_ICONS[card.key] || Sparkles;
-        const color = SIDE_COLORS[globalIdx % SIDE_COLORS.length];
-        return (
-          <button
-            key={card.key}
-            onClick={() => (card.externalUrl ? window.open(card.externalUrl, "_blank", "noopener,noreferrer") : setPage(card.key))}
-            className="flex-1 rounded-xl p-3 text-left shadow-lg transition hover:translate-x-1 focus:outline-none focus:ring-2 flex flex-col justify-center"
-            style={{ background: color, color: "#fff" }}
-          >
-            <Icon size={16} color="#fff" />
-            <p className="text-[10px] font-display font-bold uppercase tracking-wide mt-1 leading-tight">{card.titulo}</p>
-          </button>
-        );
-      })}
+    <div className={`absolute inset-y-0 ${side === "left" ? "left-0" : "right-0"} w-3 z-20 flex flex-col justify-around py-2 pointer-events-none`} style={{ background: "#000" }}>
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="w-1.5 h-1.5 rounded-[2px] mx-auto" style={{ background: "#3a3a3a" }} />
+      ))}
+    </div>
+  );
+}
+
+function SideCarousel({ photos, setPage }) {
+  const [idx, setIdx] = useState(0);
+  const total = photos ? photos.length : 0;
+  useEffect(() => {
+    if (total < 2) return;
+    const t = setInterval(() => setIdx((v) => (v + 1) % total), 4000);
+    return () => clearInterval(t);
+  }, [total]);
+
+  if (total === 0) return null;
+  const photo = photos[idx % total];
+
+  return (
+    <div className="hidden lg:flex fixed left-3 top-24 bottom-8 z-30 w-28 flex-col">
+      <button onClick={() => setPage(photo.target)} className="flex-1 relative rounded-md overflow-hidden shadow-xl focus:outline-none" style={{ background: "#000" }}>
+        <div className="absolute inset-0" style={{ left: 12, right: 12 }}>
+          <img src={photo.url} alt="" className="w-full h-full object-cover" />
+        </div>
+        <FilmSprockets side="left" />
+        <FilmSprockets side="right" />
+        <div className="absolute bottom-0 left-3 right-3 p-1.5 text-center" style={{ background: "#000000cc" }}>
+          <p className="text-[9px] text-white font-mono truncate">{photo.label}</p>
+        </div>
+      </button>
     </div>
   );
 }
@@ -597,7 +688,7 @@ function Forum({ posts, addPost }) {
 
   return (
     <>
-      <div className="hidden lg:flex fixed right-0 top-24 bottom-8 w-72 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
+      <div className="hidden lg:flex fixed right-0 top-32 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
           <MessageCircle size={16} color={C.ember} />
           <p className="font-display font-semibold text-sm">Fórum</p>
@@ -631,7 +722,7 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
   return (
     <button
       onClick={onClick}
-      className={`relative text-left p-6 min-h-[220px] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
+      className={`relative text-left p-6 min-h-[220px] max-w-[260px] w-full mx-auto rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
       style={{ background: bgImage ? C.black : bg, borderColor: border, color: "#fff" }}
     >
       {bgImage && (
@@ -640,12 +731,13 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000033, #000000AA)" }} />
         </>
       )}
-      <div className="relative">
-        <Icon size={26} color="#fff" />
-        <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white text-base">{title}</h3>
-        <p className="text-sm mt-1.5 opacity-90 text-white">{desc}</p>
-      </div>
-    </button>
+      {!bgImage && (
+        <div className="relative">
+          <Icon size={26} color="#fff" />
+          <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white text-base">{title}</h3>
+          <p className="text-sm mt-1.5 opacity-90 text-white">{desc}</p>
+        </div>
+      )}    </button>
   );
 }
 
@@ -732,7 +824,37 @@ function FeaturedBibliaCard({ onClick }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo }) {
+function OracaoDestaqueCard({ encontros, onClick }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (encontros.length <= 1) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % encontros.length), 6000);
+    return () => clearInterval(t);
+  }, [encontros.length]);
+
+  return (
+    <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left focus:outline-none focus:ring-2" style={{ borderColor: C.purple }}>
+      <div className="relative pt-7 pb-3 px-4 text-center" style={{ background: C.purpleDeep }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -top-3.5 w-0 h-0" style={{ borderLeft: "22px solid transparent", borderRight: "22px solid transparent", borderBottom: `22px solid ${C.purple}` }} />
+        <Church size={20} color="#fff" className="mx-auto mb-1" />
+        <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#ffffffaa" }}>Oração nos Lares</p>
+      </div>
+      {encontros.length === 0 ? (
+        <div className="p-4 text-xs text-center" style={{ background: C.cream, color: C.stone }}>Nenhum encontro cadastrado ainda — toque pra saber mais.</div>
+      ) : (
+        <div className="p-3 text-xs space-y-1" style={{ background: C.cream }}>
+          <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{encontros[idx].anfitriao}</p>
+          <p style={{ color: C.ink }}><strong>{encontros[idx].diaSemana}</strong> · {fmtDate(encontros[idx].data)} · {encontros[idx].hora}</p>
+          <p style={{ color: C.stone }}>{encontros[idx].endereco}</p>
+          {encontros[idx].contato && <p style={{ color: C.stone }}>Contato: {encontros[idx].contato}</p>}
+          {encontros.length > 1 && <p className="text-[10px] font-mono pt-1" style={{ color: C.purple }}>{idx + 1} de {encontros.length} encontros</p>}
+        </div>
+      )}
+    </button>
+  );
+}
+
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
@@ -748,12 +870,13 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo }) {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 gap-5">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
         <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
+        <OracaoDestaqueCard encontros={oracaoEncontros} onClick={() => setPage("oracoes")} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 mt-8 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -771,15 +894,15 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo }) {
       </div>
 
       {adminMode && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
         </div>
       )}
 
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
           <Eyebrow>Sobre nós</Eyebrow>
-          <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Uma casa de fé aberta a todos</h2>
+          <SectionTitle>Uma casa de fé aberta a todos</SectionTitle>
           <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
             O {site.churchName} é uma igreja interdenominacional, fundamentada na doutrina cristã, dedicada ao ensino da
             Palavra, à comunhão entre irmãos e ao cuidado com quem chega pela primeira vez.
@@ -913,7 +1036,7 @@ function CodigosAvivar({ data, save, adminMode }) {
         <div className="flex items-center justify-between">
           <div>
             <Eyebrow color={C.gold}>Área reservada</Eyebrow>
-            <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.goldBright }}>Bem-vindo(a), {holderName}</h2>
+            <SectionTitle>Bem-vindo(a), {holderName}</SectionTitle>
             <p className="text-sm mt-1" style={{ color: "#D9D2EA" }}>Segredos dos profetas, milagres, curas e a ponte entre ciência e espiritualidade.</p>
           </div>
           <button onClick={() => setUnlocked(false)} className="flex items-center gap-1 text-xs px-3 py-2 rounded-md" style={{ color: "#fff", background: "#ffffff1a" }}>
@@ -1041,7 +1164,7 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Vida em comunidade</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Eventos & Galeria</h2>
+      <SectionTitle>Eventos & Galeria</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
         {["eventos", "galeria"].map((t) => (
@@ -1100,7 +1223,7 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-4">
                 {g.fotos.map((f, idx) => (
-                  <img key={idx} src={f} className="w-full h-44 object-cover object-top rounded-md" />
+                  <img key={idx} src={f} className="w-full h-44 object-contain rounded-md" style={{ background: C.parchmentDeep }} />
                 ))}
                 {g.videos.map((v, idx) => (
                   <div key={idx} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
@@ -1154,7 +1277,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode 
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: data.isLive ? "#E14D3A" : C.stone, boxShadow: data.isLive ? "0 0 0 4px #E14D3A33" : "none" }} />
         <Eyebrow color={data.isLive ? "#E14D3A" : C.stone}>{data.isLive ? "AO VIVO AGORA" : "Sem transmissão no momento"}</Eyebrow>
       </div>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Ao Vivo</h2>
+      <SectionTitle>Ao Vivo</SectionTitle>
 
       {data.isLive && data.embedUrl ? (
         <div className="aspect-video rounded-xl overflow-hidden bg-black mt-6">
@@ -1255,9 +1378,10 @@ const LOJA_FIELDS = [
   { key: "nome", label: "Nome do produto" },
   { key: "categoria", label: "Categoria (Livros, Roupas, Utensílios...)" },
   { key: "preco", label: "Preço (ex: R$ 49,90)" },
-  { key: "descricao", label: "Descrição", type: "textarea" },
+  { key: "descricao", label: "Sinopse / descrição do produto", type: "textarea" },
   { key: "imageUrl", label: "URL da imagem", type: "url" },
-  { key: "linkCompra", label: "Link de compra (Mercado Pago ou WhatsApp)", type: "url" },
+  { key: "linkCompra", label: "Link de compra — PIX/Mercado Pago", type: "url" },
+  { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
 ];
 
 function Loja({ items, save, adminMode }) {
@@ -1268,23 +1392,28 @@ function Loja({ items, save, adminMode }) {
       <div className="w-full h-48 sm:h-64 overflow-hidden">
         <ImgOrPlaceholder url={LOJA_BANNER} alt="Loja Avivar" className="w-full h-full object-cover" ph="Banner Loja Avivar — adicionar depois" />
       </div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
-        <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Loja Avivar</h2>
+        <SectionTitle>Loja Avivar</SectionTitle>
         {items.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
           {items.map((p) => (
-            <div key={p.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-              <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-44 object-cover" />
+            <div key={p.id} className="rounded-xl border overflow-hidden max-w-[240px] w-full mx-auto" style={{ borderColor: C.line, background: C.parchment }}>
+              <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 object-contain" />
               <div className="p-4">
                 {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
                 <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
                 {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
-                <div className="flex items-center justify-between mt-3">
-                  <span className="font-display font-bold" style={{ color: C.ember }}>{p.preco}</span>
+                <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>
+                <div className="flex flex-col gap-1.5 mt-2">
                   {p.linkCompra && (
                     <a href={p.linkCompra} target="_blank" rel="noreferrer">
-                      <Btn>Comprar</Btn>
+                      <Btn className="w-full justify-center"><ShoppingBag size={13} /> PIX / Mercado Pago</Btn>
+                    </a>
+                  )}
+                  {p.linkCartao && (
+                    <a href={p.linkCartao} target="_blank" rel="noreferrer">
+                      <Btn variant="ghost" className="w-full justify-center"><CreditCard size={13} /> Pagar com cartão</Btn>
                     </a>
                   )}
                 </div>
@@ -1307,31 +1436,55 @@ function Loja({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 /* Doações                                                              */
 /* ---------------------------------------------------------------- */
+function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = () => {
+    if (!pixKey) return;
+    navigator.clipboard?.writeText(pixKey).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+  return (
+    <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Icon size={18} color={C.ember} />
+        <p className="font-display font-semibold">{titulo}</p>
+      </div>
+      <p className="text-xs mb-3" style={{ color: C.stone }}>{desc}</p>
+      <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Chave PIX</p>
+      <p className="text-sm font-mono break-all mt-0.5" style={{ color: C.ink }}>{pixKey || "Chave PIX ainda não cadastrada"}</p>
+      <div className="flex gap-2 mt-3">
+        {pixKey && (
+          <Btn variant="ghost" onClick={copiar}>
+            <Copy size={13} /> {copiado ? "Copiado!" : "Copiar chave"}
+          </Btn>
+        )}
+        {mercadoPagoUrl && (
+          <a href={mercadoPagoUrl} target="_blank" rel="noreferrer">
+            <Btn>Pagar pelo Mercado Pago</Btn>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Doacoes({ data, save, adminMode }) {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Semeando com generosidade</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Dízimos e Ofertas</h2>
+      <SectionTitle>Dízimos e Ofertas</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Sua contribuição sustenta a obra do Ministério Avivar do Espírito.</p>
 
       <div className="grid sm:grid-cols-2 gap-4 mt-6">
-        <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
-          <p className="font-display font-semibold mb-2">PIX</p>
-          <p className="text-sm font-mono break-all" style={{ color: C.ink }}>{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
-        </div>
-        <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
-          <p className="font-display font-semibold mb-2">Mercado Pago</p>
-          {data.mercadoPagoUrl ? (
-            <a href={data.mercadoPagoUrl} target="_blank" rel="noreferrer" className="text-sm underline" style={{ color: C.ember }}>Doar pelo Mercado Pago</a>
-          ) : (
-            <p className="text-sm" style={{ color: C.stone }}>Link ainda não cadastrado</p>
-          )}
-        </div>
+        <PixCard icon={HandHeart} titulo="Dízimo" desc="A décima parte, como ato de fidelidade e adoração." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
+        <PixCard icon={Gift} titulo="Oferta" desc="Uma contribuição voluntária, além do dízimo." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
       </div>
 
       {adminMode && (
         <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar doações</p>
+          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar doações (mesma chave usada pra Dízimo e Oferta)</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Chave PIX"><input className={inputCls} style={{ borderColor: C.line }} value={data.pixKey} onChange={(e) => save({ ...data, pixKey: e.target.value })} /></Field>
             <Field label="Link Mercado Pago"><input className={inputCls} style={{ borderColor: C.line }} value={data.mercadoPagoUrl} onChange={(e) => save({ ...data, mercadoPagoUrl: e.target.value })} /></Field>
@@ -1389,7 +1542,7 @@ function Caixa({ items, save, adminMode }) {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Caixa</h2>
+      <SectionTitle>Caixa</SectionTitle>
 
       <div className="grid sm:grid-cols-3 gap-4 mt-6">
         <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#2E7D4F11" }}>
@@ -1472,7 +1625,7 @@ function Bens({ items, save, adminMode }) {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Bens</h2>
+      <SectionTitle>Bens</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Valor total do patrimônio: <strong>{fmtR(totalValor)}</strong></p>
 
       <Btn className="mt-4" onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
@@ -1586,7 +1739,7 @@ function Igrejas({ igrejas, save, adminMode }) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Uma família, várias casas</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Unidades do Ministério</h2>
+      <SectionTitle>Unidades do Ministério</SectionTitle>
       {igrejas.length === 0 && <div className="mt-6"><Empty text="Nenhuma unidade cadastrada ainda." /></div>}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
         {igrejas.map((i) => (
@@ -1621,13 +1774,13 @@ function Colaboradores({ items, save, adminMode }) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Quem serve conosco</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Colaboradores</h2>
+      <SectionTitle>Colaboradores</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
       <div className="grid sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
         {items.map((c) => (
-          <div key={c.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-32 object-cover" />
-            <div className="p-3">
+          <div key={c.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
+            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-64 object-contain" ph={c.nome} />
+            <div className="p-3" style={{ background: C.parchment }}>
               <p className="font-display font-semibold text-sm">{c.nome}</p>
               <p className="text-xs" style={{ color: C.ember }}>{c.cargo}</p>
               <p className="text-xs mt-1" style={{ color: C.stone }}>{c.ministerio}</p>
@@ -1662,7 +1815,7 @@ function Estudos({ items, save, adminMode }) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Palavra e vida</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Estudos Bíblicos</h2>
+      <SectionTitle>Estudos Bíblicos</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum estudo publicado ainda." /></div>}
       <div className="space-y-4 mt-6">
         {items.map((e) => (
@@ -1705,8 +1858,9 @@ const VISITANTE_FIELDS = [
   { key: "local", label: "Local / culto" },
 ];
 
-function Visitantes({ items, save, refresh }) {
+function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator }) {
   const [modoProjecao, setModoProjecao] = useState(false);
+  const canAccess = adminMode || operatorMode;
   const grouped = useMemo(() => {
     const byDay = {};
     [...items]
@@ -1734,11 +1888,21 @@ function Visitantes({ items, save, refresh }) {
     save([...items, entry]);
   };
 
+  if (!canAccess) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+        <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
+        <SectionTitle>Cadastro de Visitantes</SectionTitle>
+        <RestrictedNotice onUnlock={onRequestOperator} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Cadastro de Visitantes</h2>
-      <p className="text-sm mt-2" style={{ color: C.stone }}>Registre a visita e, se desejar, receba uma mensagem de agradecimento no WhatsApp.</p>
+      <SectionTitle>Cadastro de Visitantes</SectionTitle>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Registre a visita e, se desejar, envie uma mensagem de agradecimento no WhatsApp.</p>
 
       <div className="mt-6">
         <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
@@ -1818,38 +1982,130 @@ const ORACAO_FIELDS = [
   { key: "pedido", label: "Pedido de oração", type: "textarea" },
 ];
 
-function OracoesLares({ items, save, adminMode }) {
+const ENCONTRO_FIELDS = [
+  { key: "anfitriao", label: "Anfitrião (ex: Casa da Irmã Deuza)" },
+  { key: "diaSemana", label: "Dia da semana (ex: Terça-feira)" },
+  { key: "data", label: "Data", type: "date" },
+  { key: "hora", label: "Horário" },
+  { key: "endereco", label: "Endereço completo" },
+  { key: "contato", label: "Contato" },
+];
+
+function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operatorMode, onRequestOperator }) {
+  const canManageAgenda = adminMode || operatorMode;
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO(), status: "pendente" }]);
   const setStatus = (id, status) => save(items.map((i) => (i.id === id ? { ...i, status } : i)));
+
+  const addEncontro = (v) => saveEncontros([...encontros, { id: uid(), ...v, fotos: [] }]);
+  const delEncontro = (id) => saveEncontros(encontros.filter((e) => e.id !== id));
+  const addFoto = (id, url) => {
+    if (!url.trim()) return;
+    saveEncontros(encontros.map((e) => (e.id === id ? { ...e, fotos: [...(e.fotos || []), url.trim()] } : e)));
+  };
+  const delFoto = (id, idx) => {
+    saveEncontros(encontros.map((e) => (e.id === id ? { ...e, fotos: e.fotos.filter((_, i) => i !== idx) } : e)));
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Orações nos Lares</h2>
-      <p className="text-sm mt-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
-      <div className="mt-6"><DynamicForm fields={ORACAO_FIELDS} onSubmit={(v) => v.nome && v.pedido && add(v)} submitLabel="Enviar pedido" /></div>
+      <SectionTitle>Orações nos Lares</SectionTitle>
 
-      {adminMode && (
-        <div className="mt-10 space-y-3">
-          <p className="text-xs font-mono" style={{ color: C.stone }}>ADMIN · pedidos recebidos</p>
-          {items.length === 0 && <Empty text="Nenhum pedido ainda." />}
-          {[...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((i) => (
-            <div key={i.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium">{i.nome} · {i.contato}</p>
-                  <p className="text-xs" style={{ color: C.stone }}>{fmtDateTime(i.timestamp)} {i.endereco && `· ${i.endereco}`}</p>
+      {/* Agenda de encontros — pública pra ver, restrita pra cadastrar */}
+      <div className="mt-4">
+        <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Próximos encontros</p>
+        {encontros.length === 0 && <p className="text-sm italic" style={{ color: C.stone }}>Nenhum encontro cadastrado ainda.</p>}
+        <div className="grid sm:grid-cols-2 gap-4">
+          {encontros.map((e) => (
+            <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+              <div className="p-4">
+                <div className="flex justify-between items-start">
+                  <p className="font-display font-semibold text-sm">{e.anfitriao}</p>
+                  {canManageAgenda && <button onClick={() => delEncontro(e.id)}><Trash2 size={13} color={C.stone} /></button>}
                 </div>
-                <select value={i.status} onChange={(e) => setStatus(i.id, e.target.value)} className="text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }}>
-                  <option value="pendente">pendente</option>
-                  <option value="agendado">agendado</option>
-                  <option value="concluido">concluído</option>
-                </select>
+                <p className="text-xs mt-1" style={{ color: C.stone }}><strong>{e.diaSemana}</strong> · {fmtDate(e.data)} · {e.hora}</p>
+                <p className="text-xs mt-1" style={{ color: C.stone }}>{e.endereco}</p>
+                {e.contato && <p className="text-xs" style={{ color: C.stone }}>Contato: {e.contato}</p>}
               </div>
-              <p className="text-sm mt-2" style={{ color: C.ink }}>{i.pedido}</p>
+              {(e.fotos || []).length > 0 && (
+                <div className="grid grid-cols-3 gap-1 px-2 pb-2">
+                  {e.fotos.map((f, idx) => (
+                    <div key={idx} className="relative">
+                      <img src={f} className="w-full h-16 object-cover rounded" />
+                      {canManageAgenda && (
+                        <button onClick={() => delFoto(e.id, idx)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                          <X size={10} color="#fff" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {canManageAgenda && (
+                <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />
+              )}
             </div>
           ))}
         </div>
-      )}
+
+        {canManageAgenda ? (
+          <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro</p>
+            <DynamicForm fields={ENCONTRO_FIELDS} onSubmit={(v) => v.anfitriao && addEncontro(v)} submitLabel="Cadastrar encontro" />
+          </div>
+        ) : (
+          <Btn variant="ghost" className="mt-4" color={C.purple} onClick={onRequestOperator}>
+            <KeyRound size={13} /> Sou autorizado a cadastrar encontros
+          </Btn>
+        )}
+      </div>
+
+      <div className="mt-12 pt-8 border-t" style={{ borderColor: C.line }}>
+        <p className="text-sm mt-2 mb-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
+        <DynamicForm fields={ORACAO_FIELDS} onSubmit={(v) => v.nome && v.pedido && add(v)} submitLabel="Enviar pedido" />
+
+        {adminMode && (
+          <div className="mt-10 space-y-3">
+            <p className="text-xs font-mono" style={{ color: C.stone }}>ADMIN · pedidos recebidos</p>
+            {items.length === 0 && <Empty text="Nenhum pedido ainda." />}
+            {[...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((i) => (
+              <div key={i.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-medium">{i.nome} · {i.contato}</p>
+                    <p className="text-xs" style={{ color: C.stone }}>{fmtDateTime(i.timestamp)} {i.endereco && `· ${i.endereco}`}</p>
+                  </div>
+                  <select value={i.status} onChange={(e) => setStatus(i.id, e.target.value)} className="text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }}>
+                    <option value="pendente">pendente</option>
+                    <option value="agendado">agendado</option>
+                    <option value="concluido">concluído</option>
+                  </select>
+                </div>
+                <p className="text-sm mt-2" style={{ color: C.ink }}>{i.pedido}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniPhotoAdder({ onAdd }) {
+  const [url, setUrl] = useState("");
+  return (
+    <div className="flex gap-1 p-2 border-t" style={{ borderColor: C.line }}>
+      <input placeholder="URL de foto" value={url} onChange={(e) => setUrl(e.target.value)} className="flex-1 text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }} />
+      <button
+        onClick={() => {
+          onAdd(url);
+          setUrl("");
+        }}
+        className="text-xs px-2 rounded-md"
+        style={{ background: C.purple, color: "#fff" }}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -1872,9 +2128,10 @@ const MEMBRO_FIELDS = [
   { key: "funcaoServir", label: "Se sim, em qual função?" },
 ];
 
-function Membros({ items, save, adminMode }) {
+function Membros({ items, save, adminMode, operatorMode, onRequestOperator }) {
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO() }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
+  const canAccess = adminMode || operatorMode;
 
   const gerarPDF = () => {
     const rows = items
@@ -1890,20 +2147,29 @@ function Membros({ items, save, adminMode }) {
     );
   };
 
+  if (!canAccess) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+        <Eyebrow>Faça parte</Eyebrow>
+        <SectionTitle>Cadastro de Membros</SectionTitle>
+        <RestrictedNotice onUnlock={onRequestOperator} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Faça parte</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Cadastro de Membros</h2>
-      <p className="text-sm mt-2" style={{ color: C.stone }}>Preencha seus dados para integrar o cadastro oficial de membros do ministério.</p>
+      <SectionTitle>Cadastro de Membros</SectionTitle>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Preencha os dados para integrar o cadastro oficial de membros do ministério.</p>
 
       <div className="mt-6">
         <DynamicForm fields={MEMBRO_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Enviar cadastro" />
       </div>
 
-      {adminMode ? (
-        <div className="mt-10">
+      <div className="mt-10">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-mono" style={{ color: C.stone }}>ADMIN · {items.length} membro(s) cadastrado(s)</p>
+            <p className="text-xs font-mono" style={{ color: C.stone }}>{items.length} membro(s) cadastrado(s)</p>
             <Btn onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
           </div>
           <div className="mt-4 space-y-2">
@@ -1925,9 +2191,6 @@ function Membros({ items, save, adminMode }) {
             ))}
           </div>
         </div>
-      ) : (
-        <p className="text-xs mt-8 italic" style={{ color: C.stone }}>A lista completa de membros é visível apenas para a administração, por privacidade dos dados cadastrados.</p>
-      )}
     </div>
   );
 }
@@ -1974,7 +2237,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, adminMo
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Grupo de louvor</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Avivar Music</h2>
+      <SectionTitle>Avivar Music</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
         {["repertorio", "musicos"].map((t) => (
@@ -2073,7 +2336,7 @@ function Contato({ items, save, adminMode }) {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Fale conosco</Eyebrow>
-      <h2 className="font-script text-4xl sm:text-5xl" style={{ color: C.ink }}>Contato</h2>
+      <SectionTitle>Contato</SectionTitle>
       <div className="mt-6"><DynamicForm fields={CONTATO_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Enviar mensagem" /></div>
       {adminMode && (
         <div className="mt-10 space-y-2">
@@ -2106,6 +2369,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [adminMode, setAdminMode] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
+  const [operatorMode, setOperatorMode] = useState(false);
+  const [operatorGateOpen, setOperatorGateOpen] = useState(false);
+  const [operatorCodes, setOperatorCodes] = useState([]);
+  const [oracaoEncontros, setOracaoEncontros] = useState([]);
 
   const [site, setSite] = useState(DEFAULT_SITE);
   const [codigos, setCodigos] = useState(DEFAULT_CODIGOS);
@@ -2129,6 +2396,24 @@ export default function App() {
   const [repertorio, setRepertorio] = useState([]);
   const [musicos, setMusicos] = useState([]);
 
+  const sideCarouselPhotos = useMemo(() => {
+    const photos = [];
+    (galeria || []).forEach((sessao) => {
+      (sessao.fotos || []).forEach((url) => {
+        photos.push({ url, label: sessao.titulo || "Galeria", target: "eventos" });
+      });
+    });
+    (colaboradores || []).forEach((c) => {
+      if (c.fotoUrl) photos.push({ url: c.fotoUrl, label: c.nome, target: "colaboradores" });
+    });
+    (oracaoEncontros || []).forEach((e) => {
+      (e.fotos || []).forEach((url) => {
+        photos.push({ url, label: e.anfitriao || "Oração", target: "oracoes" });
+      });
+    });
+    return photos;
+  }, [galeria, colaboradores, oracaoEncontros]);
+
   useEffect(() => {
     (async () => {
       setSite(await loadKey("avivar:site", DEFAULT_SITE));
@@ -2137,6 +2422,8 @@ export default function App() {
       setGaleria(await loadKey("avivar:galeria", []));
       setAoVivo(await loadKey("avivar:aovivo", DEFAULT_AOVIVO));
       setTransmissoesPassadas(await loadKey("avivar:transmissoespassadas", []));
+      setOperatorCodes(await loadKey("avivar:operatorcodes", []));
+      setOracaoEncontros(await loadKey("avivar:oracaoencontros", []));
       setDoacoes(await loadKey("avivar:doacoes", DEFAULT_DOACOES));
       setLoja(await loadKey("avivar:loja", []));
       setIgrejas(await loadKey("avivar:igrejas", []));
@@ -2163,6 +2450,8 @@ export default function App() {
     galeria: (v) => { setGaleria(v); saveKey("avivar:galeria", v); },
     aoVivo: (v) => { setAoVivo(v); saveKey("avivar:aovivo", v); },
     transmissoesPassadas: (v) => { setTransmissoesPassadas(v); saveKey("avivar:transmissoespassadas", v); },
+    operatorCodes: (v) => { setOperatorCodes(v); saveKey("avivar:operatorcodes", v); },
+    oracaoEncontros: (v) => { setOracaoEncontros(v); saveKey("avivar:oracaoencontros", v); },
     doacoes: (v) => { setDoacoes(v); saveKey("avivar:doacoes", v); },
     loja: (v) => { setLoja(v); saveKey("avivar:loja", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
@@ -2193,6 +2482,10 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Tangerine:wght@700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         html { scroll-behavior: smooth; }
+        @keyframes navPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(107,47,165,0.55); } 50% { box-shadow: 0 0 0 6px rgba(107,47,165,0); } }
+        .nav-pulse { animation: navPulse 2.4s ease-in-out infinite; }
+        .nav-pulse:hover { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) { .nav-pulse { animation: none; } }
         .font-display { font-family: 'Playfair Display', serif; }
         .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
@@ -2203,11 +2496,11 @@ export default function App() {
       `}</style>
 
       <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
-      <SideCarousel cards={site.homeCards || DEFAULT_HOMECARDS} setPage={scrollToSection} />
+      <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
-      <main>
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} /></section>
+      <main className="lg:ml-[140px] lg:mr-[272px]">
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} /></section>
         <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} /></section>
         <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} /></section>
@@ -2216,11 +2509,12 @@ export default function App() {
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
-        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} /></section>
-        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} adminMode={adminMode} /></section>
-        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} /></section>
+        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} adminMode={adminMode} /></section>
         <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
+        <section id="operadores" className="scroll-mt-24"><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
         <section id="contato" className="scroll-mt-24"><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>
       </main>
@@ -2233,6 +2527,16 @@ export default function App() {
           onSuccess={() => {
             setAdminMode(true);
             setGateOpen(false);
+          }}
+        />
+      )}
+      {operatorGateOpen && (
+        <OperatorGateModal
+          operatorCodes={operatorCodes}
+          onClose={() => setOperatorGateOpen(false)}
+          onSuccess={() => {
+            setOperatorMode(true);
+            setOperatorGateOpen(false);
           }}
         />
       )}
