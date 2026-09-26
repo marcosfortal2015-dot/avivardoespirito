@@ -456,7 +456,6 @@ const SUBMENU = [
   { key: "membros", label: "Membros", icon: UserPlus },
   { key: "avivarmusic", label: "Avivar Music", icon: Music },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
-  { key: "oracoes", label: "Orações nos Lares", icon: Sparkles },
 ];
 const ADMIN_MENU = [
   { key: "caixa", label: "Caixa", icon: Wallet },
@@ -517,7 +516,7 @@ function NoticiasCarousel() {
   );
 
   return (
-    <div className="w-full border-b overflow-hidden py-3 mt-2" style={{ background: C.liveRed, borderColor: "#00000033" }}>
+    <div className="w-full border-b overflow-hidden py-3 mt-2" style={{ background: C.black, borderColor: "#00000033" }}>
       <div className="flex items-center gap-4 px-4">
         <span className="text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
           Notícias Avivar
@@ -544,65 +543,79 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     setPage(k);
     setOpen(false);
   };
+  // Pills sem preenchimento próprio — fundo transparente (a cor vem da barra roxa
+  // por trás), filete branco fino e texto branco; o item ativo só destaca a borda.
   const pillStyle = (active) => ({
-    background: active ? C.purpleDeep : C.purple,
+    background: "transparent",
     color: "#fff",
+    border: `1px solid ${active ? C.goldBright : "#ffffff80"}`,
   });
-  // Fileira de cima (NAV): sem fundo roxo — texto direto sobre o fundo escuro da
-  // navbar, com a fonte PhotographSignature. Alinhada ao mesmo container/padding
-  // da fileira de baixo (por isso ficou fora do flex justify-between do logo).
-  const topPillStyle = (active) => ({
-    color: active ? C.goldBright : "#fff",
-    fontFamily: "PhotographSignature, cursive",
-  });
+  // Fileira de cima (NAV) — mesmo estilo de pill da fileira de baixo; a fonte
+  // PhotographSignature foi retirada daqui (voltou pra fonte padrão do site).
+  const topPillStyle = (active) => pillStyle(active);
   return (
     <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
-        <button onClick={() => go("home")} className="flex items-center gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
-          <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
-          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px", color: C.goldBright }}>
-            <span className="block">Avivar</span>
-            <span className="block">do</span>
-            <span className="block">Espírito</span>
-          </span>
-        </button>
-        <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
-          {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
-        </button>
-        <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
-          {open ? <X /> : <Menu />}
-        </button>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end justify-between gap-3 py-3">
+        <div className="flex items-end gap-3">
+          <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
+            <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
+            <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px", color: C.goldBright }}>
+              <span className="block">Avivar</span>
+              <span className="block">do</span>
+              <span className="block">Espírito</span>
+            </span>
+          </button>
+          {/* Acesso rápido à Loja perto da logo — ícone maior, branco, com glow */}
+          <button
+            onClick={() => go("loja")}
+            className="p-1 rounded-full focus:outline-none focus:ring-2"
+            title="Ir para a Loja Avivar"
+            style={{ color: "#fff", filter: "drop-shadow(0 0 8px rgba(255,255,255,0.85))" }}
+          >
+            <ShoppingBag size={28} />
+          </button>
+        </div>
+
+        <div className="flex items-end gap-2 flex-wrap justify-end">
+          {/* Fileira de cima — pills sobre fundo roxo, alinhada pela base com a logo */}
+          <nav className="hidden lg:flex items-end gap-1 flex-wrap rounded-md px-2 py-1.5" style={{ background: C.violetDeep }}>
+            {NAV.map((n) => (
+              <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-xs font-semibold rounded-md transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
+                {n.label}
+              </button>
+            ))}
+          </nav>
+          <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
+            {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
+          </button>
+          <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
+            {open ? <X /> : <Menu />}
+          </button>
+        </div>
       </div>
 
-      {/* Fileira de cima — mesmo container/padding da fileira de baixo, alinhada à esquerda */}
-      <nav className="hidden lg:flex items-center gap-1 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 pb-2">
-        {NAV.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-sm font-semibold rounded-md transition focus:outline-none focus:ring-2 hover:bg-white/10" style={topPillStyle(page === n.key)}>
-            {n.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Barra de submenu — fundo laranja/ember; sempre visível no desktop, sem esconder num dropdown */}
-      <div className="hidden lg:flex items-center gap-1.5 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 py-2 rounded-md" style={{ background: C.emberDeep }}>
+      {/* Barra de submenu — mesmo fundo roxo da fileira de cima, alinhada à direita
+          (mesma borda direita do container da fileira de cima); sempre visível no
+          desktop, sem esconder num dropdown */}
+      <div className="hidden lg:flex items-center justify-end gap-1 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
           return (
-            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
               {isLoja ? (
-                <span className="relative flex items-center justify-center w-6 h-6 rounded-full shrink-0" style={{ background: C.liveRed }}>
-                  <n.icon size={15} color="#fff" />
+                <span className="relative flex items-center justify-center w-5 h-5 rounded-full shrink-0" style={{ background: C.liveRed }}>
+                  <n.icon size={12} color="#fff" />
                 </span>
               ) : (
-                <n.icon size={12} />
+                <n.icon size={11} />
               )}
               {n.label}
             </button>
           );
         })}
         {adminMode && ADMIN_MENU.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={{ background: C.goldDeep, color: "#fff" }}>
-            <n.icon size={12} /> {n.label}
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+            <n.icon size={11} /> {n.label}
           </button>
         ))}
       </div>
@@ -792,7 +805,7 @@ function SideCarousel({ photos, setPage }) {
   const visible = Array.from({ length: frameCount }, (_, i) => photos[(offset + i) % total]);
 
   return (
-    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "11rem" }}>
+    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "10rem" }}>
       <div className="relative flex-1 rounded-md overflow-hidden shadow-xl" style={{ background: "#000" }}>
         <div className="absolute inset-0 flex flex-col" style={{ left: 14, right: 14 }}>
           {visible.map((photo, i) => (
@@ -859,7 +872,7 @@ function Forum({ posts, addPost }) {
 
   return (
     <>
-      <div className="hidden lg:flex fixed right-0 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line, top: "12rem" }}>
+      <div className="hidden lg:flex fixed right-0 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line, top: "10rem" }}>
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
           <MessageCircle size={16} color={C.ember} />
           <p className="font-display font-semibold text-sm">Fórum</p>
@@ -1165,7 +1178,9 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         <PedidoOracaoCard onClick={() => setPage("pedidooracao")} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Cards da home — sempre depois dos banners do topo (Hero), nunca sobrepostos;
+          grade de 3 colunas em telas grandes (classe GRID3 padrão do site). */}
+      <div className={`max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID3}`}>
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -1346,7 +1361,14 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
               <p className="text-sm mt-2" style={{ color: "#D9D2EA" }}>
                 Área restrita a pessoas cadastradas. Informe seu nome e o código de acesso gerado para você.
               </p>
-              <div className="mt-6 space-y-3 text-left">
+
+              {/* Incentivo místico-espiritual acima do formulário, convidando a assinar/entrar */}
+              <p className="text-xs italic mt-4 px-2 py-2 rounded-md" style={{ color: C.goldBright, background: "#ffffff0f" }}>
+                <Sparkles size={11} className="inline mr-1" />
+                Sua frequência espiritual está prestes a mudar de nível: assine e entre na energia quântica da revelação, onde ciência e fé se encontram para elevar sua consciência.
+              </p>
+
+              <div className="mt-4 space-y-3 text-left">
                 <input placeholder="Seu nome" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
                 <input placeholder="Código de acesso (ex: AVR-0001)" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2" />
                 {err && <p className="text-xs" style={{ color: "#F2A6A6" }}>{err}</p>}
@@ -1359,6 +1381,16 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                   Gerenciar códigos de acesso (admin)
                 </button>
               )}
+
+              {/* Card de reforço do convite pra assinar — fundo claro, abaixo do login,
+                  no mesmo tamanho dos demais cards de divulgação desta seção */}
+              <div className="mt-8 rounded-lg overflow-hidden border shadow-md aspect-[3/4] flex flex-col items-center justify-center text-center p-5" style={{ borderColor: "#ffffff33", background: C.parchment }}>
+                <Sparkles size={22} color={C.violet} />
+                <p className="font-display font-semibold mt-3" style={{ color: C.ink }}>Eleve sua consciência espiritual</p>
+                <p className="text-xs mt-2" style={{ color: C.stone }}>
+                  Assine os Códigos Avivar e entre na frequência de revelação, ciência e espiritualidade que Deus reserva para os últimos dias.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1874,8 +1906,13 @@ function Loja({ items, save, adminMode }) {
   const del = (id) => save(items.filter((i) => i.id !== id));
   return (
     <div>
-      <div className="w-full h-48 sm:h-64 overflow-hidden">
-        <ImgOrPlaceholder url={LOJA_BANNER} alt="Loja Avivar" className="w-full h-full object-cover" ph="Banner Loja Avivar — adicionar depois" />
+      {/* Frase de incentivo + versículo no lugar da antiga imagem-colagem de livros */}
+      <div className="w-full py-10 px-4 text-center" style={{ background: C.violetDeep }}>
+        <BookOpen size={26} color={C.goldBright} className="mx-auto" />
+        <p className="font-script text-2xl sm:text-3xl mt-3" style={{ color: C.goldBright }}>
+          "Busca a sabedoria, pois ela vale mais que qualquer tesouro."
+        </p>
+        <p className="text-xs font-mono mt-2 tracking-wide" style={{ color: "#ffffffaa" }}>Provérbios 4:7</p>
       </div>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
@@ -2437,7 +2474,7 @@ const HORARIOS_PADRAO = [
   { dia: "Sexta-feira", inicio: "19:20", fim: "21:00" },
   { dia: "Domingo", inicio: "18:30", fim: "20:00" },
 ];
-const DEFAULT_ESCALA_OBREIROS = { obreiros: OBREIROS_PADRAO, postos: POSTOS_PADRAO, horarios: HORARIOS_PADRAO, confirmacoes: [] };
+const DEFAULT_ESCALA_OBREIROS = { obreiros: OBREIROS_PADRAO, postos: POSTOS_PADRAO, horarios: HORARIOS_PADRAO, escalasPorDia: {} };
 
 function diaSemanaFromData(dataStr) {
   if (!dataStr) return "";
@@ -2451,29 +2488,71 @@ function horarioDoDia(dia, horarios) {
 function fmtHorario(h) {
   return h ? `${h.dia} · ${h.inicio}–${h.fim}` : "Horário não cadastrado para este dia";
 }
+function fmtHM(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
 
+// Escala de Obreiros — fluxo por posto: cada posto tem uma caixa de obreiros
+// disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
+// naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
+// com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
 function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator }) {
   const canManage = adminMode || operatorMode;
-  const safeData = { ...DEFAULT_ESCALA_OBREIROS, ...(data || {}) };
+  const safeData = { ...DEFAULT_ESCALA_OBREIROS, ...(data || {}), escalasPorDia: (data && data.escalasPorDia) || {} };
   const [dataCulto, setDataCulto] = useState(() => new Date().toISOString().slice(0, 10));
-  const [postoDraft, setPostoDraft] = useState({});
   const [novoObreiro, setNovoObreiro] = useState("");
   const [novoPosto, setNovoPosto] = useState("");
   const [novoHorario, setNovoHorario] = useState({ dia: DIAS_SEMANA_PT[0], inicio: "19:00", fim: "21:00" });
+  const [renomeando, setRenomeando] = useState(null); // { tipo: "obreiro"|"posto", original, valor }
+  const [mudandoIdeiaId, setMudandoIdeiaId] = useState(null);
+  const [motivoDraft, setMotivoDraft] = useState("");
+  const [nomeConferente, setNomeConferente] = useState("");
 
   const diaSemana = diaSemanaFromData(dataCulto);
   const horarioAtual = horarioDoDia(diaSemana, safeData.horarios);
 
-  const confirmacaoDe = (nome) => (safeData.confirmacoes || []).find((c) => c.obreiroNome === nome && c.dataCulto === dataCulto);
+  const diaAtual = safeData.escalasPorDia[dataCulto] || { escalados: [], conferidoPor: null, conferidoEm: null };
+  const escalados = diaAtual.escalados || [];
+  const fechado = !!diaAtual.conferidoEm;
+  const podeMexerNoDia = canManage; // admin/operador sempre podem mexer, mesmo fechado
+  const disponiveis = safeData.obreiros.filter((o) => !escalados.some((e) => e.obreiroNome === o));
 
-  const upsertConfirmacao = (nome, patch) => {
-    const atuais = safeData.confirmacoes || [];
-    const idx = atuais.findIndex((c) => c.obreiroNome === nome && c.dataCulto === dataCulto);
-    const base = idx >= 0 ? atuais[idx] : { id: uid(), obreiroNome: nome, dataCulto, posto: "", disponivel: true };
-    const atualizado = { ...base, ...patch, horario: horarioAtual ? `${horarioAtual.inicio}–${horarioAtual.fim}` : "" };
-    const novaLista = idx >= 0 ? atuais.map((c, i) => (i === idx ? atualizado : c)) : [...atuais, atualizado];
-    save({ ...safeData, confirmacoes: novaLista });
+  const salvarDia = (patchDia) => {
+    save({
+      ...safeData,
+      escalasPorDia: { ...safeData.escalasPorDia, [dataCulto]: { ...diaAtual, ...patchDia } },
+    });
   };
+
+  const escalarObreiro = (nome, posto) => {
+    if (fechado && !adminMode) return;
+    const novo = { id: uid(), obreiroNome: nome, posto, status: "aguardando", horarioConfirmacao: null, motivoMudanca: "" };
+    salvarDia({ escalados: [...escalados, novo] });
+  };
+  const removerEscalado = (id) => salvarDia({ escalados: escalados.filter((e) => e.id !== id) });
+  const marcarStatus = (id, status) => {
+    salvarDia({
+      escalados: escalados.map((e) => (e.id === id ? { ...e, status, horarioConfirmacao: nowISO() } : e)),
+    });
+  };
+  const confirmarMudancaDeIdeia = (id) => {
+    const atual = escalados.find((e) => e.id === id);
+    if (!atual) return;
+    const novoStatus = atual.status === "disponivel" ? "indisponivel" : "disponivel";
+    salvarDia({
+      escalados: escalados.map((e) =>
+        e.id === id ? { ...e, status: novoStatus, horarioConfirmacao: nowISO(), motivoMudanca: motivoDraft.trim() } : e
+      ),
+    });
+    setMudandoIdeiaId(null);
+    setMotivoDraft("");
+  };
+  const conferirDia = () => {
+    if (!nomeConferente.trim()) return;
+    salvarDia({ conferidoPor: nomeConferente.trim(), conferidoEm: nowISO() });
+  };
+  const reabrirDia = () => salvarDia({ conferidoPor: null, conferidoEm: null });
 
   const addObreiro = () => {
     if (!novoObreiro.trim()) return;
@@ -2481,14 +2560,64 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
     setNovoObreiro("");
   };
   const delObreiro = (nome) => save({ ...safeData, obreiros: safeData.obreiros.filter((o) => o !== nome) });
+  const renomearObreiro = (original, novoNome) => {
+    if (!novoNome.trim()) return;
+    save({ ...safeData, obreiros: safeData.obreiros.map((o) => (o === original ? novoNome.trim() : o)) });
+    setRenomeando(null);
+  };
   const addPosto = () => {
     if (!novoPosto.trim()) return;
     save({ ...safeData, postos: [...safeData.postos, novoPosto.trim()] });
     setNovoPosto("");
   };
   const delPosto = (nome) => save({ ...safeData, postos: safeData.postos.filter((p) => p !== nome) });
+  const renomearPosto = (original, novoNome) => {
+    if (!novoNome.trim()) return;
+    save({ ...safeData, postos: safeData.postos.map((p) => (p === original ? novoNome.trim() : p)) });
+    setRenomeando(null);
+  };
   const addHorario = () => save({ ...safeData, horarios: [...safeData.horarios, novoHorario] });
   const delHorario = (idx) => save({ ...safeData, horarios: safeData.horarios.filter((_, i) => i !== idx) });
+
+  const StatusObreiro = ({ e }) => {
+    const podeEditar = podeMexerNoDia && (!fechado || adminMode);
+    if (e.status === "aguardando") {
+      if (!podeEditar) return <span className="text-xs italic" style={{ color: C.stone }}>aguardando confirmação</span>;
+      return (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Btn color="#2E7D4F" onClick={() => marcarStatus(e.id, "disponivel")}>Disponível</Btn>
+          <Btn variant="ghost" color={C.liveRed} onClick={() => marcarStatus(e.id, "indisponivel")}>Indisponível</Btn>
+        </div>
+      );
+    }
+    const isDisp = e.status === "disponivel";
+    return (
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        <span className="font-semibold" style={{ color: isDisp ? "#2E7D4F" : C.liveRed }}>
+          {isDisp ? "Disponível" : "Indisponível"}
+        </span>
+        {e.horarioConfirmacao && <span style={{ color: C.stone }}>· {fmtHM(e.horarioConfirmacao)}</span>}
+        {podeEditar && (
+          mudandoIdeiaId === e.id ? (
+            <span className="flex items-center gap-1 mt-1 basis-full">
+              <input
+                autoFocus
+                placeholder="Motivo (curto)"
+                value={motivoDraft}
+                onChange={(ev) => setMotivoDraft(ev.target.value)}
+                className="text-xs rounded-md border px-2 py-1"
+                style={{ borderColor: C.line }}
+              />
+              <button onClick={() => confirmarMudancaDeIdeia(e.id)} className="underline" style={{ color: C.violet }}>enviar</button>
+              <button onClick={() => { setMudandoIdeiaId(null); setMotivoDraft(""); }} className="underline" style={{ color: C.stone }}>cancelar</button>
+            </span>
+          ) : (
+            <button onClick={() => { setMudandoIdeiaId(e.id); setMotivoDraft(""); }} className="underline" style={{ color: C.stone }}>Mudei de ideia</button>
+          )
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
@@ -2507,50 +2636,102 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
           <p className="font-mono text-xs uppercase" style={{ color: C.stone }}>Horário deste culto</p>
           <p className="font-display font-semibold">{fmtHorario(horarioAtual)}</p>
         </div>
+        {fechado && (
+          <span className="text-xs px-2 py-1 rounded-full font-mono" style={{ background: "#2E7D4F22", color: "#2E7D4F" }}>
+            Escala conferida por {diaAtual.conferidoPor} às {fmtHM(diaAtual.conferidoEm)}
+          </span>
+        )}
       </div>
 
-      <div className="mt-6 space-y-2">
-        {safeData.obreiros.map((nome) => {
-          const conf = confirmacaoDe(nome);
-          const disponivel = conf ? conf.disponivel : null;
+      {/* Postos e suas caixas de disponíveis / escalados */}
+      <div className="mt-6 space-y-4">
+        {safeData.postos.map((posto) => {
+          const doPosto = escalados.filter((e) => e.posto === posto);
           return (
-            <div key={nome} className="p-3 rounded-lg border flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: C.line }}>
-              <div>
-                <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{nome}</p>
-                {conf && (
-                  <p className="text-xs mt-0.5" style={{ color: conf.disponivel ? "#2E7D4F" : C.liveRed }}>
-                    {conf.disponivel ? `Disponível · ${conf.posto || "posto não escolhido"}` : "Indisponível"}
-                    {conf.disponivel && conf.horario && <span style={{ color: C.stone }}> · {conf.horario}</span>}
-                  </p>
-                )}
-                {canManage && <button onClick={() => delObreiro(nome)} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>remover obreiro(a) da lista</button>}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Btn variant={disponivel === true ? "primary" : "ghost"} color="#2E7D4F" onClick={() => upsertConfirmacao(nome, { disponivel: true })}>Disponível</Btn>
-                <Btn variant={disponivel === false ? "primary" : "ghost"} color={C.liveRed} onClick={() => upsertConfirmacao(nome, { disponivel: false, posto: "" })}>Indisponível</Btn>
-                {disponivel && (
-                  <>
-                    <select
-                      className="text-xs rounded-md border px-2 py-2"
-                      style={{ borderColor: C.line }}
-                      value={postoDraft[nome] ?? conf?.posto ?? ""}
-                      onChange={(e) => setPostoDraft((m) => ({ ...m, [nome]: e.target.value }))}
-                    >
-                      <option value="">Escolher posto...</option>
-                      {safeData.postos.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <Btn onClick={() => upsertConfirmacao(nome, { posto: postoDraft[nome] ?? conf?.posto ?? "" })}>Confirmar</Btn>
-                  </>
-                )}
-              </div>
+            <div key={posto} className="p-3 rounded-lg border" style={{ borderColor: C.line }}>
+              <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{posto}</p>
+
+              {doPosto.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {doPosto.map((e) => (
+                    <div key={e.id} className="p-2 rounded-md flex items-center justify-between gap-2 flex-wrap" style={{ background: C.parchment }}>
+                      <div>
+                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
+                        <span className="ml-2"><StatusObreiro e={e} /></span>
+                      </div>
+                      {podeMexerNoDia && (!fechado || adminMode) && (
+                        <button onClick={() => removerEscalado(e.id)} className="text-[10px] underline" style={{ color: "#B03428" }}>remover da escala</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(!fechado || adminMode) && (
+                <div className="mt-2">
+                  <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Obreiros disponíveis — clique pra escalar</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {disponiveis.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Todos já foram escalados hoje.</span>}
+                    {disponiveis.map((nome) => (
+                      <button
+                        key={nome}
+                        onClick={() => escalarObreiro(nome, posto)}
+                        className="text-xs px-2 py-1 rounded-full border"
+                        style={{ borderColor: C.line, color: C.ink }}
+                      >
+                        {nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
+      {/* Quadro-resumo — só aparece depois do primeiro obreiro escalado no dia */}
+      {escalados.length > 0 && (
+        <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
+          <Eyebrow color={C.ember}>Visão geral do dia</Eyebrow>
+          <div className="space-y-1.5 mt-2">
+            {escalados.map((e) => (
+              <div key={e.id} className="text-sm flex items-center justify-between gap-2 flex-wrap border-b pb-1.5" style={{ borderColor: C.line }}>
+                <span><strong>{e.obreiroNome}</strong> · {e.posto}</span>
+                <span className="text-xs">
+                  {e.status === "aguardando" ? (
+                    <span className="italic" style={{ color: C.stone }}>aguardando confirmação</span>
+                  ) : (
+                    <span style={{ color: e.status === "disponivel" ? "#2E7D4F" : C.liveRed }}>
+                      {e.status === "disponivel" ? "Disponível" : "Indisponível"}{e.horarioConfirmacao ? ` · ${fmtHM(e.horarioConfirmacao)}` : ""}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {adminMode && !fechado && (
+            <div className="mt-4 pt-3 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: C.line }}>
+              <input
+                placeholder="Seu nome (responsável pela conferência)"
+                value={nomeConferente}
+                onChange={(e) => setNomeConferente(e.target.value)}
+                className="text-sm rounded-md border px-2 py-1.5"
+                style={{ borderColor: C.line }}
+              />
+              <Btn color={C.gold} onClick={conferirDia}><ShieldCheck size={14} /> Conferido</Btn>
+            </div>
+          )}
+          {adminMode && fechado && (
+            <button onClick={reabrirDia} className="text-xs underline mt-3" style={{ color: C.stone }}>reabrir escala do dia (admin)</button>
+          )}
+        </div>
+      )}
+
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
-          Qualquer pessoa pode marcar sua própria disponibilidade e posto acima. Nomes, postos e horários só podem ser editados pelo admin ou por pessoas autorizadas.
+          Qualquer pessoa pode clicar no próprio nome pra se escalar e marcar disponibilidade. Nomes, postos e horários só podem ser editados pelo admin ou por pessoas autorizadas.
         </p>
       )}
 
@@ -2559,6 +2740,23 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
           <Eyebrow>Área administrativa</Eyebrow>
           <div>
             <p className="font-display font-semibold mb-2">Obreiros</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {safeData.obreiros.map((o) =>
+                renomeando && renomeando.tipo === "obreiro" && renomeando.original === o ? (
+                  <span key={o} className="flex items-center gap-1">
+                    <input autoFocus value={renomeando.valor} onChange={(e) => setRenomeando((r) => ({ ...r, valor: e.target.value }))} className="text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }} />
+                    <button onClick={() => renomearObreiro(o, renomeando.valor)} className="text-xs underline" style={{ color: C.violet }}>salvar</button>
+                    <button onClick={() => setRenomeando(null)} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
+                  </span>
+                ) : (
+                  <span key={o} className="text-xs px-2 py-1 rounded-full flex items-center gap-1.5" style={{ background: C.parchment }}>
+                    {o}
+                    <button onClick={() => setRenomeando({ tipo: "obreiro", original: o, valor: o })}>editar</button>
+                    <button onClick={() => delObreiro(o)}><X size={11} color={C.stone} /></button>
+                  </span>
+                )
+              )}
+            </div>
             <div className="flex gap-2 flex-wrap">
               <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Nome do(a) novo(a) obreiro(a)" value={novoObreiro} onChange={(e) => setNovoObreiro(e.target.value)} />
               <Btn onClick={addObreiro}><Plus size={14} /> Adicionar</Btn>
@@ -2567,11 +2765,21 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
           <div>
             <p className="font-display font-semibold mb-2">Postos / funções</p>
             <div className="flex flex-wrap gap-2 mb-2">
-              {safeData.postos.map((p) => (
-                <span key={p} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ background: C.parchment }}>
-                  {p} <button onClick={() => delPosto(p)}><X size={11} color={C.stone} /></button>
-                </span>
-              ))}
+              {safeData.postos.map((p) =>
+                renomeando && renomeando.tipo === "posto" && renomeando.original === p ? (
+                  <span key={p} className="flex items-center gap-1">
+                    <input autoFocus value={renomeando.valor} onChange={(e) => setRenomeando((r) => ({ ...r, valor: e.target.value }))} className="text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }} />
+                    <button onClick={() => renomearPosto(p, renomeando.valor)} className="text-xs underline" style={{ color: C.violet }}>salvar</button>
+                    <button onClick={() => setRenomeando(null)} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
+                  </span>
+                ) : (
+                  <span key={p} className="text-xs px-2 py-1 rounded-full flex items-center gap-1.5" style={{ background: C.parchment }}>
+                    {p}
+                    <button onClick={() => setRenomeando({ tipo: "posto", original: p, valor: p })}>editar</button>
+                    <button onClick={() => delPosto(p)}><X size={11} color={C.stone} /></button>
+                  </span>
+                )
+              )}
             </div>
             <div className="flex gap-2 flex-wrap">
               <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Novo posto/função" value={novoPosto} onChange={(e) => setNovoPosto(e.target.value)} />
