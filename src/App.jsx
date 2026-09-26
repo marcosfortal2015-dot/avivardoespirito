@@ -4,7 +4,7 @@ import {
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
-  Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard
+  Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -29,7 +29,9 @@ const C = {
   violetDeep: "#2C2340",
   purple: "#6B2FA5",
   purpleDeep: "#4A1F73",
-  stone: "#8A8272",
+  indigo: "#17213B",
+  indigoDeep: "#0E1526",
+  stone: "#1F1B2E", // era cinza (#8A8272) — pedido do usuário: trocar cinza por preto em todo o site
   line: "#00000018",
 };
 
@@ -44,14 +46,23 @@ const BIBLIA_CARD_BG = "/biblia-avivar-banner.jpg";
 const AVIVARNEWS_BANNER = "/avivarnews-banner.jpg";
 const IGREJAS_BANNER = "/igrejas-avivar-banner.jpg";
 const DOACOES_BANNER = "/doacoes-banner.jpg";
-const ORACOES_BANNER = "/oracoes-banner.jpg";
+const ORACOES_BANNER = "/31-oracao-nos-lares-banner.jpg";
 const ESTUDOS_BANNER = "/estudos-banner.jpg";
 const VISITANTES_BANNER = "/visitantes-banner.jpg";
 const LOJA_BANNER = "/loja-avivar-banner.jpg";
 const COLABORADORES_BANNER = "/colaboradores-banner.jpg";
-const BIBLIA_DESTAQUE_BANNER = "/biblia-avivar-destaque.jpg";
+const BIBLIA_DESTAQUE_BANNER = "/30-biblia-avivar-destaque.jpg";
 const DIVULGACAO_BANNER = "/divulgacao-youtube.jpg";
+const EVENTO_CRIANCAS_BANNER = "/2-evento-culto-criancas.jpg";
+const EVENTO_ALMOCO_BANNER = "/3-evento-almoco-avivar.jpg";
+const EVENTO_BATISMO_BANNER = "/4-evento-batismo.jpg";
+const LOUVOR_LOGO = "/5-louvor-avivar-logo.png";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
+const CODIGOS_REVISTA_BANNER = "/25-codigos-avivar-revista.jpg";
+const TRILOGIA_LIVROS_BANNER = "/26-trilogia-livros-avivar.jpg";
+const LIVRO_DONS_CAPA = "/27-livro-conquistando-os-dons.jpg";
+const LIVRO_CURA_CAPA = "/28-livro-praticando-a-cura-divina.jpg";
+const LIVRO_GLORIA_CAPA = "/29-livro-o-impacto-da-gloria.jpg";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -74,7 +85,7 @@ const printReport = (title, bodyHtml) => {
     <style>
       body { font-family: Georgia, 'Times New Roman', serif; padding: 28px; color: #1F1B2E; }
       h1 { font-size: 20px; border-bottom: 2px solid #CBA135; padding-bottom: 8px; margin-bottom: 4px; }
-      .sub { font-size: 12px; color: #8A8272; margin-bottom: 16px; }
+      .sub { font-size: 12px; color: #1F1B2E; margin-bottom: 16px; }
       table { width: 100%; border-collapse: collapse; margin-top: 12px; }
       th, td { border: 1px solid #ccc; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; }
       th { background: #F1E7D3; }
@@ -379,7 +390,9 @@ const NAV = [
 ];
 const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
+  { key: "escala", label: "Escala de Obreiros", icon: ClipboardList },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
+  { key: "biblioteca", label: "Biblioteca Avivar", icon: Library },
   { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "doacoes", label: "Doações", icon: Send },
   { key: "membros", label: "Membros", icon: UserPlus },
@@ -399,7 +412,6 @@ const ADMIN_MENU = [
    — nunca quebra o resto do site. */
 function NoticiasCarousel() {
   const [noticias, setNoticias] = useState([]);
-  const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     const feedUrl = "https://news.google.com/rss/search?q=evangelho+igreja+avivamento&hl=pt-BR&gl=BR&ceid=BR:pt-419";
@@ -420,24 +432,30 @@ function NoticiasCarousel() {
       .catch(() => setNoticias([]));
   }, []);
 
-  useEffect(() => {
-    if (noticias.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % noticias.length), 6000);
-    return () => clearInterval(t);
-  }, [noticias.length]);
-
   if (noticias.length === 0) return null;
-  const n = noticias[idx % noticias.length];
 
-  return (
-    <div className="border-b overflow-hidden" style={{ background: C.purpleDeep, borderColor: C.gold + "33" }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-3">
-        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
-          Notícias Avivar
-        </span>
-        <a href={n.link} target="_blank" rel="noreferrer" className="text-xs text-white truncate hover:underline">
+  const track = (
+    <>
+      {noticias.map((n, i) => (
+        <a key={i} href={n.link} target="_blank" rel="noreferrer" className="text-sm sm:text-base font-medium text-white hover:underline whitespace-nowrap mx-6">
           {n.titulo}
         </a>
+      ))}
+    </>
+  );
+
+  return (
+    <div className="w-full border-b overflow-hidden py-3" style={{ background: C.liveRed, borderColor: "#00000033" }}>
+      <div className="flex items-center gap-4 px-4">
+        <span className="text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
+          Notícias Avivar
+        </span>
+        <div className="flex-1 overflow-hidden">
+          <div className="noticias-marquee flex items-center">
+            {track}
+            {track}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -669,29 +687,40 @@ function FilmSprockets({ side }) {
 }
 
 function SideCarousel({ photos, setPage }) {
-  const [idx, setIdx] = useState(0);
+  const FRAMES = 4;
+  const [offset, setOffset] = useState(0);
   const total = photos ? photos.length : 0;
   useEffect(() => {
-    if (total < 2) return;
-    const t = setInterval(() => setIdx((v) => (v + 1) % total), 4000);
+    if (total <= 1) return;
+    const t = setInterval(() => setOffset((v) => (v + 1) % total), 3500);
     return () => clearInterval(t);
   }, [total]);
 
   if (total === 0) return null;
-  const photo = photos[idx % total];
+  const frameCount = Math.min(FRAMES, total);
+  const visible = Array.from({ length: frameCount }, (_, i) => photos[(offset + i) % total]);
 
   return (
-    <div className="hidden lg:flex fixed left-3 top-24 bottom-8 z-30 w-28 flex-col">
-      <button onClick={() => setPage(photo.target)} className="flex-1 relative rounded-md overflow-hidden shadow-xl focus:outline-none" style={{ background: "#000" }}>
-        <div className="absolute inset-0" style={{ left: 12, right: 12 }}>
-          <img src={photo.url} alt="" className="w-full h-full object-cover" />
+    <div className="hidden lg:flex fixed left-10 top-24 bottom-8 z-30 flex-col" style={{ width: "9.5rem" }}>
+      <div className="relative flex-1 rounded-md overflow-hidden shadow-xl" style={{ background: "#000" }}>
+        <div className="absolute inset-0 flex flex-col" style={{ left: 14, right: 14 }}>
+          {visible.map((photo, i) => (
+            <button
+              key={`${offset}-${i}`}
+              onClick={() => setPage(photo.target)}
+              className="relative w-full overflow-hidden focus:outline-none"
+              style={{ flex: "1 1 0", borderTop: i > 0 ? "3px solid #000" : "none" }}
+            >
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 text-center" style={{ background: "#000000cc" }}>
+                <p className="text-[8px] text-white font-mono truncate">{photo.label}</p>
+              </div>
+            </button>
+          ))}
         </div>
         <FilmSprockets side="left" />
         <FilmSprockets side="right" />
-        <div className="absolute bottom-0 left-3 right-3 p-1.5 text-center" style={{ background: "#000000cc" }}>
-          <p className="text-[9px] text-white font-mono truncate">{photo.label}</p>
-        </div>
-      </button>
+      </div>
     </div>
   );
 }
@@ -767,28 +796,23 @@ function Forum({ posts, addPost }) {
 /* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
-function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage }) {
+function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage, adminMode }) {
   const bg = tone === "violet" ? C.violet : tone === "red" ? C.liveRed : C.gold;
   const border = tone === "violet" ? C.violetDeep : tone === "red" ? "#8A241B" : C.goldDeep;
   return (
     <button
       onClick={onClick}
-      className={`relative text-left p-6 min-h-[220px] max-w-[260px] w-full mx-auto rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
-      style={{ background: bgImage ? C.black : bg, borderColor: border, color: "#fff" }}
+      className={`relative block w-full aspect-[3/4] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
+      style={{ background: bgImage ? C.black : bg, borderColor: bgImage ? C.line : border, color: "#fff" }}
     >
-      {bgImage && (
-        <>
-          <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000033, #000000AA)" }} />
-        </>
-      )}
-      {!bgImage && (
-        <div className="relative">
-          <Icon size={26} color="#fff" />
-          <h3 className="font-display font-bold uppercase tracking-wide mt-3 text-white text-base">{title}</h3>
-          <p className="text-sm mt-1.5 opacity-90 text-white">{desc}</p>
+      {bgImage ? (
+        <img src={bgImage} alt={title} className="absolute inset-0 w-full h-full object-cover" />
+      ) : adminMode ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 border-2 border-dashed" style={{ borderColor: C.line, background: "#00000006", color: C.stone }}>
+          <ImageIcon size={22} />
+          <span className="text-[10px] font-mono text-center px-3">{title} — aguardando imagem</span>
         </div>
-      )}
+      ) : null}
     </button>
   );
 }
@@ -876,6 +900,71 @@ function FeaturedBibliaCard({ onClick }) {
   );
 }
 
+function HeroNewsColumn({ news, bgImage, onClick }) {
+  const top = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
+  return (
+    <button onClick={onClick} className="relative rounded-2xl overflow-hidden border text-left h-full min-h-[280px] focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+      {bgImage ? (
+        <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className="absolute inset-0" style={{ background: C.indigo }} />
+      )}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0E1526CC, #0E1526EE)" }} />
+      <div className="relative p-4 sm:p-5 flex flex-col h-full">
+        <Eyebrow color={C.goldBright}><Radio size={11} className="inline mr-1" />Notícias do Evangelho</Eyebrow>
+        <div className="mt-2 space-y-3 flex-1">
+          {top.length === 0 ? (
+            <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
+          ) : (
+            top.map((n) => (
+              <div key={n.id} className="pb-3 border-b" style={{ borderColor: "#ffffff22" }}>
+                <p className="text-sm font-display font-semibold text-white leading-snug">{n.titulo}</p>
+                {n.texto && <p className="text-xs mt-1" style={{ color: "#ffffffaa" }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
+              </div>
+            ))
+          )}
+        </div>
+        <span className="text-[10px] font-mono tracking-wide underline decoration-dotted text-white/80 mt-2">ver todas as reportagens</span>
+      </div>
+    </button>
+  );
+}
+
+function HeroDoacoesCard({ data, bgImage, onClick }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = (e) => {
+    e.stopPropagation();
+    if (!data.pixKey) return;
+    navigator.clipboard?.writeText(data.pixKey).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+  return (
+    <div className="relative rounded-2xl overflow-hidden border h-full min-h-[280px]" style={{ borderColor: C.line }}>
+      {bgImage ? (
+        <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className="absolute inset-0" style={{ background: C.emberDeep }} />
+      )}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #4A1A0ACC, #2A0F06EE)" }} />
+      <button onClick={onClick} className="relative w-full h-full text-left p-4 sm:p-5 flex flex-col focus:outline-none focus:ring-2">
+        <Eyebrow color={C.goldBright}><HandHeart size={11} className="inline mr-1" />Semeando com generosidade</Eyebrow>
+        <p className="font-display font-semibold text-lg text-white mt-1">Dízimo e Oferta</p>
+        <p className="text-xs mt-1" style={{ color: "#ffffffaa" }}>Sua contribuição sustenta a obra do ministério.</p>
+        <div className="mt-3">
+          <p className="text-[10px] font-mono uppercase" style={{ color: "#ffffff88" }}>Chave PIX</p>
+          <p className="text-sm font-mono break-all text-white">{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
+        </div>
+        <div className="flex-1" />
+        <span onClick={copiar} className="inline-flex items-center gap-1.5 text-xs mt-3 px-3 py-1.5 rounded-md w-fit" style={{ background: "#ffffff22", color: "#fff" }}>
+          <Copy size={12} /> {copiado ? "Copiado!" : "Copiar chave PIX"}
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function OracaoDestaqueCard({ encontros, onClick }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -906,21 +995,38 @@ function OracaoDestaqueCard({ encontros, onClick }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <div className="relative h-[46vh] sm:h-[52vh] overflow-hidden" style={{ background: C.black }}>
-        <img src={HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(3px) brightness(0.45)" }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000066, #1F1B2ECC)" }} />
-        <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
-          <h1 className="font-script text-5xl sm:text-7xl" style={{ color: C.goldBright }}>{site.churchName}</h1>
-          <p className="mt-3 text-sm sm:text-base max-w-xl" style={{ color: "#ffffffdd" }}>
-            Um ministério comprometido em resgatar vidas, restaurar corações e avivar a Igreja com o poder do Espírito Santo.
-          </p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
+        <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} />
+
+        <div className="relative rounded-2xl overflow-hidden h-full min-h-[280px] sm:min-h-[360px]" style={{ background: C.black }}>
+          <img src={site.heroMiddleBg || HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(1px) brightness(0.5)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000066, #1F1B2ECC)" }} />
+          <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
+            <h1 className="font-script text-4xl sm:text-6xl" style={{ color: C.goldBright }}>{site.churchName}</h1>
+            <p className="mt-3 text-sm sm:text-base max-w-xl" style={{ color: "#ffffffdd" }}>
+              Um ministério comprometido em resgatar vidas, restaurar corações e avivar a Igreja com o poder do Espírito Santo.
+            </p>
+          </div>
         </div>
+
+        <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
       </div>
+
+      {adminMode && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-3 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · imagens de fundo das 3 colunas do topo</p>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <Field label="Fundo — coluna Notícias (esquerda)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroLeftBg || ""} onChange={(e) => saveSite({ ...site, heroLeftBg: e.target.value })} /></Field>
+            <Field label="Fundo — coluna central"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroMiddleBg || ""} onChange={(e) => saveSite({ ...site, heroMiddleBg: e.target.value })} /></Field>
+            <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
@@ -928,7 +1034,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         <OracaoDestaqueCard encontros={oracaoEncontros} onClick={() => setPage("oracoes")} />
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -940,18 +1046,19 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
               onClick={() => (c.externalUrl ? window.open(c.externalUrl, "_blank", "noopener,noreferrer") : setPage(c.key))}
               tone={c.tone}
               bgImage={c.imageUrl}
+              adminMode={adminMode}
             />
           );
         })}
       </div>
 
       {adminMode && (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
         </div>
       )}
 
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
           <Eyebrow>Sobre nós</Eyebrow>
           <SectionTitle>Uma casa de fé aberta a todos</SectionTitle>
@@ -989,7 +1096,18 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
 /* ---------------------------------------------------------------- */
 /* Códigos Avivar                                                     */
 /* ---------------------------------------------------------------- */
-function CodigosAvivar({ data, save, adminMode }) {
+const CODIGOS_VITRINE_FIELDS = [
+  { key: "titulo", label: "Título do ebook/livro" },
+  { key: "imageUrl", label: "URL da capa", type: "url" },
+  { key: "pdfUrl", label: "URL do PDF (se preenchido, abre direto — acesso liberado aqui dentro)", type: "url" },
+  { key: "destino", label: "Destino ao clicar se não houver PDF (deixe 'loja' para ir à Loja Avivar, ou cole um link)" },
+  { key: "preco", label: "Preço (ex: R$ 29,90)" },
+  { key: "descricao", label: "Sinopse / descrição", type: "textarea" },
+  { key: "linkCompra", label: "Link de compra — PIX/Mercado Pago", type: "url" },
+  { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
+];
+
+function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage }) {
   const [unlocked, setUnlocked] = useState(false);
   const [holderName, setHolderName] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -997,6 +1115,29 @@ function CodigosAvivar({ data, save, adminMode }) {
   const [err, setErr] = useState("");
   const [showAccessMgmt, setShowAccessMgmt] = useState(false);
   const [selectedTema, setSelectedTema] = useState(null);
+
+  const reportagensDestaque = [...(avivarNews || [])]
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 3);
+
+  const vitrineItems = (loja || []).filter((p) => p.categoria === "Códigos Avivar");
+  const addVitrineItem = (v) => {
+    if (!v.titulo) return;
+    saveLoja([...(loja || []), { id: uid(), categoria: "Códigos Avivar", nome: v.titulo, destino: v.destino || "loja", ...v }]);
+  };
+  const delVitrineItem = (id) => saveLoja((loja || []).filter((p) => p.id !== id));
+  const goVitrine = (item) => {
+    if (item.pdfUrl) {
+      window.open(item.pdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const destino = (item.destino || "loja").trim();
+    if (/^https?:\/\//i.test(destino)) {
+      window.open(destino, "_blank", "noopener,noreferrer");
+    } else {
+      setPage && setPage(destino || "loja");
+    }
+  };
 
   const tryEnter = () => {
     const match = data.codes.find((c) => c.active && c.code.toLowerCase() === codeInput.trim().toLowerCase());
@@ -1027,27 +1168,135 @@ function CodigosAvivar({ data, save, adminMode }) {
 
   if (!unlocked) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4" style={{ background: C.violetDeep }}>
-        <div className="w-full max-w-sm text-center">
-          <FlameMark size={36} color={C.gold} />
-          <h2 className="font-display text-2xl font-semibold mt-4 text-white">Códigos Avivar</h2>
-          <p className="text-sm mt-2" style={{ color: "#D9D2EA" }}>
-            Área restrita a pessoas cadastradas. Informe seu nome e o código de acesso gerado para você.
-          </p>
-          <div className="mt-6 space-y-3 text-left">
-            <input placeholder="Seu nome" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
-            <input placeholder="Código de acesso (ex: AVR-0001)" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2" />
-            {err && <p className="text-xs" style={{ color: "#F2A6A6" }}>{err}</p>}
-            <Btn color={C.gold} className="w-full justify-center" onClick={tryEnter}>
-              <Unlock size={16} /> Entrar
-            </Btn>
-          </div>
-          {adminMode && (
-            <button onClick={() => setShowAccessMgmt(true)} className="mt-6 text-xs underline" style={{ color: "#D9D2EA" }}>
-              Gerenciar códigos de acesso (admin)
+      <div className="min-h-[70vh]" style={{ background: C.violetDeep }}>
+        {/* Divulgação em destaque — revista, trilogia de livros, Bíblia Avivar e capas individuais */}
+        <div className="px-4 sm:px-6 lg:px-10 pt-10 pb-2">
+          <div className="max-w-6xl mx-auto">
+            <button
+              onClick={() => setPage && setPage("aovivo")}
+              className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl focus:outline-none focus:ring-2 mb-5"
+              style={{ borderColor: C.gold }}
+            >
+              <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Revista Códigos Avivar" className="w-full object-cover max-h-[420px]" ph="Banner revista Códigos Avivar — em destaque" />
             </button>
-          )}
+
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+              <button
+                onClick={() => setPage && setPage("loja")}
+                className="rounded-xl overflow-hidden border-2 shadow-lg focus:outline-none focus:ring-2"
+                style={{ borderColor: C.gold }}
+              >
+                <ImgOrPlaceholder url={TRILOGIA_LIVROS_BANNER} alt="Trilogia que Transforma Vidas" className="w-full aspect-video object-cover" ph="Banner divulgação da trilogia de livros" />
+              </button>
+              <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4 mb-8">
+              {[
+                { img: LIVRO_DONS_CAPA, titulo: "Conquistando os Dons do Espírito Santo" },
+                { img: LIVRO_CURA_CAPA, titulo: "Praticando a Cura Divina" },
+                { img: LIVRO_GLORIA_CAPA, titulo: "O Impacto da Glória" },
+              ].map((l) => (
+                <button
+                  key={l.titulo}
+                  onClick={() => setPage && setPage("loja")}
+                  className="rounded-lg overflow-hidden border shadow-md text-left focus:outline-none focus:ring-2"
+                  style={{ borderColor: "#ffffff33" }}
+                >
+                  <ImgOrPlaceholder url={l.img} alt={l.titulo} className="w-full aspect-[3/4] object-cover" ph={l.titulo} />
+                  <p className="text-[11px] text-white p-2" style={{ background: "#00000055" }}>{l.titulo}</p>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        <div className="grid lg:grid-cols-3">
+          {/* Coluna 1 — credenciais de acesso */}
+          <div className="flex items-center justify-center px-4 py-12" style={{ background: C.violetDeep }}>
+            <div className="w-full max-w-sm text-center">
+              <FlameMark size={36} color={C.gold} />
+              <h2 className="font-display text-2xl font-semibold mt-4 text-white">Códigos Avivar</h2>
+              <p className="text-sm mt-2" style={{ color: "#D9D2EA" }}>
+                Área restrita a pessoas cadastradas. Informe seu nome e o código de acesso gerado para você.
+              </p>
+              <div className="mt-6 space-y-3 text-left">
+                <input placeholder="Seu nome" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+                <input placeholder="Código de acesso (ex: AVR-0001)" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2" />
+                {err && <p className="text-xs" style={{ color: "#F2A6A6" }}>{err}</p>}
+                <Btn color={C.gold} className="w-full justify-center" onClick={tryEnter}>
+                  <Unlock size={16} /> Entrar
+                </Btn>
+              </div>
+              {adminMode && (
+                <button onClick={() => setShowAccessMgmt(true)} className="mt-6 text-xs underline" style={{ color: "#D9D2EA" }}>
+                  Gerenciar códigos de acesso (admin)
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Coluna 2 — reportagens: portais espirituais, horas dimensionais, energia quântica */}
+          <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
+            <Eyebrow color={C.goldBright}><Sparkles size={11} className="inline mr-1" />Ciência, tempo e espírito</Eyebrow>
+            <h3 className="font-display text-xl font-semibold text-white mt-2 mb-5">Reflexões Avivar News</h3>
+            <div className="space-y-3">
+              {reportagensDestaque.length === 0 && (
+                <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
+              )}
+              {reportagensDestaque.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => setPage && setPage("aovivo")}
+                  className="block text-left w-full p-4 rounded-lg transition hover:brightness-110 focus:outline-none focus:ring-2"
+                  style={{ background: "#ffffff0f" }}
+                >
+                  <p className="font-display font-semibold text-white text-sm leading-snug">{n.titulo}</p>
+                  {n.texto && (
+                    <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>
+                      {n.texto.slice(0, 130)}{n.texto.length > 130 ? "…" : ""}
+                    </p>
+                  )}
+                  <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Coluna 3 — vitrine de ebooks/livros */}
+          <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
+            <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
+            <p className="text-xs mt-2" style={{ color: "#ffffffbb" }}>O Conhecimento Revelado pelo Espírito Santo</p>
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              {vitrineItems.length === 0 && (
+                <p className="text-xs italic col-span-2" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
+              )}
+              {vitrineItems.map((item) => (
+                <div key={item.id} className="rounded-lg overflow-hidden border" style={{ borderColor: "#ffffff22" }}>
+                  <button onClick={() => goVitrine(item)} className="block w-full focus:outline-none focus:ring-2">
+                    <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-28 object-cover" />
+                    <p className="text-[11px] text-white p-1.5 text-left leading-snug">{item.titulo || item.nome}</p>
+                  </button>
+                  {adminMode && (
+                    <button onClick={() => delVitrineItem(item.id)} className="text-[10px] underline w-full text-left px-1.5 pb-1.5" style={{ color: "#ffffff88" }}>
+                      excluir
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] mt-3" style={{ color: "#ffffff88" }}>
+              Estes mesmos títulos ficam à venda na Loja Avivar; aqui, para quem já tem acesso, a leitura é livre.
+            </p>
+            {adminMode && (
+              <div className="mt-5 pt-4 border-t" style={{ borderColor: "#ffffff22" }}>
+                <p className="text-xs font-mono mb-2" style={{ color: "#ffffffaa" }}>ADMIN · nova capa (ebook/livro)</p>
+                <DynamicForm fields={CODIGOS_VITRINE_FIELDS} accent={C.gold} submitLabel="Cadastrar" onSubmit={addVitrineItem} />
+              </div>
+            )}
+          </div>
+        </div>
+
         {showAccessMgmt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
             <div className="w-full max-w-lg rounded-xl p-6 max-h-[80vh] overflow-y-auto" style={{ background: C.cream }}>
@@ -1213,14 +1462,12 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
     setMediaUrl((m) => ({ ...m, [sessaoId]: "" }));
   };
 
+  const sortedEventos = [...eventos].sort((a, b) => new Date(a.data) - new Date(b.data));
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Vida em comunidade</Eyebrow>
       <SectionTitle>Eventos & Galeria</SectionTitle>
-
-      <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="block rounded-xl overflow-hidden border mb-6">
-        <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-auto" />
-      </a>
 
       <div className="flex gap-2 mt-6 mb-6">
         {["eventos", "galeria"].map((t) => (
@@ -1232,7 +1479,25 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
 
       {tab === "eventos" && (
         <div>
-          <Carousel slides={eventos.map((e) => ({ ...e, titulo: e.titulo, subtitulo: `${fmtDate(e.data)} · ${e.hora || ""}` }))} onSlideClick={(e) => setSelected(eventos.find((x) => x.id === e.id))} height="h-72" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="rounded-xl overflow-hidden border block" style={{ borderColor: C.line }}>
+              <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-44 object-cover" />
+              <div className="p-3">
+                <p className="text-xs font-mono" style={{ color: C.stone }}>Canal Avivar</p>
+                <p className="font-display font-semibold text-sm mt-0.5">Inscreva-se no YouTube</p>
+              </div>
+            </a>
+            {sortedEventos.map((e) => (
+              <button key={e.id} onClick={() => setSelected(e)} className="rounded-xl overflow-hidden border text-left focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+                <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full h-44 object-cover" ph="Banner do evento — adicionar depois" />
+                <div className="p-3">
+                  <p className="font-display font-semibold text-sm">{e.titulo}</p>
+                  <p className="text-xs font-mono mt-1 flex items-center gap-1" style={{ color: C.stone }}><Calendar size={11} />{fmtDate(e.data)} · {e.hora}</p>
+                  <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><MapPin size={11} />{e.local}</p>
+                </div>
+              </button>
+            ))}
+          </div>
           {selected && (
             <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
               <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
@@ -1243,19 +1508,9 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
                 <span className="flex items-center gap-1"><MapPin size={13} />{selected.local}</span>
               </div>
               <p className="text-sm mt-3" style={{ color: C.ink }}>{selected.descricao}</p>
+              {adminMode && <button onClick={() => { delEvento(selected.id); setSelected(null); }} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir evento</button>}
             </div>
           )}
-          <div className="mt-8 grid sm:grid-cols-2 gap-3">
-            {eventos.map((e) => (
-              <div key={e.id} className="p-4 rounded-lg border flex justify-between items-start" style={{ borderColor: C.line }}>
-                <div>
-                  <p className="font-display font-semibold">{e.titulo}</p>
-                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(e.data)} · {e.hora} · {e.local}</p>
-                </div>
-                {adminMode && <button onClick={() => delEvento(e.id)}><Trash2 size={15} color={C.stone} /></button>}
-              </div>
-            ))}
-          </div>
           {adminMode && (
             <div className="mt-6">
               <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo evento</p>
@@ -1319,78 +1574,97 @@ const PASSADA_FIELDS = [
 ];
 
 function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode }) {
+  const [mainPassadaId, setMainPassadaId] = useState(null);
+  const [selectedNews, setSelectedNews] = useState(null);
+
   const addPassada = (v) => savePassadas([...passadas, { id: uid(), ...v }]);
   const delPassada = (id) => savePassadas(passadas.filter((p) => p.id !== id));
   const sortedPassadas = [...passadas].sort((a, b) => new Date(b.data) - new Date(a.data));
+  const mainPassada = sortedPassadas.find((p) => p.id === mainPassadaId) || sortedPassadas[0] || null;
 
   const addNews = (v) => saveNews([...news, { id: uid(), ...v, timestamp: nowISO() }]);
   const delNews = (id) => saveNews(news.filter((n) => n.id !== id));
   const sortedNews = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: data.isLive ? "#E14D3A" : C.stone, boxShadow: data.isLive ? "0 0 0 4px #E14D3A33" : "none" }} />
         <Eyebrow color={data.isLive ? "#E14D3A" : C.stone}>{data.isLive ? "AO VIVO AGORA" : "Sem transmissão no momento"}</Eyebrow>
       </div>
       <SectionTitle>Ao Vivo</SectionTitle>
 
-      {data.isLive && data.embedUrl ? (
-        <div className="aspect-video rounded-xl overflow-hidden bg-black mt-6">
-          <iframe title="ao-vivo" src={getEmbedUrl(data.embedUrl)} className="w-full h-full" allowFullScreen />
-        </div>
-      ) : (
-        <div className="mt-6"><Empty text={data.mensagem} /></div>
-      )}
-
-      <div className="grid sm:grid-cols-3 gap-3 mt-6">
-        {data.instagramUrl && <a href={data.instagramUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>Instagram</a>}
-        {data.xUrl && <a href={data.xUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>X</a>}
-        {data.youtubeUrl && <a href={data.youtubeUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>YouTube</a>}
-      </div>
-
-      {adminMode && (
-        <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar transmissão</p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" checked={data.isLive} onChange={(e) => save({ ...data, isLive: e.target.checked })} /> Estamos ao vivo agora
-            </label>
-            <Field label="URL de embed (YouTube/Vimeo)"><input className={inputCls} style={{ borderColor: C.line }} value={data.embedUrl} onChange={(e) => save({ ...data, embedUrl: e.target.value })} /></Field>
-            <Field label="Mensagem quando offline"><input className={inputCls} style={{ borderColor: C.line }} value={data.mensagem} onChange={(e) => save({ ...data, mensagem: e.target.value })} /></Field>
-            <Field label="Link Instagram"><input className={inputCls} style={{ borderColor: C.line }} value={data.instagramUrl} onChange={(e) => save({ ...data, instagramUrl: e.target.value })} /></Field>
-            <Field label="Link X"><input className={inputCls} style={{ borderColor: C.line }} value={data.xUrl} onChange={(e) => save({ ...data, xUrl: e.target.value })} /></Field>
-            <Field label="Link YouTube"><input className={inputCls} style={{ borderColor: C.line }} value={data.youtubeUrl} onChange={(e) => save({ ...data, youtubeUrl: e.target.value })} /></Field>
-          </div>
-        </div>
-      )}
-
-      {/* Transmissões anteriores */}
-      <div className="mt-14 pt-8 border-t" style={{ borderColor: C.line }}>
-        <Eyebrow>Já se passou</Eyebrow>
-        <h3 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Transmissões Anteriores</h3>
-        <div className="grid sm:grid-cols-2 gap-4 mt-4">
-          {sortedPassadas.length === 0 && <Empty text="Nenhuma transmissão anterior cadastrada ainda." />}
-          {sortedPassadas.map((p) => (
-            <div key={p.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line }}>
-              <div className="aspect-video bg-black">
-                <iframe title={p.titulo} src={getEmbedUrl(p.videoUrl)} className="w-full h-full" allowFullScreen />
+      <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mt-6 items-start">
+        {/* Player principal: transmissão atual, ou a última transmissão selecionada */}
+        <div>
+          {data.isLive && data.embedUrl ? (
+            <div className="aspect-video rounded-xl overflow-hidden bg-black">
+              <iframe title="ao-vivo" src={getEmbedUrl(data.embedUrl)} className="w-full h-full" allowFullScreen />
+            </div>
+          ) : mainPassada ? (
+            <div>
+              <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                <iframe title={mainPassada.titulo} src={getEmbedUrl(mainPassada.videoUrl)} className="w-full h-full" allowFullScreen />
               </div>
-              <div className="p-3 flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-sm">{p.titulo}</p>
-                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(p.data)}</p>
-                </div>
-                {adminMode && <button onClick={() => delPassada(p.id)}><Trash2 size={14} color={C.stone} /></button>}
+              <p className="font-display font-semibold mt-3">{mainPassada.titulo}</p>
+              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(mainPassada.data)}</p>
+            </div>
+          ) : (
+            <Empty text={data.mensagem} />
+          )}
+
+          <div className="grid sm:grid-cols-3 gap-3 mt-6">
+            {data.instagramUrl && <a href={data.instagramUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>Instagram</a>}
+            {data.xUrl && <a href={data.xUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>X</a>}
+            {data.youtubeUrl && <a href={data.youtubeUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>YouTube</a>}
+          </div>
+
+          {adminMode && (
+            <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+              <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar transmissão</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input type="checkbox" checked={data.isLive} onChange={(e) => save({ ...data, isLive: e.target.checked })} /> Estamos ao vivo agora
+                </label>
+                <Field label="URL de embed (YouTube/Vimeo)"><input className={inputCls} style={{ borderColor: C.line }} value={data.embedUrl} onChange={(e) => save({ ...data, embedUrl: e.target.value })} /></Field>
+                <Field label="Mensagem quando offline"><input className={inputCls} style={{ borderColor: C.line }} value={data.mensagem} onChange={(e) => save({ ...data, mensagem: e.target.value })} /></Field>
+                <Field label="Link Instagram"><input className={inputCls} style={{ borderColor: C.line }} value={data.instagramUrl} onChange={(e) => save({ ...data, instagramUrl: e.target.value })} /></Field>
+                <Field label="Link X"><input className={inputCls} style={{ borderColor: C.line }} value={data.xUrl} onChange={(e) => save({ ...data, xUrl: e.target.value })} /></Field>
+                <Field label="Link YouTube"><input className={inputCls} style={{ borderColor: C.line }} value={data.youtubeUrl} onChange={(e) => save({ ...data, youtubeUrl: e.target.value })} /></Field>
               </div>
             </div>
-          ))}
+          )}
+
+          {adminMode && (
+            <div className="mt-6">
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · adicionar transmissão anterior</p>
+              <DynamicForm fields={PASSADA_FIELDS} onSubmit={(v) => v.titulo && addPassada(v)} submitLabel="Adicionar transmissão" />
+            </div>
+          )}
         </div>
-        {adminMode && (
-          <div className="mt-4">
-            <DynamicForm fields={PASSADA_FIELDS} onSubmit={(v) => v.titulo && addPassada(v)} submitLabel="Adicionar transmissão" />
+
+        {/* Coluna lateral: transmissões anteriores, estilo YouTube */}
+        <div>
+          <Eyebrow>Já se passou</Eyebrow>
+          <h3 className="font-display text-lg font-semibold mb-3" style={{ color: C.ink }}>Transmissões Anteriores</h3>
+          {sortedPassadas.length === 0 && <Empty text="Nenhuma transmissão anterior cadastrada ainda." />}
+          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+            {sortedPassadas.map((p) => (
+              <div key={p.id} className="flex gap-2 items-start p-1.5 rounded-lg" style={{ background: mainPassada?.id === p.id ? C.parchment : "transparent" }}>
+                <button onClick={() => setMainPassadaId(p.id)} className="flex gap-2 flex-1 text-left focus:outline-none focus:ring-2 rounded-md">
+                  <div className="w-28 aspect-video rounded-md overflow-hidden shrink-0 flex items-center justify-center" style={{ background: C.black }}>
+                    <Video size={18} color={C.gold} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium leading-snug line-clamp-2">{p.titulo}</p>
+                    <p className="text-[10px] font-mono mt-0.5" style={{ color: C.stone }}>{fmtDate(p.data)}</p>
+                  </div>
+                </button>
+                {adminMode && <button onClick={() => delPassada(p.id)} className="shrink-0 mt-1"><Trash2 size={12} color={C.stone} /></button>}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Avivar News */}
@@ -1398,24 +1672,35 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode 
         <Eyebrow>Reportagens do ministério</Eyebrow>
         <h3 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Avivar News</h3>
         {sortedNews.length === 0 && <div className="mt-4"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
-        <div className="space-y-6 mt-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
           {sortedNews.map((n) => (
-            <div key={n.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-48 object-cover" />}
-              <div className="p-5">
+            <button key={n.id} onClick={() => setSelectedNews(n)} className="text-left rounded-xl border overflow-hidden focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-36 object-cover" />}
+              <div className="p-4">
                 <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
-                <h4 className="font-display font-semibold text-lg mt-1">{n.titulo}</h4>
-                {n.videoUrl && (
-                  <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
-                    <iframe title={n.titulo} src={getEmbedUrl(n.videoUrl)} className="w-full h-full" allowFullScreen />
-                  </div>
-                )}
-                {n.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{n.texto}</p>}
-                {adminMode && <button onClick={() => delNews(n.id)} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
+                <p className="font-display font-semibold text-sm mt-1">{n.titulo}</p>
+                {n.texto && <p className="text-xs mt-2" style={{ color: C.stone }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
               </div>
-            </div>
+            </button>
           ))}
         </div>
+        {selectedNews && (
+          <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+            {selectedNews.imageUrl && <ImgOrPlaceholder url={selectedNews.imageUrl} alt={selectedNews.titulo} className="w-full h-48 object-cover" />}
+            <div className="p-5">
+              <button onClick={() => setSelectedNews(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(selectedNews.timestamp)}</p>
+              <h4 className="font-display font-semibold text-lg mt-1">{selectedNews.titulo}</h4>
+              {selectedNews.videoUrl && (
+                <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
+                  <iframe title={selectedNews.titulo} src={getEmbedUrl(selectedNews.videoUrl)} className="w-full h-full" allowFullScreen />
+                </div>
+              )}
+              {selectedNews.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selectedNews.texto}</p>}
+              {adminMode && <button onClick={() => { delNews(selectedNews.id); setSelectedNews(null); }} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
+            </div>
+          </div>
+        )}
         {adminMode && (
           <div className="mt-8">
             <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova reportagem</p>
@@ -1490,6 +1775,97 @@ function Loja({ items, save, adminMode }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Biblioteca Avivar — pública, aberta a qualquer visitante                */
+/* ---------------------------------------------------------------- */
+const BIBLIOTECA_FIELDS = [
+  { key: "titulo", label: "Título do livro" },
+  { key: "autor", label: "Autor (opcional)" },
+  { key: "capaUrl", label: "URL da capa", type: "url" },
+  { key: "sinopse", label: "Sinopse breve", type: "textarea" },
+  { key: "pdfUrl", label: "URL do PDF (ex: /biblioteca/nome-do-livro.pdf)", type: "url" },
+];
+
+function BibliotecaAvivar({ items, save, adminMode, setPage }) {
+  const [selected, setSelected] = useState(null);
+  const add = (v) => v.titulo && save([...(items || []), { id: uid(), ...v }]);
+  const del = (id) => save((items || []).filter((i) => i.id !== id));
+  const sorted = [...(items || [])].sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><Library size={12} className="inline mr-1" />Leitura livre para todos</Eyebrow>
+      <SectionTitle>Biblioteca Avivar</SectionTitle>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>
+        Livros abertos ao público em geral. Os títulos exclusivos de Códigos Avivar ficam só na área de acesso por senha.
+      </p>
+
+      {sorted.length === 0 && <div className="mt-6"><Empty text="Nenhum livro cadastrado ainda." /></div>}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+        {sorted.map((b) => (
+          <div key={b.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
+            <button onClick={() => setSelected(b)} className="block w-full text-left focus:outline-none focus:ring-2">
+              <div className="relative">
+                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-48 object-cover" ph={b.titulo} />
+                {b.linkLoja && (
+                  <span className="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded-full text-white" style={{ background: C.emberDeep }}>à venda</span>
+                )}
+              </div>
+              <div className="p-3">
+                <p className="font-display font-semibold text-sm leading-snug">{b.titulo}</p>
+                {b.autor && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{b.autor}</p>}
+              </div>
+            </button>
+            {adminMode && (
+              <button onClick={() => del(b.id)} className="text-xs underline block px-3 pb-3" style={{ color: "#B03428" }}>
+                excluir
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {selected && (
+        <div className="mt-6 rounded-xl border p-5 grid sm:grid-cols-[160px_1fr] gap-5" style={{ borderColor: C.line }}>
+          <ImgOrPlaceholder url={selected.capaUrl} alt={selected.titulo} className="w-full h-56 sm:h-full object-cover rounded-lg" ph={selected.titulo} />
+          <div>
+            <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+            <h3 className="font-display text-xl font-semibold">{selected.titulo}</h3>
+            {selected.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{selected.autor}</p>}
+            {selected.sinopse && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selected.sinopse}</p>}
+            <div className="mt-4 flex items-center gap-3 flex-wrap">
+              {selected.linkLoja ? (
+                <button onClick={() => setPage && setPage("loja")}>
+                  <Btn><ShoppingBag size={14} /> Ver na Loja Avivar</Btn>
+                </button>
+              ) : selected.pdfUrl ? (
+                <a href={selected.pdfUrl} target="_blank" rel="noreferrer">
+                  <Btn><FileText size={14} /> Abrir PDF</Btn>
+                </a>
+              ) : (
+                <p className="text-xs italic" style={{ color: C.stone }}>PDF ainda não cadastrado para este livro.</p>
+              )}
+              {adminMode && (
+                <button onClick={() => { del(selected.id); setSelected(null); }} className="text-xs underline" style={{ color: "#B03428" }}>
+                  excluir livro
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {adminMode && (
+        <div className="mt-8">
+          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo livro</p>
+          <DynamicForm fields={BIBLIOTECA_FIELDS} onSubmit={add} submitLabel="Cadastrar livro" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Doações                                                              */
 /* ---------------------------------------------------------------- */
 function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
@@ -1533,9 +1909,8 @@ function Doacoes({ data, save, adminMode }) {
       <SectionTitle>Dízimos e Ofertas</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Sua contribuição sustenta a obra do Ministério Avivar do Espírito.</p>
 
-      <div className="grid sm:grid-cols-2 gap-4 mt-6">
-        <PixCard icon={HandHeart} titulo="Dízimo" desc="A décima parte, como ato de fidelidade e adoração." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
-        <PixCard icon={Gift} titulo="Oferta" desc="Uma contribuição voluntária, além do dízimo." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
+      <div className="mt-6">
+        <PixCard icon={HandHeart} titulo="Dízimo e Oferta" desc="A décima parte, como ato de fidelidade, e a contribuição voluntária além dela." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
       </div>
 
       {adminMode && (
@@ -1827,13 +2202,14 @@ const COLAB_FIELDS = [
 function Colaboradores({ items, save, adminMode }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
+  const sorted = [...items].sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Quem serve conosco</Eyebrow>
       <SectionTitle>Colaboradores</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
       <div className="grid sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-        {items.map((c) => (
+        {sorted.map((c) => (
           <div key={c.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
             <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-64 object-contain" ph={c.nome} />
             <div className="p-3" style={{ background: C.parchment }}>
@@ -1857,6 +2233,204 @@ function Colaboradores({ items, save, adminMode }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Escala de Obreiros                                                   */
+/* ---------------------------------------------------------------- */
+const ESCALA_FUNCOES_PADRAO = ["Recepção", "Ofertas", "Slides", "Mídia", "Louvor", "Anjos de Luz", "Pregador(a)", "Sala Kids", "Coordenação"];
+const DEFAULT_ESCALA = {
+  titulo: "Escala de serviços ministeriais dia a definir",
+  itens: ESCALA_FUNCOES_PADRAO.map((funcao) => ({ id: uid(), funcao, nome: "", telefone: "", indisponivel: false, substituto: "" })),
+};
+
+function whatsappSaudacao() {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function whatsappEscalaLink(telefone, funcao) {
+  const digits = (telefone || "").replace(/\D/g, "");
+  if (!digits) return null;
+  const msg =
+    `${whatsappSaudacao()}! Paz do Senhor Jesus Cristo. Hoje você foi escolhido(a) para servir na Casa de Deus, servindo como: ${funcao}. ` +
+    `Por favor, em caso de impossibilidade, acesse o nosso app e comunique, marcando ao lado do seu nome que não pode. ` +
+    `Agradecemos sua presença, você é muito importante para nós, e o Senhor Jesus confia que você o adorará. Até mais tarde.\n\n` +
+    `Ministério Avivar do Espírito`;
+  const phoneIntl = digits.length <= 11 ? "55" + digits : digits;
+  return `https://wa.me/${phoneIntl}?text=${encodeURIComponent(msg)}`;
+}
+
+function EscalaObreiros({ data, save, historico, saveHistorico, adminMode, operatorMode, onRequestOperator }) {
+  const canManage = adminMode || operatorMode;
+  const safeData = data && data.itens ? data : DEFAULT_ESCALA;
+  const [tituloEdit, setTituloEdit] = useState(false);
+  const [tituloDraft, setTituloDraft] = useState(safeData.titulo);
+  const [novoNome, setNovoNome] = useState({});
+  const [substitutoDraft, setSubstitutoDraft] = useState({});
+
+  const log = (acao, detalhe) => {
+    const entry = { id: uid(), timestamp: nowISO(), acao, detalhe };
+    saveHistorico([entry, ...(historico || [])]);
+  };
+
+  const updateItem = (id, patch) => save({ ...safeData, itens: safeData.itens.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
+
+  const saveTitulo = () => {
+    save({ ...safeData, titulo: tituloDraft || safeData.titulo });
+    log("Título alterado", tituloDraft);
+    setTituloEdit(false);
+  };
+
+  const assignName = (id) => {
+    const draft = novoNome[id] || {};
+    if (!draft.nome) return;
+    const it = safeData.itens.find((i) => i.id === id);
+    updateItem(id, { nome: draft.nome, telefone: draft.telefone || "", indisponivel: false, substituto: "" });
+    log("Escalado(a)", `${it?.funcao}: ${draft.nome}`);
+    setNovoNome((m) => ({ ...m, [id]: { nome: "", telefone: "" } }));
+  };
+
+  const removeName = (id) => {
+    const it = safeData.itens.find((i) => i.id === id);
+    updateItem(id, { nome: "", telefone: "", indisponivel: false, substituto: "" });
+    log("Removido(a) da escala", `${it?.funcao}: ${it?.nome}`);
+  };
+
+  const toggleIndisponivel = (id, checked) => {
+    const it = safeData.itens.find((i) => i.id === id);
+    updateItem(id, { indisponivel: checked });
+    log(checked ? "Marcou indisponibilidade" : "Desmarcou indisponibilidade", `${it?.funcao}: ${it?.nome}`);
+  };
+
+  const saveSubstituto = (id) => {
+    const val = substitutoDraft[id] ?? "";
+    updateItem(id, { substituto: val });
+    const it = safeData.itens.find((i) => i.id === id);
+    log("Substituto informado", `${it?.funcao}: ${val}`);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><ClipboardList size={12} className="inline mr-1" />Serviço na Casa de Deus</Eyebrow>
+      {tituloEdit && canManage ? (
+        <div className="flex gap-2 items-center mt-2 flex-wrap">
+          <input className={inputCls} style={{ borderColor: C.line, maxWidth: 420 }} value={tituloDraft} onChange={(e) => setTituloDraft(e.target.value)} />
+          <Btn onClick={saveTitulo}>Salvar</Btn>
+          <button onClick={() => setTituloEdit(false)} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 flex-wrap">
+          <SectionTitle>{safeData.titulo}</SectionTitle>
+          {canManage && (
+            <button onClick={() => { setTituloDraft(safeData.titulo); setTituloEdit(true); }} className="text-xs underline" style={{ color: C.stone }}>
+              editar título
+            </button>
+          )}
+        </div>
+      )}
+
+      <p className="mt-3 text-sm font-bold" style={{ color: C.liveRed }}>
+        Caso não possa servir ao Senhor hoje, favor nos avisar com antecedência.
+      </p>
+
+      <div className="mt-6 space-y-3">
+        {safeData.itens.map((it) => (
+          <div key={it.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs font-mono uppercase" style={{ color: C.ember }}>{it.funcao}</p>
+                {it.nome ? (
+                  <p className="font-display font-semibold mt-0.5" style={it.indisponivel ? { color: C.liveRed, textDecoration: "line-through" } : { color: C.ink }}>
+                    {it.nome}
+                  </p>
+                ) : (
+                  <p className="text-sm italic mt-0.5" style={{ color: C.stone }}>Ainda não escalado(a)</p>
+                )}
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {it.nome && (
+                  <label className="flex items-center gap-1.5 text-xs" style={{ color: C.stone }}>
+                    <input type="checkbox" checked={!!it.indisponivel} onChange={(e) => toggleIndisponivel(it.id, e.target.checked)} />
+                    Não posso servir
+                  </label>
+                )}
+                {it.nome && it.telefone && whatsappEscalaLink(it.telefone, it.funcao) && (
+                  <a href={whatsappEscalaLink(it.telefone, it.funcao)} target="_blank" rel="noreferrer" className="text-xs underline flex items-center gap-1" style={{ color: "#2E7D4F" }}>
+                    <Phone size={12} /> avisar no WhatsApp
+                  </a>
+                )}
+                {canManage && it.nome && (
+                  <button onClick={() => removeName(it.id)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
+                )}
+              </div>
+            </div>
+
+            {it.indisponivel && (
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: C.line }}>
+                <label className="text-xs font-mono uppercase" style={{ color: C.stone }}>Substituto</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    className={inputCls}
+                    style={{ borderColor: C.line }}
+                    placeholder="Nome de quem vai substituir"
+                    value={substitutoDraft[it.id] ?? it.substituto ?? ""}
+                    onChange={(e) => setSubstitutoDraft((m) => ({ ...m, [it.id]: e.target.value }))}
+                  />
+                  <Btn variant="ghost" onClick={() => saveSubstituto(it.id)}>Salvar</Btn>
+                </div>
+              </div>
+            )}
+
+            {canManage && !it.nome && (
+              <div className="mt-3 pt-3 border-t grid sm:grid-cols-[1fr_1fr_auto] gap-2" style={{ borderColor: C.line }}>
+                <input className={inputCls} style={{ borderColor: C.line }} placeholder="Nome" value={novoNome[it.id]?.nome || ""} onChange={(e) => setNovoNome((m) => ({ ...m, [it.id]: { ...m[it.id], nome: e.target.value } }))} />
+                <input className={inputCls} style={{ borderColor: C.line }} placeholder="WhatsApp (com DDD)" value={novoNome[it.id]?.telefone || ""} onChange={(e) => setNovoNome((m) => ({ ...m, [it.id]: { ...m[it.id], telefone: e.target.value } }))} />
+                <Btn onClick={() => assignName(it.id)}>Escalar</Btn>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!canManage && (
+        <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
+          Somente o admin ou pessoas autorizadas podem escalar ou remover nomes. Se você já foi escalado(a) e não pode servir, use a caixa "Não posso servir" ao lado do seu nome.
+        </p>
+      )}
+
+      <div className="mt-14 pt-8 border-t" style={{ borderColor: C.line }}>
+        <Eyebrow>Registro de alterações</Eyebrow>
+        <h3 className="font-display text-xl font-semibold" style={{ color: C.ink }}>Histórico</h3>
+        {(!historico || historico.length === 0) ? (
+          <div className="mt-4"><Empty text="Nenhuma alteração registrada ainda." /></div>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.line}` }}>
+                  <th className="text-left py-2 pr-3 font-mono uppercase" style={{ color: C.stone }}>Data/hora</th>
+                  <th className="text-left py-2 pr-3 font-mono uppercase" style={{ color: C.stone }}>Ação</th>
+                  <th className="text-left py-2 font-mono uppercase" style={{ color: C.stone }}>Detalhe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historico.map((h) => (
+                  <tr key={h.id} style={{ borderBottom: `1px solid ${C.line}` }}>
+                    <td className="py-2 pr-3 font-mono whitespace-nowrap" style={{ color: C.stone }}>{fmtDateTime(h.timestamp)}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap">{h.acao}</td>
+                    <td className="py-2" style={{ color: C.ink }}>{h.detalhe}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Estudos Bíblicos                                                     */
 /* ---------------------------------------------------------------- */
 const ESTUDO_FIELDS = [
@@ -1866,23 +2440,32 @@ const ESTUDO_FIELDS = [
 ];
 
 function Estudos({ items, save, adminMode }) {
+  const [selected, setSelected] = useState(null);
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Palavra e vida</Eyebrow>
       <SectionTitle>Estudos Bíblicos</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum estudo publicado ainda." /></div>}
-      <div className="space-y-4 mt-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
         {items.map((e) => (
-          <div key={e.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
+          <button key={e.id} onClick={() => setSelected(e)} className="text-left p-4 rounded-lg border focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
             <p className="font-display font-semibold">{e.titulo}</p>
-            <p className="text-xs font-mono" style={{ color: C.ember }}>{e.referencia}</p>
-            <p className="text-sm mt-2" style={{ color: C.ink }}>{e.conteudo}</p>
-            {adminMode && <button onClick={() => del(e.id)} className="text-xs underline mt-2" style={{ color: "#B03428" }}>excluir</button>}
-          </div>
+            <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{e.referencia}</p>
+            {e.conteudo && <p className="text-xs mt-2 line-clamp-3" style={{ color: C.stone }}>{e.conteudo.slice(0, 110)}{e.conteudo.length > 110 ? "…" : ""}</p>}
+          </button>
         ))}
       </div>
+      {selected && (
+        <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
+          <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+          <p className="font-display text-xl font-semibold">{selected.titulo}</p>
+          <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{selected.referencia}</p>
+          <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selected.conteudo}</p>
+          {adminMode && <button onClick={() => { del(selected.id); setSelected(null); }} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
+        </div>
+      )}
       {adminMode && (
         <div className="mt-8">
           <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo estudo</p>
@@ -2066,6 +2649,10 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
       <SectionTitle>Orações nos Lares</SectionTitle>
+
+      <div className="rounded-xl overflow-hidden border mb-8" style={{ borderColor: C.line }}>
+        <ImgOrPlaceholder url={ORACOES_BANNER} alt="Oração nos Lares" className="w-full object-cover max-h-[360px]" ph="Banner Oração nos Lares" />
+      </div>
 
       {/* Agenda de encontros — pública pra ver, restrita pra cadastrar */}
       <div className="mt-4">
@@ -2275,8 +2862,15 @@ const MUSICA_FIELDS = [
   { key: "youtubeUrl", label: "Link do YouTube", type: "url" },
 ];
 
-function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, adminMode }) {
-  const [tab, setTab] = useState("repertorio");
+const ALBUM_FIELDS = [
+  { key: "titulo", label: "Nome do álbum / música" },
+  { key: "capaUrl", label: "URL do banner/capa", type: "url" },
+  { key: "videoUrl", label: "Link do vídeo/YouTube", type: "url" },
+];
+
+function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode }) {
+  const [tab, setTab] = useState("albuns");
+  const [openAlbum, setOpenAlbum] = useState(null);
 
   const addCulto = (v) => saveRepertorio([...repertorio, { id: uid(), musicas: [], ...v }]);
   const delCulto = (id) => saveRepertorio(repertorio.filter((c) => c.id !== id));
@@ -2288,6 +2882,9 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, adminMo
   const addMusico = (v) => saveMusicos([...musicos, { id: uid(), ...v }]);
   const delMusico = (id) => saveMusicos(musicos.filter((m) => m.id !== id));
 
+  const addAlbum = (v) => v.titulo && saveAlbuns([...(albuns || []), { id: uid(), ...v }]);
+  const delAlbum = (id) => saveAlbuns((albuns || []).filter((a) => a.id !== id));
+
   const sortedCultos = [...repertorio].sort((a, b) => new Date(b.data) - new Date(a.data));
 
   return (
@@ -2296,12 +2893,51 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, adminMo
       <SectionTitle>Avivar Music</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
-        {["repertorio", "musicos"].map((t) => (
+        {["albuns", "repertorio", "musicos"].map((t) => (
           <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
-            {t === "repertorio" ? "Repertório" : "Músicos"}
+            {t === "albuns" ? "Álbuns" : t === "repertorio" ? "Repertório" : "Músicos"}
           </button>
         ))}
       </div>
+
+      {tab === "albuns" && (
+        <div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(albuns || []).length === 0 && <Empty text="Nenhum álbum cadastrado ainda." />}
+            {(albuns || []).map((a) => (
+              <div key={a.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+                <button onClick={() => setOpenAlbum(a)} className="block w-full text-left focus:outline-none focus:ring-2">
+                  <ImgOrPlaceholder url={a.capaUrl} alt={a.titulo} className="w-full h-40 object-cover" ph="Banner do álbum — adicionar depois" />
+                  <div className="p-3 flex items-center gap-2">
+                    <PlayCircle size={16} color={C.ember} />
+                    <p className="font-display font-semibold text-sm">{a.titulo}</p>
+                  </div>
+                </button>
+                {adminMode && <button onClick={() => delAlbum(a.id)} className="text-xs underline block px-3 pb-3" style={{ color: "#B03428" }}>excluir</button>}
+              </div>
+            ))}
+          </div>
+          {openAlbum && (
+            <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
+              <button onClick={() => setOpenAlbum(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
+              <p className="font-display font-semibold text-lg mb-3">{openAlbum.titulo}</p>
+              {openAlbum.videoUrl ? (
+                <div className="aspect-video rounded-md overflow-hidden bg-black">
+                  <iframe title={openAlbum.titulo} src={getEmbedUrl(openAlbum.videoUrl)} className="w-full h-full" allowFullScreen />
+                </div>
+              ) : (
+                <p className="text-sm italic" style={{ color: C.stone }}>Vídeo ainda não cadastrado para este álbum.</p>
+              )}
+            </div>
+          )}
+          {adminMode && (
+            <div className="mt-8">
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo álbum</p>
+              <DynamicForm fields={ALBUM_FIELDS} onSubmit={addAlbum} submitLabel="Cadastrar álbum" />
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "repertorio" && (
         <div className="space-y-6">
@@ -2451,6 +3087,11 @@ export default function App() {
   const [membros, setMembros] = useState([]);
   const [repertorio, setRepertorio] = useState([]);
   const [musicos, setMusicos] = useState([]);
+  const [albuns, setAlbuns] = useState([]);
+  const [escala, setEscala] = useState(DEFAULT_ESCALA);
+  const [escalaHistorico, setEscalaHistorico] = useState([]);
+  const [biblioteca, setBiblioteca] = useState([]);
+  const [seeds, setSeeds] = useState({});
 
   const sideCarouselPhotos = useMemo(() => {
     const photos = [];
@@ -2467,8 +3108,26 @@ export default function App() {
         photos.push({ url, label: e.anfitriao || "Oração", target: "oracoes" });
       });
     });
+    (eventos || []).forEach((e) => {
+      if (e.imageUrl) photos.push({ url: e.imageUrl, label: e.titulo || "Evento", target: "eventos" });
+    });
+    (loja || []).forEach((p) => {
+      if (p.imageUrl) photos.push({ url: p.imageUrl, label: p.nome || "Loja", target: "loja" });
+    });
+    (igrejas || []).forEach((i) => {
+      if (i.fotoUrl) photos.push({ url: i.fotoUrl, label: i.nome || "Igreja", target: "igrejas" });
+    });
+    (avivarNews || []).forEach((n) => {
+      if (n.imageUrl) photos.push({ url: n.imageUrl, label: n.titulo || "Avivar News", target: "aovivo" });
+    });
+    (albuns || []).forEach((a) => {
+      if (a.capaUrl) photos.push({ url: a.capaUrl, label: a.titulo || "Avivar Music", target: "avivarmusic" });
+    });
+    (biblioteca || []).forEach((b) => {
+      if (b.capaUrl) photos.push({ url: b.capaUrl, label: b.titulo || "Biblioteca Avivar", target: "biblioteca" });
+    });
     return photos;
-  }, [galeria, colaboradores, oracaoEncontros]);
+  }, [galeria, colaboradores, oracaoEncontros, eventos, loja, igrejas, avivarNews, albuns, biblioteca]);
 
   useEffect(() => {
     (async () => {
@@ -2495,9 +3154,424 @@ export default function App() {
       setMembros(await loadKey("avivar:membros", []));
       setRepertorio(await loadKey("avivar:repertorio", []));
       setMusicos(await loadKey("avivar:musicos", []));
+      setAlbuns(await loadKey("avivar:albuns", []));
+      setEscala(await loadKey("avivar:escala", DEFAULT_ESCALA));
+      setEscalaHistorico(await loadKey("avivar:escalahistorico", []));
+      setBiblioteca(await loadKey("avivar:biblioteca", []));
+      setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
     })();
   }, []);
+
+  // Semeadura única de conteúdo inicial (reportagens de Códigos Avivar, eventos, etc.)
+  // — usa a flag avivar:seeds pra nunca duplicar, mesmo que a página recarregue várias vezes,
+  // mas sem recriar o item se o admin apagá-lo de propósito depois.
+  useEffect(() => {
+    if (loading) return;
+    const todo = {};
+    if (!seeds.reportagensCodigos) {
+      const jaTem = avivarNews.some((n) => n.seedId && n.seedId.startsWith("codigos-"));
+      if (!jaTem) {
+        const novas = [
+          {
+            id: uid(),
+            seedId: "codigos-portais",
+            titulo: "Portais espirituais na Bíblia: quando o céu se abre sobre a Terra",
+            texto: "Em vários momentos das Escrituras, o véu entre o céu e a terra parece se afinar. Jacó, fugindo de Esaú, dorme numa pedra em Betel e sonha com uma escada que liga a terra ao céu — ao acordar, declara: \"Este é o portal do céu\" (Gênesis 28:10-17). No batismo de Jesus, os céus se abrem e o Espírito desce como pomba (Mateus 3:16). Estêvão, prestes a ser apedrejado, vê o céu aberto e a glória de Deus (Atos 7:55-56). E João, em Patmos, escreve: \"Depois destas coisas olhei, e eis uma porta aberta no céu\" (Apocalipse 4:1). São lugares e momentos em que o Reino invisível toca visivelmente a vida de quem busca a Deus — não fórmulas, mas encontros que Deus mesmo escolhe abrir.",
+            timestamp: nowISO(),
+          },
+          {
+            id: uid(),
+            seedId: "codigos-horas",
+            titulo: "Horas dimensionais na Bíblia: os tempos em que o Espírito se move",
+            texto: "A Bíblia marca horas específicas como momentos de virada espiritual. Na hora nona (por volta das 15h), Pedro e João sobem ao templo para orar e um coxo é curado (Atos 3:1-8) — na mesma hora nona, Cornélio recebe a visita de um anjo (Atos 10:3). À meia-noite, Paulo e Silas, presos e feridos, cantam louvores, e a prisão treme (Atos 16:25-26). Na crucificação, das seis às nove horas, trevas cobrem a terra antes da ressurreição vindoura (Mateus 27:45). E no Pentecostes, é \"a hora terceira do dia\" quando o Espírito é derramado sobre os discípulos (Atos 2:15). Não são horários mágicos, mas registros de que Deus age em tempos determinados — e nos convida a velar e orar em todo tempo.",
+            timestamp: nowISO(),
+          },
+          {
+            id: uid(),
+            seedId: "codigos-quantica",
+            titulo: "Energia quântica e espiritualidade: quando a ciência aponta para o mistério",
+            texto: "A física quântica descreve um universo onde partículas separadas por enormes distâncias permanecem conectadas (o chamado emaranhamento quântico), e onde o simples ato de observar altera o que é observado. Cientistas ainda debatem o que isso realmente significa — não é prova de nada espiritual —, mas é difícil não pensar em como as Escrituras já descreviam um universo profundamente interligado, sustentado por uma Palavra que tudo criou e tudo mantém unido: \"Nele subsistem todas as coisas\" (Colossenses 1:17). Ciência e fé caminham por métodos diferentes, mas ambas, à sua maneira, apontam para um mistério maior do que conseguimos medir — e a fé cristã crê que esse mistério tem nome: Jesus Cristo.",
+            timestamp: nowISO(),
+          },
+        ];
+        const merged = [...avivarNews, ...novas];
+        setAvivarNews(merged);
+        saveKey("avivar:avivarnews", merged);
+      }
+      todo.reportagensCodigos = true;
+    }
+    if (!seeds.eventos3) {
+      const jaTem = eventos.some((e) => e.seedId && e.seedId.startsWith("evt-"));
+      if (!jaTem) {
+        const novosEventos = [
+          {
+            id: uid(),
+            seedId: "evt-criancas",
+            titulo: "Culto de Crianças",
+            data: "2026-10-10",
+            hora: "19:00",
+            local: "Quadra 1, Lote 4 — Final do estacionamento",
+            descricao: "Um culto especial dedicado às crianças do Ministério Avivar do Espírito.",
+            imageUrl: EVENTO_CRIANCAS_BANNER,
+          },
+          {
+            id: uid(),
+            seedId: "evt-batismo",
+            titulo: "Batismo nas Águas do Ministério Avivar do Espírito",
+            data: "2026-11-07",
+            hora: "07:30",
+            local: "Av. G, 06 (quase no final da Av. G, próximo à vacaria)",
+            descricao: "Momento de consagração e novo nascimento em Cristo através do batismo nas águas.",
+            imageUrl: EVENTO_BATISMO_BANNER,
+          },
+          {
+            id: uid(),
+            seedId: "evt-almoco",
+            titulo: "Almoço Avivar",
+            data: "2026-09-27",
+            hora: "11:30",
+            local: "Ministério Avivar do Espírito",
+            descricao: "Um momento de comunhão e confraternização entre a família Avivar.",
+            imageUrl: EVENTO_ALMOCO_BANNER,
+          },
+        ];
+        const mergedEventos = [...eventos, ...novosEventos];
+        setEventos(mergedEventos);
+        saveKey("avivar:eventos", mergedEventos);
+      }
+      todo.eventos3 = true;
+    }
+    if (!seeds.biblioteca1) {
+      const jaTem = biblioteca.some((b) => b.seedId && b.seedId.startsWith("bib-"));
+      if (!jaTem) {
+        const novosLivros = [
+          {
+            id: uid(),
+            seedId: "bib-palavra",
+            titulo: "A Palavra de Deus: Um Remédio Infalível",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/6-biblioteca-a-palavra-de-deus.jpg",
+            pdfUrl: "/biblioteca/7-biblioteca-a-palavra-de-deus.pdf",
+            sinopse: "A partir de Provérbios 4.20-22, Kenneth Hagin mostra como a Palavra de Deus funciona como remédio para o corpo e para a vida — não apenas metáfora, mas promessa concreta de cura e sustento. Um convite a tratar as Escrituras com a mesma constância de um tratamento médico: lidas, guardadas no coração e proclamadas com fé.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-aguias",
+            titulo: "Voando com as Águias",
+            autor: "Kenneth Hagin Jr.",
+            capaUrl: "/biblioteca/8-biblioteca-voando-com-as-aguias.jpg",
+            pdfUrl: "/biblioteca/9-biblioteca-voando-com-as-aguias.pdf",
+            sinopse: "Usando a águia como símbolo bíblico de força e renovação, Kenneth Hagin Jr. ensina como o cristão pode se erguer acima das tempestades da vida pela fé, em vez de reagir como as aves comuns diante das dificuldades. Um chamado à maturidade espiritual e à confiança na provisão de Deus mesmo em meio à adversidade.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-setepassos",
+            titulo: "Sete Passos Vitais Para Receber o Espírito Santo",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/10-biblioteca-sete-passos-espirito-santo.jpg",
+            pdfUrl: "/biblioteca/11-biblioteca-sete-passos-espirito-santo.pdf",
+            sinopse: "Um guia prático e pastoral para ajudar alguém a receber o batismo no Espírito Santo, com base em Atos 2 e João 14, explicando o papel da fé, da expectativa e da liberdade para orar em línguas. Traz também dez razões bíblicas para valorizar essa experiência na vida de todo crente.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-familia",
+            titulo: "Ministrando à Sua Família",
+            autor: "Kenneth E. Hagin e Kenneth Hagin Jr.",
+            capaUrl: "/biblioteca/12-biblioteca-ministrando-a-sua-familia.jpg",
+            pdfUrl: "/biblioteca/13-biblioteca-ministrando-a-sua-familia.pdf",
+            sinopse: "Coletânea de sermões dos dois autores sobre como aplicar princípios bíblicos de fé, amor e ordem na vida familiar. Aborda o papel de pais e cônjuges à luz da Palavra, com ênfase prática para o dia a dia do lar cristão.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-uncao",
+            titulo: "Uma Nova Unção",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "",
+            sinopse: "Hagin explica a diferença entre a unção que já habita todo crente e uma unção renovada e intensificada para o serviço, mostrando exemplos do Velho e do Novo Testamento de homens e mulheres que a buscaram e a mantiveram viva mesmo em circunstâncias adversas. Um chamado a não se contentar com reservatórios vazios quando Deus oferece um fluir constante do Espírito.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-nomejesus",
+            titulo: "O Nome de Jesus",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "",
+            sinopse: "Um estudo detalhado sobre a autoridade que Deus depositou no nome de Jesus — herdada, concedida e conquistada pela igreja — e como usá-la em oração, na cura, na libertação e no dia a dia da fé cristã. Percorre desde a origem desse Nome \"acima de todo nome\" até seu uso prático contra a opressão espiritual.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-alimentofe",
+            titulo: "Alimento da Fé — Devocionais",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "",
+            sinopse: "Uma coletânea de devocionais curtos, um para cada ocasião de leitura, criada para alimentar a fé do leitor diariamente através de confissões bíblicas e reflexões objetivas. Pensado para ser lido em voz alta, fortalecendo a prática da confissão da Palavra no dia a dia.",
+          },
+          {
+            id: uid(),
+            seedId: "bib-cursofe",
+            titulo: "Curso de Estudo Bíblico Sobre a Fé",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "",
+            sinopse: "Um curso completo e didático sobre como a fé bíblica funciona: como ela vem, como é liberada, os passos para o mais alto tipo de fé e os maiores inimigos que a atacam. Referência clássica de Hagin sobre o tema, indicada tanto para o estudo pessoal quanto para discipulado em grupo.",
+          },
+        ];
+        const mergedBiblioteca = [...biblioteca, ...novosLivros];
+        setBiblioteca(mergedBiblioteca);
+        saveKey("avivar:biblioteca", mergedBiblioteca);
+      }
+      todo.biblioteca1 = true;
+    }
+    if (!seeds.biblioteca2) {
+      const jaTem = biblioteca.some((b) => b.seedId && b.seedId.startsWith("bib2-"));
+      if (!jaTem) {
+        const maisLivros = [
+          {
+            id: uid(),
+            seedId: "bib2-dons",
+            titulo: "Os Dons do Ministério",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/14-biblioteca-os-dons-do-ministerio.jpg",
+            pdfUrl: "/biblioteca/15-biblioteca-os-dons-do-ministerio.pdf",
+            sinopse: "Um estudo sobre os cinco dons ministeriais mencionados em Efésios 4 — apóstolo, profeta, evangelista, pastor e mestre — e como cada um deles equipa a igreja para o crescimento e a maturidade espiritual. Hagin explica como reconhecer esses chamados e por que eles continuam atuantes no Corpo de Cristo hoje.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-elshaddai",
+            titulo: "El Shaddai: O Deus Mais do que Suficiente",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/16-biblioteca-el-shaddai.jpg",
+            pdfUrl: "/biblioteca/17-biblioteca-el-shaddai.pdf",
+            sinopse: "A partir do nome hebraico El Shaddai, Hagin explora a suficiência de Deus para suprir cada necessidade do crente — física, financeira e espiritual. Um convite a confiar na provisão divina mesmo diante de circunstâncias que parecem maiores do que os próprios recursos.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-sofram",
+            titulo: "É Necessário que os Cristãos Sofram?",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/18-biblioteca-e-necessario-que-os-cristaos-sofram.jpg",
+            pdfUrl: "/biblioteca/19-biblioteca-e-necessario-que-os-cristaos-sofram.pdf",
+            sinopse: "Hagin examina, à luz das Escrituras, se o sofrimento é parte do plano de Deus para o crente ou consequência de outros fatores, distinguindo entre a perseguição pela fé e as aflições que a Palavra ensina a resistir. Uma reflexão pastoral para quem enfrenta dificuldades e busca entender o papel de Deus nelas.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-duelo",
+            titulo: "Duelo con el Diablo (em espanhol)",
+            autor: "Kenneth Hagin Jr.",
+            capaUrl: "/biblioteca/20-biblioteca-duelo-con-el-diablo.jpg",
+            pdfUrl: "/biblioteca/21-biblioteca-duelo-con-el-diablo.pdf",
+            sinopse: "Kenneth Hagin Jr. ensina como identificar as imitações e ciladas espirituais do diabo e como resistir a elas com autoridade na fé cristã. Atenção: este exemplar está em espanhol, não em português.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-autoridade",
+            titulo: "A Autoridade do Crente",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "/biblioteca/22-biblioteca-a-autoridade-do-crente.jpg",
+            pdfUrl: "/biblioteca/23-biblioteca-a-autoridade-do-crente.pdf",
+            sinopse: "Um dos ensinos mais conhecidos de Hagin sobre a autoridade espiritual que o crente recebe em Cristo — a base bíblica para resistir ao inimigo, orar com convicção e viver de forma vitoriosa. Referência clássica sobre o tema no meio evangélico.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-naoculpe",
+            titulo: "Não Culpe a Deus",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "/biblioteca/24-biblioteca-nao-culpe-a-deus.pdf",
+            sinopse: "A partir da própria história de enfermidade na infância, Hagin desmonta a ideia de que Deus é o autor do sofrimento, mostrando pelas Escrituras que a cura e a vida abundante são a vontade de Deus para todos. Um livro pastoral e testemunhal sobre encontrar respostas bíblicas em meio à dor.",
+          },
+          {
+            id: uid(),
+            seedId: "bib2-casamento",
+            titulo: "Casamento, Divórcio e Novo Casamento",
+            autor: "Kenneth E. Hagin",
+            capaUrl: "",
+            pdfUrl: "",
+            sinopse: "Hagin trata com equilíbrio bíblico os temas do casamento, do divórcio e da possibilidade de um novo casamento, buscando o que as Escrituras realmente ensinam para além do senso comum religioso. Aborda também a visão de Deus para o lar e os principais desafios entre marido e mulher.",
+          },
+        ];
+        const mergedBiblioteca2 = [...biblioteca, ...maisLivros];
+        setBiblioteca(mergedBiblioteca2);
+        saveKey("avivar:biblioteca", mergedBiblioteca2);
+      }
+      todo.biblioteca2 = true;
+    }
+    if (!seeds.trilogiaLivros1) {
+      const jaTemTrilogia = (loja || []).some((p) => p.seedId && p.seedId.startsWith("trilogia-"));
+      if (!jaTemTrilogia) {
+        const livrosTrilogia = [
+          {
+            id: uid(),
+            seedId: "trilogia-dons",
+            categoria: "Códigos Avivar",
+            titulo: "Conquistando os Dons do Espírito Santo",
+            nome: "Conquistando os Dons do Espírito Santo",
+            autor: "Filho do Deus Altíssimo",
+            imageUrl: LIVRO_DONS_CAPA,
+            destino: "loja",
+            preco: "",
+            linkCompra: "",
+            linkCartao: "",
+            descricao: "Um guia prático para reconhecer, desenvolver e operar os dons do Espírito Santo na vida cristã. A obra conduz o leitor a compreender como o derramar do Espírito prometido em Isaías 44:3 se manifesta hoje, treinando os filhos de Deus para a batalha espiritual pela salvação das almas.",
+          },
+          {
+            id: uid(),
+            seedId: "trilogia-cura",
+            categoria: "Códigos Avivar",
+            titulo: "Praticando a Cura Divina",
+            nome: "Praticando a Cura Divina",
+            autor: "Filho do Deus Altíssimo",
+            imageUrl: LIVRO_CURA_CAPA,
+            destino: "loja",
+            preco: "",
+            linkCompra: "",
+            linkCartao: "",
+            descricao: "Um manual de fé e ação sobre a cura divina, ensinando princípios bíblicos para orar pelos enfermos e libertar os oprimidos. A obra resgata o exemplo de Jesus e dos apóstolos, mostrando que o poder de curar os enfermos e expulsar demônios continua disponível à Igreja hoje.",
+          },
+          {
+            id: uid(),
+            seedId: "trilogia-gloria",
+            categoria: "Códigos Avivar",
+            titulo: "O Impacto da Glória — Dons do Espírito Santo",
+            nome: "O Impacto da Glória — Dons do Espírito Santo",
+            autor: "Filho do Deus Altíssimo",
+            imageUrl: LIVRO_GLORIA_CAPA,
+            destino: "loja",
+            preco: "",
+            linkCompra: "",
+            linkCartao: "",
+            descricao: "Uma reflexão sobre o impacto da glória de Deus manifestada por meio dos dons espirituais, à luz da profecia de Joel 2:28. O livro convida a Igreja a viver o derramamento profetizado — com sonhos, visões e profecias — reacendendo o avivamento nos últimos dias.",
+          },
+        ];
+        const mergedLoja = [...(loja || []), ...livrosTrilogia];
+        setLoja(mergedLoja);
+        saveKey("avivar:loja", mergedLoja);
+      }
+      todo.trilogiaLivros1 = true;
+    }
+    if (!seeds.trilogiaLivros2) {
+      // Agora que os PDFs (miolo) chegaram, preenche pdfUrl dos 3 livros já cadastrados
+      // e acrescenta "O Dom da Revelação" como 4º título — sem duplicar o que já existe.
+      const pdfMap = {
+        "trilogia-dons": "/43-livro-conquistando-os-dons.pdf",
+        "trilogia-cura": "/44-livro-praticando-a-cura-divina.pdf",
+        "trilogia-gloria": "/45-livro-o-impacto-da-gloria.pdf",
+      };
+      let lojaAtualizada = (loja || []).map((p) =>
+        p.seedId && pdfMap[p.seedId] && !p.pdfUrl ? { ...p, pdfUrl: pdfMap[p.seedId] } : p
+      );
+      const jaTemRevelacao = lojaAtualizada.some((p) => p.seedId === "trilogia-revelacao");
+      if (!jaTemRevelacao) {
+        lojaAtualizada = [
+          ...lojaAtualizada,
+          {
+            id: uid(),
+            seedId: "trilogia-revelacao",
+            categoria: "Códigos Avivar",
+            titulo: "O Dom da Revelação — Segredos e Técnicas",
+            nome: "O Dom da Revelação — Segredos e Técnicas",
+            autor: "Filho do Deus Altíssimo",
+            imageUrl: "/46-livro-o-dom-da-revelacao.jpg",
+            pdfUrl: "/47-livro-o-dom-da-revelacao.pdf",
+            destino: "loja",
+            preco: "",
+            linkCompra: "",
+            linkCartao: "",
+            descricao: "Uma obra dedicada ao dom da revelação e da palavra de ciência, com explicações simples e minuciosas fundamentadas nas Escrituras e garantidas pelo Espírito Santo. Traz também exercícios práticos para que o leitor experimente uma fluidez maior na manifestação desse dom em sua vida espiritual.",
+          },
+        ];
+      }
+      setLoja(lojaAtualizada);
+      saveKey("avivar:loja", lojaAtualizada);
+
+      // Os mesmos 4 livros também aparecem na Biblioteca Avivar (pública), mas
+      // como são vendidos, o clique redireciona para a Loja em vez de abrir o PDF ali.
+      const jaTemNaBiblioteca = (biblioteca || []).some((b) => b.seedId && b.seedId.startsWith("trilogia-bib-"));
+      if (!jaTemNaBiblioteca) {
+        const copiasBiblioteca = [
+          { id: uid(), seedId: "trilogia-bib-dons", titulo: "Conquistando os Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", capaUrl: "/27-livro-conquistando-os-dons.jpg", linkLoja: true, sinopse: "Um guia prático para reconhecer, desenvolver e operar os dons do Espírito Santo na vida cristã, treinando os filhos de Deus para a batalha espiritual pela salvação das almas. Disponível para aquisição na Loja Avivar." },
+          { id: uid(), seedId: "trilogia-bib-cura", titulo: "Praticando a Cura Divina", autor: "Filho do Deus Altíssimo", capaUrl: "/28-livro-praticando-a-cura-divina.jpg", linkLoja: true, sinopse: "Um manual de fé e ação sobre a cura divina, com princípios bíblicos para orar pelos enfermos e libertar os oprimidos. Disponível para aquisição na Loja Avivar." },
+          { id: uid(), seedId: "trilogia-bib-gloria", titulo: "O Impacto da Glória — Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", capaUrl: "/29-livro-o-impacto-da-gloria.jpg", linkLoja: true, sinopse: "Uma reflexão sobre o impacto da glória de Deus manifestada pelos dons espirituais, à luz da profecia de Joel 2:28. Disponível para aquisição na Loja Avivar." },
+          { id: uid(), seedId: "trilogia-bib-revelacao", titulo: "O Dom da Revelação — Segredos e Técnicas", autor: "Filho do Deus Altíssimo", capaUrl: "/46-livro-o-dom-da-revelacao.jpg", linkLoja: true, sinopse: "Uma obra dedicada ao dom da revelação e da palavra de ciência, com explicações simples e exercícios práticos fundamentados nas Escrituras. Disponível para aquisição na Loja Avivar." },
+        ];
+        const mergedBiblioteca3 = [...(biblioteca || []), ...copiasBiblioteca];
+        setBiblioteca(mergedBiblioteca3);
+        saveKey("avivar:biblioteca", mergedBiblioteca3);
+      }
+      todo.trilogiaLivros2 = true;
+    }
+    if (!seeds.galeriaComunidade1) {
+      const jaTemSessao = (galeria || []).some((g) => g.seedId === "galeria-comunidade-1");
+      if (!jaTemSessao) {
+        const novaSessao = {
+          id: uid(),
+          seedId: "galeria-comunidade-1",
+          titulo: "Vida em Comunidade",
+          data: "2026-09-26",
+          videos: [],
+          fotos: [
+            "/32-galeria-comunidade.jpg",
+            "/33-galeria-comunidade.jpg",
+            "/34-galeria-comunidade.jpg",
+            "/35-galeria-comunidade.jpg",
+            "/36-galeria-comunidade.jpg",
+            "/37-galeria-comunidade.jpg",
+            "/38-galeria-comunidade.jpg",
+            "/39-galeria-comunidade.jpg",
+            "/40-galeria-comunidade.jpg",
+            "/41-galeria-comunidade.jpg",
+            "/42-galeria-comunidade.jpg",
+          ],
+        };
+        const mergedGaleria = [...(galeria || []), novaSessao];
+        setGaleria(mergedGaleria);
+        saveKey("avivar:galeria", mergedGaleria);
+      }
+      todo.galeriaComunidade1 = true;
+    }
+    if (!seeds.galeriaLouvor1) {
+      const jaTemLouvor = (galeria || []).some((g) => g.seedId === "galeria-louvor-1");
+      if (!jaTemLouvor) {
+        const sessaoLouvor = {
+          id: uid(),
+          seedId: "galeria-louvor-1",
+          titulo: "Louvor Avivar",
+          data: "2026-09-26",
+          videos: [],
+          fotos: [
+            LOUVOR_LOGO,
+            "/48-louvor-avivar.jpg",
+            "/49-louvor-avivar.jpg",
+            "/50-louvor-avivar.jpg",
+            "/51-louvor-avivar.jpg",
+            "/52-louvor-avivar.jpg",
+            "/53-louvor-avivar.jpg",
+            "/54-louvor-avivar.jpg",
+            "/55-louvor-avivar.jpg",
+            "/56-louvor-avivar.jpg",
+            "/57-louvor-avivar.jpg",
+            "/58-louvor-avivar.jpg",
+            "/59-louvor-avivar.jpg",
+            "/60-louvor-avivar.jpg",
+            "/61-louvor-avivar.jpg",
+          ],
+        };
+        const mergedGaleria2 = [...(galeria || []), sessaoLouvor];
+        setGaleria(mergedGaleria2);
+        saveKey("avivar:galeria", mergedGaleria2);
+      }
+      todo.galeriaLouvor1 = true;
+    }
+    if (Object.keys(todo).length > 0) {
+      const merged = { ...seeds, ...todo };
+      setSeeds(merged);
+      saveKey("avivar:seeds", merged);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const persist = {
     site: (v) => { setSite(v); saveKey("avivar:site", v); },
@@ -2522,6 +3596,10 @@ export default function App() {
     bens: (v) => { setBens(v); saveKey("avivar:bens", v); },
     membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
+    albuns: (v) => { setAlbuns(v); saveKey("avivar:albuns", v); },
+    escala: (v) => { setEscala(v); saveKey("avivar:escala", v); },
+    escalaHistorico: (v) => { setEscalaHistorico(v); saveKey("avivar:escalahistorico", v); },
+    biblioteca: (v) => { setBiblioteca(v); saveKey("avivar:biblioteca", v); },
     musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
   };
 
@@ -2549,6 +3627,10 @@ export default function App() {
         @keyframes marquee { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
         .marquee-track { animation: marquee 14s linear infinite; }
         @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+        @keyframes noticiasMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .noticias-marquee { animation: noticiasMarquee 30s linear infinite; width: max-content; }
+        .noticias-marquee:hover { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) { .noticias-marquee { animation: none; } }
       `}</style>
 
       <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
@@ -2557,19 +3639,21 @@ export default function App() {
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main className="lg:ml-[140px] lg:mr-[272px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} /></section>
-        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} /></section>
+        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} /></section>
         <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} /></section>
         <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
+        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} historico={escalaHistorico} saveHistorico={persist.escalaHistorico} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} /></section>
+        <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} adminMode={adminMode} /></section>
+        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} /></section>
         <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
         <section id="operadores" className="scroll-mt-24"><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
