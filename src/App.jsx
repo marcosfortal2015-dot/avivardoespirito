@@ -69,6 +69,9 @@ const TRILOGIA_LIVROS_BANNER = "/26-trilogia-livros-avivar.jpg";
 const LIVRO_DONS_CAPA = "/27-livro-conquistando-os-dons.jpg";
 const LIVRO_CURA_CAPA = "/28-livro-praticando-a-cura-divina.jpg";
 const LIVRO_GLORIA_CAPA = "/29-livro-o-impacto-da-gloria.jpg";
+const CODIGOS_CURIOSIDADE_AGUA_VINHO = "/63-codigos-curiosidade-agua-vinho.jpg";
+const CODIGOS_ARTIGO_ARQUITETURA_CONSCIENCIA = "/64-codigos-artigo-arquitetura-consciencia.jpg";
+const CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER = "/65-codigos-profetas-ultimos-dias-banner.jpg";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -445,6 +448,7 @@ const NAV = [
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
   { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
   { key: "contato", label: "Contato", icon: Mail },
+  { key: "doacoes", label: "Doações", icon: Send },
 ];
 const SUBMENU = [
   { key: "colaboradores", label: "Colaboradores", icon: Users },
@@ -452,7 +456,6 @@ const SUBMENU = [
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "biblioteca", label: "Biblioteca Avivar", icon: Library },
   { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
-  { key: "doacoes", label: "Doações", icon: Send },
   { key: "membros", label: "Membros", icon: UserPlus },
   { key: "avivarmusic", label: "Avivar Music", icon: Music },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
@@ -554,7 +557,17 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   // PhotographSignature foi retirada daqui (voltou pra fonte padrão do site).
   const topPillStyle = (active) => pillStyle(active);
   return (
-    <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+    <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+      {/* Admin + toggle mobile — fora do fluxo do grupo alinhado de pills, para não
+          empurrar o último pill do NAV para longe da borda direita */}
+      <div className="absolute top-2 right-2 sm:right-3 flex items-center gap-2 z-10">
+        <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
+          {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
+        </button>
+        <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
+          {open ? <X /> : <Menu />}
+        </button>
+      </div>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end justify-between gap-3 py-3">
         <div className="flex items-end gap-3">
           <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
@@ -577,20 +590,17 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </div>
 
         <div className="flex items-end gap-2 flex-wrap justify-end">
-          {/* Fileira de cima — pills sobre fundo roxo, alinhada pela base com a logo */}
-          <nav className="hidden lg:flex items-end gap-1 flex-wrap rounded-md px-2 py-1.5" style={{ background: C.violetDeep }}>
+          {/* Fileira de cima — pills sobre fundo roxo, alinhada pela base com a logo.
+              Pills com largura mínima igual à do submenu (mesmo nº de itens) e sem
+              padding horizontal extra no <nav>, para o grupo ficar colado à borda
+              direita do container — alinhando o 1º e o último pill com o submenu. */}
+          <nav className="hidden lg:flex items-end gap-1 flex-wrap rounded-md py-1.5" style={{ background: C.violetDeep }}>
             {NAV.map((n) => (
-              <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-xs font-semibold rounded-md transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
+              <button key={n.key} onClick={() => go(n.key)} className="nav-pulse min-w-[100px] inline-flex items-center justify-center text-center px-2 py-1 text-xs font-semibold rounded-md transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
                 {n.label}
               </button>
             ))}
           </nav>
-          <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
-            {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
-          </button>
-          <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
-            {open ? <X /> : <Menu />}
-          </button>
         </div>
       </div>
 
@@ -601,7 +611,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
           return (
-            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse min-w-[100px] justify-center text-center px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
               {isLoja ? (
                 <span className="relative flex items-center justify-center w-5 h-5 rounded-full shrink-0" style={{ background: C.liveRed }}>
                   <n.icon size={12} color="#fff" />
@@ -805,7 +815,7 @@ function SideCarousel({ photos, setPage }) {
   const visible = Array.from({ length: frameCount }, (_, i) => photos[(offset + i) % total]);
 
   return (
-    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "10rem" }}>
+    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "13.5rem" }}>
       <div className="relative flex-1 rounded-md overflow-hidden shadow-xl" style={{ background: "#000" }}>
         <div className="absolute inset-0 flex flex-col" style={{ left: 14, right: 14 }}>
           {visible.map((photo, i) => (
@@ -872,7 +882,7 @@ function Forum({ posts, addPost }) {
 
   return (
     <>
-      <div className="hidden lg:flex fixed right-0 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line, top: "10rem" }}>
+      <div className="hidden lg:flex fixed right-3 bottom-8 w-56 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line, top: "13.5rem" }}>
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
           <MessageCircle size={16} color={C.ember} />
           <p className="font-display font-semibold text-sm">Fórum</p>
@@ -910,7 +920,7 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
       style={{ background: bgImage ? C.black : bg, borderColor: bgImage ? C.line : border, color: "#fff" }}
     >
       {bgImage ? (
-        <img src={bgImage} alt={title} className="absolute inset-0 w-full h-full object-cover" />
+        <img src={bgImage} alt={title} className="absolute inset-[0.5cm] object-cover rounded-lg" />
       ) : adminMode ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 border-2 border-dashed" style={{ borderColor: C.line, background: "#00000006", color: C.stone }}>
           <ImageIcon size={22} />
@@ -1172,12 +1182,6 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
-        <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
-        <PedidoOracaoCard onClick={() => setPage("pedidooracao")} />
-      </div>
-
       {/* Cards da home — sempre depois dos banners do topo (Hero), nunca sobrepostos;
           grade de 3 colunas em telas grandes (classe GRID3 padrão do site). */}
       <div className={`max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID3}`}>
@@ -1203,6 +1207,11 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
         </div>
       )}
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-2 gap-5">
+        <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
+        <PedidoOracaoCard onClick={() => setPage("pedidooracao")} />
+      </div>
 
       <section className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
@@ -1235,6 +1244,21 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
           <p className="text-xs mt-2 font-mono" style={{ color: C.stone }}>Seja muito bem-vindo(a) — cadastre-se em Visitantes.</p>
         </div>
       </section>
+
+      {/* Banner da revista Códigos Avivar — reduzido e movido pra cá (logo antes da
+          seção Códigos Avivar), fora do gate/página protegida */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16">
+        <button
+          onClick={() => setPage("codigos")}
+          className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl focus:outline-none focus:ring-2"
+          style={{ borderColor: C.gold }}
+        >
+          <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[280px]" ph="Banner revista Códigos Avivar — em destaque" />
+        </button>
+        <p className="text-sm text-center italic mt-3" style={{ color: C.stone }}>
+          Deus está revelando os seus mistérios aos profetas. Em breve, Códigos Avivar em sua nova fase com a série Profetas dos Últimos Dias. Tudo que tiver relação com Códigos Avivar levaremos para o nosso app, dentro de poucos dias.
+        </p>
+      </div>
     </div>
   );
 }
@@ -1318,14 +1342,6 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
         {/* Divulgação em destaque — revista, trilogia de livros, Bíblia Avivar e capas individuais */}
         <div className="px-4 sm:px-6 lg:px-10 pt-10 pb-2">
           <div className="max-w-6xl mx-auto">
-            <button
-              onClick={() => setPage && setPage("aovivo")}
-              className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl focus:outline-none focus:ring-2 mb-5"
-              style={{ borderColor: C.gold }}
-            >
-              <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Revista Códigos Avivar" className="w-full object-cover max-h-[420px]" ph="Banner revista Códigos Avivar — em destaque" />
-            </button>
-
             {/* A imagem "conjugada" com a colagem das 3 capas da trilogia foi removida daqui
                 a pedido — cada capa já aparece individualmente mais abaixo. */}
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -1352,7 +1368,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3">
+        <div className="grid lg:grid-cols-3 items-stretch">
           {/* Coluna 1 — credenciais de acesso */}
           <div className="flex items-center justify-center px-4 py-12" style={{ background: C.violetDeep }}>
             <div className="w-full max-w-sm text-center">
@@ -1391,6 +1407,15 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                   Assine os Códigos Avivar e entre na frequência de revelação, ciência e espiritualidade que Deus reserva para os últimos dias.
                 </p>
               </div>
+
+              {/* Curiosidade científico-espiritual — imagem 63 */}
+              <div className="mt-4 rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33", background: C.parchment }}>
+                <ImgOrPlaceholder url={CODIGOS_CURIOSIDADE_AGUA_VINHO} alt="Curiosidade: a Transformação da Água em Vinho" className="w-full object-cover max-h-[220px]" ph="Curiosidade científico-espiritual" />
+                <div className="p-3 text-center">
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>CURIOSIDADE</p>
+                  <p className="text-sm font-semibold mt-1" style={{ color: C.ink }}>Ciência e o milagre da água em vinho</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1398,26 +1423,28 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
           <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
             <Eyebrow color={C.goldBright}><Sparkles size={11} className="inline mr-1" />Ciência, tempo e espírito</Eyebrow>
             <h3 className="font-display text-xl font-semibold text-white mt-2 mb-5">Reflexões Avivar News</h3>
-            <div className="space-y-3">
-              {reportagensDestaque.length === 0 && (
-                <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
-              )}
-              {reportagensDestaque.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => setPage && setPage("aovivo")}
-                  className="block text-left w-full p-4 rounded-lg transition hover:brightness-110 focus:outline-none focus:ring-2"
-                  style={{ background: "#ffffff0f" }}
-                >
-                  <p className="font-display font-semibold text-white text-sm leading-snug">{n.titulo}</p>
-                  {n.texto && (
-                    <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>
-                      {n.texto.slice(0, 130)}{n.texto.length > 130 ? "…" : ""}
-                    </p>
-                  )}
-                  <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
-                </button>
-              ))}
+            <div className="rounded-xl p-4" style={{ background: "#ffffff0f" }}>
+              <div className="space-y-3">
+                {reportagensDestaque.length === 0 && (
+                  <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
+                )}
+                {reportagensDestaque.map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => setPage && setPage("aovivo")}
+                    className="block text-left w-full p-4 rounded-lg transition hover:brightness-110 focus:outline-none focus:ring-2"
+                    style={{ background: "#ffffff0f" }}
+                  >
+                    <p className="font-display font-semibold text-white text-sm leading-snug">{n.titulo}</p>
+                    {n.texto && (
+                      <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>
+                        {n.texto.slice(0, 130)}{n.texto.length > 130 ? "…" : ""}
+                      </p>
+                    )}
+                    <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1425,23 +1452,30 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
           <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
             <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
             <p className="text-xs mt-2" style={{ color: "#ffffffbb" }}>O Conhecimento Revelado pelo Espírito Santo</p>
-            <div className="grid grid-cols-2 gap-3 mt-5">
-              {vitrineItems.length === 0 && (
-                <p className="text-xs italic col-span-2" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
-              )}
-              {vitrineItems.map((item) => (
-                <div key={item.id} className="rounded-lg overflow-hidden border" style={{ borderColor: "#ffffff22" }}>
-                  <button onClick={() => goVitrine(item)} className="block w-full focus:outline-none focus:ring-2">
-                    <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-28 object-cover" />
-                    <p className="text-[11px] text-white p-1.5 text-left leading-snug">{item.titulo || item.nome}</p>
-                  </button>
-                  {adminMode && (
-                    <button onClick={() => delVitrineItem(item.id)} className="text-[10px] underline w-full text-left px-1.5 pb-1.5" style={{ color: "#ffffff88" }}>
-                      excluir
+            <div className="rounded-xl p-4 mt-5" style={{ background: "#ffffff0f" }}>
+              <div className="grid grid-cols-2 gap-3">
+                {vitrineItems.length === 0 && (
+                  <p className="text-xs italic col-span-2" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
+                )}
+                {vitrineItems.map((item) => (
+                  <div key={item.id} className="rounded-lg overflow-hidden border" style={{ borderColor: "#ffffff22" }}>
+                    <button onClick={() => goVitrine(item)} className="block w-full focus:outline-none focus:ring-2">
+                      <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-28 object-cover" />
+                      <p className="text-[11px] text-white p-1.5 text-left leading-snug">{item.titulo || item.nome}</p>
                     </button>
-                  )}
-                </div>
-              ))}
+                    {adminMode && (
+                      <button onClick={() => delVitrineItem(item.id)} className="text-[10px] underline w-full text-left px-1.5 pb-1.5" style={{ color: "#ffffff88" }}>
+                        excluir
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Curiosidade / divulgação — banner Profetas dos Últimos Dias (imagem 65) */}
+              <div className="mt-4 rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33" }}>
+                <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[160px]" ph="Série Profetas dos Últimos Dias — em breve" />
+              </div>
             </div>
             <p className="text-[11px] mt-3" style={{ color: "#ffffff88" }}>
               Estes mesmos títulos ficam à venda na Loja Avivar; aqui, para quem já tem acesso, a leitura é livre.
@@ -1855,6 +1889,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode 
               <div className="p-4">
                 <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
                 <p className="font-display font-semibold text-sm mt-1">{n.titulo}</p>
+                {n.autor && <p className="text-[10px] italic mt-0.5" style={{ color: C.stone }}>por {n.autor}</p>}
                 {n.texto && <p className="text-xs mt-2" style={{ color: C.stone }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
               </div>
             </button>
@@ -1867,6 +1902,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode 
               <button onClick={() => setSelectedNews(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
               <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(selectedNews.timestamp)}</p>
               <h4 className="font-display font-semibold text-lg mt-1">{selectedNews.titulo}</h4>
+              {selectedNews.autor && <p className="text-xs italic mt-0.5" style={{ color: C.stone }}>por {selectedNews.autor}</p>}
               {selectedNews.videoUrl && (
                 <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
                   <iframe title={selectedNews.titulo} src={getEmbedUrl(selectedNews.videoUrl)} className="w-full h-full" allowFullScreen />
@@ -2865,6 +2901,7 @@ function Estudos({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 const AVIVARNEWS_FIELDS = [
   { key: "titulo", label: "Título da reportagem" },
+  { key: "autor", label: "Autor (opcional)" },
   { key: "imageUrl", label: "URL da imagem de capa (opcional)", type: "url" },
   { key: "videoUrl", label: "URL do vídeo (YouTube ou Vimeo, opcional)", type: "url" },
   { key: "texto", label: "Texto da reportagem", type: "textarea" },
@@ -3703,6 +3740,68 @@ export default function App() {
         saveKey("avivar:avivarnews", merged);
       }
       todo.reportagensCodigos = true;
+    }
+    if (!seeds.reportagensCodigos2) {
+      const jaTem2 = avivarNews.some((n) => n.seedId && (n.seedId === "artigo-consciencia-espiritual" || n.seedId === "artigo-geracao-profetica"));
+      if (!jaTem2) {
+        const novas2 = [
+          {
+            id: uid(),
+            seedId: "artigo-consciencia-espiritual",
+            titulo: "Eleve Sua Consciência Espiritual: Os Códigos Avivar e a Frequência dos Últimos Dias",
+            autor: "Marcos Fagner",
+            texto: `Parte 1: A Arquitetura da Consciência e o Despertar do Subconsciente
+
+Viver o presente com profundidade exige compreender que a realidade que experimentamos não é apenas física; ela é o reflexo direto de um alinhamento espiritual profundo. Nos dias atuais, em que o mundo caminha por transformações aceleradas, a busca por uma expansão da consciência deixa de ser um mero exercício filosófico e passa a ser uma necessidade vital para o crente que deseja caminhar em pleno domínio espiritual.
+
+A mente humana, criada à imagem e semelhança do Criador, possui camadas profundas que frequentemente permanecem inexploradas. O subconsciente atua como um solo fértil, onde crenças, memórias e padrões invisíveis moldam cotidianamente as nossas atitudes, a nossa fé e a nossa capacidade de acessar o sobrenatural. Quando a Palavra de Deus nos exorta a renovar a nossa mente, o convite é para reprogramar esse solo interno com frequências espirituais elevadas, substituindo o ruído do mundo pela frequência inabalável do Reino.
+
+"A verdadeira revelação não vem de fora para dentro, mas irrompe de um espírito que foi sintonizado com a frequência da eternidade."
+
+Nesse cenário, a ciência e a espiritualidade deixam de ser opostos irreconciliáveis e convergem para revelar a grandeza da criação divina. As frequências vibracionais que regem o universo físico encontram eco na frequência da fé viva. Quando alinhamos nossos pensamentos e batimentos espirituais aos propósitos divinos, entramos em um campo de sintonia onde o natural dá lugar ao sobrenatural, permitindo que milagres deixem de ser eventos esporádicos e passem a ser o padrão da caminhada cristã.
+
+Parte 2: Assinando os Códigos Avivar e Entrando na Dimensão Profética
+
+Para romper as barreiras do cotidiano e acessar os segredos profundos que Deus reservou para o tempo do fim, é preciso ir além do óbvio. É neste ponto que entram os Códigos Avivar: chaves espirituais desenhadas para despertar a identidade daqueles que foram chamados para ser a voz profética desta geração.
+
+Assinar esses códigos significa romper com a mornidão espiritual e posicionar-se na frequência da revelação. Trata-se de um treinamento intensivo do espírito, onde a interseção entre a ciência da criação e a profundidade dos dons espirituais se manifesta com poder. Os dons concedidos no dia de Pentecoste não apenas permanecem ativos, como se intensificam à medida que nos aproximamos do retorno de Jesus e dos momentos de grande prova sobre a Terra.
+
+• Sintonia Profética: Desvendar os segredos espirituais que capacitam os intercessores e líderes a discernirem os sinais dos tempos.
+• Ativação Subconsciente: Limpar os filtros mentais limitantes através da meditação na Palavra, sintonizando a mente na frequência da fé inabalável.
+• Manifestação do Reino: Operar em milagres e sinais como resposta direta a um nível superior de comunhão e entrega espiritual.
+
+Elevando a nossa consciência espiritual, compreendemos que cada obstáculo atual é, na verdade, um degrau para um nível mais alto de autoridade em Cristo. Esteja pronto para sintonizar a sua vida na frequência que transforma eras e prepare-se para caminhar com ousadia nos desígnios que o Céu preparou para os dias finais.
+
+Qual área da sua vida espiritual você sente que precisa sintonizar mais profundamente com os Códigos Avivar hoje?`,
+            imageUrl: CODIGOS_ARTIGO_ARQUITETURA_CONSCIENCIA,
+            timestamp: nowISO(),
+          },
+          {
+            id: uid(),
+            seedId: "artigo-geracao-profetica",
+            titulo: "O Despertar da Geração Profética",
+            texto: `Estamos vivendo a transição de eras mais profunda da história humana. À medida que o cenário global se inclina para incertezas e crises sistêmicas — o que as Escrituras descrevem profeticamente como o momento em que o caos se instala na terra —, o Céu mobiliza uma linhagem singular: os profetas dos últimos dias. Não se trata de uma elite mística distante, mas de homens e mulheres comuns que decidiram sintonizar suas vidas na frequência exata do Criador.
+
+O Ministério Avivar do Espírito fundamenta-se na fé cristã interdenominacional com forte viés pentecostal, crendo firmemente que os dons do Espírito Santo foram liberados no Dia de Pentecostes e permanecem plenamente ativos, cessando somente com a volta de Jesus. Para operar com autoridade nessa dispensação, é necessário decodificar os segredos espirituais que sustentam a resistência e a vitória da Igreja.
+
+A Frequência da Revelação e o Dom Profético
+
+O verdadeiro profeta dos últimos dias opera na interseção entre a revelação espiritual e o discernimento dos tempos. Quando o mundo mergulha em trevas e confusão, a voz de Deus ecoa com nitidez para aqueles que abandonaram a superficialidade religiosa.
+
+• Ativação Espiritual: Os treinamentos espirituais baseados nos Códigos Avivar capacitam o crente a enxergar além das aparências físicas, decodificando os movimentos espirituais que regem as nações.
+• Resiliência no Caos: O profeta atual não é surpreendido pelas crises; pelo contrário, compreende que o abalo das estruturas terrenas abre espaço para o transbordar do poder milagroso de Deus.
+• Autoridade Ministerial: Assim como os apóstolos no passado, esta geração recebe o revestimento de poder para curar enfermos, expulsar trevas e anunciar o Reino com intrepidez inegociável.
+
+Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto na muralha. É tempo de alinhar o seu espírito, abandonar o temor e permitir que o fogo pentecostal incendeie a sua trajetória, tornando-o um farol de esperança e poder nos dias finais.`,
+            imageUrl: CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER,
+            timestamp: nowISO(),
+          },
+        ];
+        const merged = [...avivarNews, ...novas2];
+        setAvivarNews(merged);
+        saveKey("avivar:avivarnews", merged);
+      }
+      todo.reportagensCodigos2 = true;
     }
     if (!seeds.eventos3) {
       const jaTem = eventos.some((e) => e.seedId && e.seedId.startsWith("evt-"));
