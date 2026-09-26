@@ -35,6 +35,12 @@ const C = {
   line: "#00000018",
 };
 
+// Grid reaproveitável de 3 colunas responsivo — usado em todas as seções de cards
+// (Estudos Bíblicos, Avivar Music, vitrines, etc.) para manter o padrão visual do site.
+const GRID3 = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5";
+
+const CAUSAS_ORACAO = ["Financeiras", "Saúde", "Libertação", "Intercessão", "Causas jurídicas", "Oportunidade de emprego", "Outros"];
+
 const LOGO_ICON = "/logo-icone.png";
 const LOGO_BLACK_BG = "/logo-fundo-preto.jpg";
 const LOGO_WHITE_BG = "/logo-fundo-branco.jpg";
@@ -172,7 +178,56 @@ const DEFAULT_CODIGOS = {
 };
 
 const DEFAULT_AOVIVO = { isLive: false, instagramUrl: "", xUrl: "", youtubeUrl: "", embedUrl: "", mensagem: "Nenhuma transmissão no momento. Volte em breve." };
-const DEFAULT_DOACOES = { pixKey: "codigosavivar2026@gmail.com", mercadoPagoUrl: "" };
+const DEFAULT_DOACOES = { pixKey: "codigosavivar2026@gmail.com", mercadoPagoUrl: "", nomeRecebedor: "Ministerio Avivar do Espirito", cidade: "Brasilia", infoTexto: "" };
+
+const DEFAULT_MANCHETE = {
+  titulo: "A Oração de Hoje será na quadra 1, lote 4, bloco 1 ap 300",
+  link: "",
+  ativo: true,
+};
+
+/* ---------------------------------------------------------------- */
+/* PIX Copia e Cola (BR Code / EMV) — gerado localmente, sem API externa */
+/* ---------------------------------------------------------------- */
+function crc16ccitt(str) {
+  let crc = 0xffff;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+function pixTLV(id, value) {
+  const len = value.length.toString().padStart(2, "0");
+  return `${id}${len}${value}`;
+}
+function stripAccents(s) {
+  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+// Monta o payload "Pix Copia e Cola" padrão BR Code (EMV) — funciona em qualquer
+// banco, sem depender de conta ou API externa. QR gerado localmente com qrcode.react.
+function montarPixPayload({ chave, nomeRecebedor, cidade, valor, txid }) {
+  const merchantAccount =
+    pixTLV("00", "BR.GOV.BCB.PIX") + pixTLV("01", (chave || "").trim());
+  const nome = stripAccents(nomeRecebedor || "Ministerio Avivar").toUpperCase().slice(0, 25) || "MINISTERIO AVIVAR";
+  const cid = stripAccents(cidade || "Brasilia").toUpperCase().slice(0, 15) || "BRASILIA";
+  const tx = (txid || "***").replace(/[^A-Za-z0-9*]/g, "").slice(0, 25) || "***";
+  let payload =
+    pixTLV("00", "01") +
+    pixTLV("26", merchantAccount) +
+    pixTLV("52", "0000") +
+    pixTLV("53", "986") +
+    (valor ? pixTLV("54", Number(valor).toFixed(2)) : "") +
+    pixTLV("58", "BR") +
+    pixTLV("59", nome) +
+    pixTLV("60", cid) +
+    pixTLV("62", pixTLV("05", tx));
+  payload += "6304";
+  return payload + crc16ccitt(payload);
+}
 
 /* ---------------------------------------------------------------- */
 /* Storage helpers                                                   */
@@ -284,7 +339,10 @@ function Empty({ text }) {
 }
 
 function ImgOrPlaceholder({ url, alt, className, ph = "Espaço reservado para imagem — inserir posteriormente" }) {
-  if (url) return <img src={url} alt={alt} className={className} />;
+  // Se a imagem falhar ao carregar (ex: arquivo não subiu pro GitHub), mostra um
+  // placeholder decente em vez do ícone de "imagem quebrada" do navegador.
+  const [failed, setFailed] = useState(false);
+  if (url && !failed) return <img src={url} alt={alt} className={className} onError={() => setFailed(true)} />;
   return (
     <div className={`${className} flex items-center justify-center text-center p-3`} style={{ background: C.parchmentDeep, color: C.stone }}>
       <span className="text-xs font-mono">{ph}</span>
@@ -410,8 +468,16 @@ const ADMIN_MENU = [
    proxy de CORS já que RSS não libera acesso direto do navegador). Se a
    busca falhar por qualquer motivo, o componente simplesmente não aparece
    — nunca quebra o resto do site. */
+// Manchetes padrão — usadas caso a busca ao vivo falhe ou ainda não tenha retornado,
+// pra a faixa "Notícias Avivar" nunca sumir da tela.
+const NOTICIAS_FALLBACK = [
+  { titulo: "Bem-vindo ao site do Ministério Avivar do Espírito", link: "" },
+  { titulo: "Acompanhe nossos cultos e eventos na aba Eventos/Galeria", link: "" },
+  { titulo: "Peça oração na aba Orações nos Lares", link: "" },
+];
+
 function NoticiasCarousel() {
-  const [noticias, setNoticias] = useState([]);
+  const [noticias, setNoticias] = useState(NOTICIAS_FALLBACK);
 
   useEffect(() => {
     const feedUrl = "https://news.google.com/rss/search?q=evangelho+igreja+avivamento&hl=pt-BR&gl=BR&ceid=BR:pt-419";
@@ -427,25 +493,31 @@ function NoticiasCarousel() {
             link: item.querySelector("link")?.textContent || "",
           }))
           .filter((n) => n.titulo);
-        setNoticias(items);
+        if (items.length > 0) setNoticias(items);
       })
-      .catch(() => setNoticias([]));
+      .catch(() => {});
   }, []);
 
-  if (noticias.length === 0) return null;
-
+  // Nunca retorna null — sempre mostra ao menos as manchetes padrão, com margem
+  // no topo pra não encostar na navbar.
   const track = (
     <>
-      {noticias.map((n, i) => (
-        <a key={i} href={n.link} target="_blank" rel="noreferrer" className="text-sm sm:text-base font-medium text-white hover:underline whitespace-nowrap mx-6">
-          {n.titulo}
-        </a>
-      ))}
+      {noticias.map((n, i) =>
+        n.link ? (
+          <a key={i} href={n.link} target="_blank" rel="noreferrer" className="text-sm sm:text-base font-medium text-white hover:underline whitespace-nowrap mx-6">
+            {n.titulo}
+          </a>
+        ) : (
+          <span key={i} className="text-sm sm:text-base font-medium text-white whitespace-nowrap mx-6">
+            {n.titulo}
+          </span>
+        )
+      )}
     </>
   );
 
   return (
-    <div className="w-full border-b overflow-hidden py-3" style={{ background: C.liveRed, borderColor: "#00000033" }}>
+    <div className="w-full border-b overflow-hidden py-3 mt-2" style={{ background: C.liveRed, borderColor: "#00000033" }}>
       <div className="flex items-center gap-4 px-4">
         <span className="text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
           Notícias Avivar
@@ -476,6 +548,13 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     background: active ? C.purpleDeep : C.purple,
     color: "#fff",
   });
+  // Fileira de cima (NAV): sem fundo roxo — texto direto sobre o fundo escuro da
+  // navbar, com a fonte PhotographSignature. Alinhada ao mesmo container/padding
+  // da fileira de baixo (por isso ficou fora do flex justify-between do logo).
+  const topPillStyle = (active) => ({
+    color: active ? C.goldBright : "#fff",
+    fontFamily: "PhotographSignature, cursive",
+  });
   return (
     <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
@@ -487,30 +566,42 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <span className="block">Espírito</span>
           </span>
         </button>
-        <nav className="hidden lg:flex items-center gap-2">
-          {NAV.map((n) => (
-            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3.5 py-1.5 text-sm font-semibold rounded-full transition focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
-              {n.label}
-            </button>
-          ))}
-          <button onClick={onAdminClick} className="ml-2 p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
-            {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
-          </button>
-        </nav>
+        <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
+          {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
+        </button>
         <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
           {open ? <X /> : <Menu />}
         </button>
       </div>
 
-      {/* Barra de submenu — sempre visível no desktop, sem esconder num dropdown */}
-      <div className="hidden lg:flex items-center gap-2 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 pb-3">
-        {SUBMENU.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
-            <n.icon size={12} /> {n.label}
+      {/* Fileira de cima — mesmo container/padding da fileira de baixo, alinhada à esquerda */}
+      <nav className="hidden lg:flex items-center gap-1 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 pb-2">
+        {NAV.map((n) => (
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-sm font-semibold rounded-md transition focus:outline-none focus:ring-2 hover:bg-white/10" style={topPillStyle(page === n.key)}>
+            {n.label}
           </button>
         ))}
+      </nav>
+
+      {/* Barra de submenu — fundo laranja/ember; sempre visível no desktop, sem esconder num dropdown */}
+      <div className="hidden lg:flex items-center gap-1.5 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 py-2 rounded-md" style={{ background: C.emberDeep }}>
+        {SUBMENU.map((n) => {
+          const isLoja = n.key === "loja";
+          return (
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+              {isLoja ? (
+                <span className="relative flex items-center justify-center w-6 h-6 rounded-full shrink-0" style={{ background: C.liveRed }}>
+                  <n.icon size={15} color="#fff" />
+                </span>
+              ) : (
+                <n.icon size={12} />
+              )}
+              {n.label}
+            </button>
+          );
+        })}
         {adminMode && ADMIN_MENU.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={{ background: C.goldDeep, color: "#fff" }}>
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 focus:outline-none focus:ring-2" style={{ background: C.goldDeep, color: "#fff" }}>
             <n.icon size={12} /> {n.label}
           </button>
         ))}
@@ -701,7 +792,7 @@ function SideCarousel({ photos, setPage }) {
   const visible = Array.from({ length: frameCount }, (_, i) => photos[(offset + i) % total]);
 
   return (
-    <div className="hidden lg:flex fixed left-10 top-24 bottom-8 z-30 flex-col" style={{ width: "9.5rem" }}>
+    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "11rem" }}>
       <div className="relative flex-1 rounded-md overflow-hidden shadow-xl" style={{ background: "#000" }}>
         <div className="absolute inset-0 flex flex-col" style={{ left: 14, right: 14 }}>
           {visible.map((photo, i) => (
@@ -768,7 +859,7 @@ function Forum({ posts, addPost }) {
 
   return (
     <>
-      <div className="hidden lg:flex fixed right-0 top-32 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line }}>
+      <div className="hidden lg:flex fixed right-0 bottom-8 w-64 z-30 rounded-l-xl border shadow-xl flex-col" style={{ background: C.cream, borderColor: C.line, top: "12rem" }}>
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: C.line }}>
           <MessageCircle size={16} color={C.ember} />
           <p className="font-display font-semibold text-sm">Fórum</p>
@@ -965,41 +1056,81 @@ function HeroDoacoesCard({ data, bgImage, onClick }) {
   );
 }
 
-function OracaoDestaqueCard({ encontros, onClick }) {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    if (encontros.length <= 1) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % encontros.length), 6000);
-    return () => clearInterval(t);
-  }, [encontros.length]);
-
+// Antes havia aqui um segundo card de "Oração nos Lares" duplicando o card já existente
+// no grid de ícones da Home — foi transformado no card de "Pedido de Oração" (novo recurso).
+function PedidoOracaoCard({ onClick }) {
   return (
     <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left focus:outline-none focus:ring-2" style={{ borderColor: C.purple }}>
       <div className="relative pt-7 pb-3 px-4 text-center" style={{ background: C.purpleDeep }}>
         <div className="absolute left-1/2 -translate-x-1/2 -top-3.5 w-0 h-0" style={{ borderLeft: "22px solid transparent", borderRight: "22px solid transparent", borderBottom: `22px solid ${C.purple}` }} />
-        <Church size={20} color="#fff" className="mx-auto mb-1" />
-        <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#ffffffaa" }}>Oração nos Lares</p>
+        <HandHeart size={20} color="#fff" className="mx-auto mb-1" />
+        <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#ffffffaa" }}>Intercessão</p>
       </div>
-      {encontros.length === 0 ? (
-        <div className="p-4 text-xs text-center" style={{ background: C.cream, color: C.stone }}>Nenhum encontro cadastrado ainda — toque pra saber mais.</div>
-      ) : (
-        <div className="p-3 text-xs space-y-1" style={{ background: C.cream }}>
-          <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{encontros[idx].anfitriao}</p>
-          <p style={{ color: C.ink }}><strong>{encontros[idx].diaSemana}</strong> · {fmtDate(encontros[idx].data)} · {encontros[idx].hora}</p>
-          <p style={{ color: C.stone }}>{encontros[idx].endereco}</p>
-          {encontros[idx].contato && <p style={{ color: C.stone }}>Contato: {encontros[idx].contato}</p>}
-          {encontros.length > 1 && <p className="text-[10px] font-mono pt-1" style={{ color: C.purple }}>{idx + 1} de {encontros.length} encontros</p>}
-        </div>
-      )}
+      <div className="p-3 text-xs space-y-1" style={{ background: C.cream }}>
+        <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>Pedido de Oração</p>
+        <p style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração — vamos orar com você.</p>
+        <p className="text-[10px] font-mono pt-1" style={{ color: C.purple }}>toque para enviar seu pedido</p>
+      </div>
     </button>
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes }) {
+/* ---------------------------------------------------------------- */
+/* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
+/* ---------------------------------------------------------------- */
+function MancheteBar({ manchete, save, adminMode }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
+  useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
+
+  const m = manchete || DEFAULT_MANCHETE;
+  const abrir = () => {
+    if (!m.link) return;
+    if (/^https?:\/\//i.test(m.link)) window.open(m.link, "_blank", "noopener,noreferrer");
+    else window.location.hash = m.link;
+  };
+
+  if (!m.ativo && !adminMode) return null;
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      {(m.ativo || adminMode) && (
+        <button
+          onClick={abrir}
+          className={`w-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${m.link ? "cursor-pointer" : "cursor-default"}`}
+          style={{ background: C.parchment, borderColor: C.gold, opacity: m.ativo ? 1 : 0.5 }}
+        >
+          <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.emberDeep }}>Manchete Avivar {!m.ativo && "(inativa)"}</span>
+          <p className="font-display font-bold text-base sm:text-lg mt-0.5" style={{ color: C.ink }}>{m.titulo}</p>
+        </button>
+      )}
+      {adminMode && (
+        <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
+          {!editing ? (
+            <button onClick={() => setEditing(true)} className="underline" style={{ color: C.stone }}>ADMIN · editar manchete da home</button>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-2 mt-1">
+              <Field label="Título da manchete"><input className={inputCls} style={{ borderColor: C.line }} value={draft.titulo} onChange={(e) => setDraft((d) => ({ ...d, titulo: e.target.value }))} /></Field>
+              <Field label="Link (URL ou #id-da-secao)"><input className={inputCls} style={{ borderColor: C.line }} value={draft.link} onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))} /></Field>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!draft.ativo} onChange={(e) => setDraft((d) => ({ ...d, ativo: e.target.checked }))} /> Manchete ativa (visível no site)</label>
+              <div className="flex gap-2">
+                <Btn onClick={() => { save(draft); setEditing(false); }}>Salvar</Btn>
+                <button onClick={() => { setDraft(m); setEditing(false); }} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
         <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} />
 
@@ -1031,7 +1162,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
       <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-20 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
         <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
-        <OracaoDestaqueCard encontros={oracaoEncontros} onClick={() => setPage("oracoes")} />
+        <PedidoOracaoCard onClick={() => setPage("pedidooracao")} />
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -1180,14 +1311,9 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
               <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Revista Códigos Avivar" className="w-full object-cover max-h-[420px]" ph="Banner revista Códigos Avivar — em destaque" />
             </button>
 
+            {/* A imagem "conjugada" com a colagem das 3 capas da trilogia foi removida daqui
+                a pedido — cada capa já aparece individualmente mais abaixo. */}
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
-              <button
-                onClick={() => setPage && setPage("loja")}
-                className="rounded-xl overflow-hidden border-2 shadow-lg focus:outline-none focus:ring-2"
-                style={{ borderColor: C.gold }}
-              >
-                <ImgOrPlaceholder url={TRILOGIA_LIVROS_BANNER} alt="Trilogia que Transforma Vidas" className="w-full aspect-video object-cover" ph="Banner divulgação da trilogia de livros" />
-              </button>
               <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
             </div>
 
@@ -1446,7 +1572,7 @@ const SESSAO_FIELDS = [
   { key: "data", label: "Data", type: "date" },
 ];
 
-function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode }) {
+function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode, setManchete }) {
   const [tab, setTab] = useState("eventos");
   const [selected, setSelected] = useState(null);
   const [mediaUrl, setMediaUrl] = useState({});
@@ -1479,7 +1605,7 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
 
       {tab === "eventos" && (
         <div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={GRID3}>
             <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="rounded-xl overflow-hidden border block" style={{ borderColor: C.line }}>
               <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-44 object-cover" />
               <div className="p-3">
@@ -1508,7 +1634,16 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
                 <span className="flex items-center gap-1"><MapPin size={13} />{selected.local}</span>
               </div>
               <p className="text-sm mt-3" style={{ color: C.ink }}>{selected.descricao}</p>
-              {adminMode && <button onClick={() => { delEvento(selected.id); setSelected(null); }} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir evento</button>}
+              {adminMode && (
+                <div className="flex gap-4 mt-3">
+                  <button onClick={() => { delEvento(selected.id); setSelected(null); }} className="text-xs underline" style={{ color: "#B03428" }}>excluir evento</button>
+                  {setManchete && (
+                    <button onClick={() => setManchete({ titulo: selected.titulo, link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
+                      usar como manchete da home
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {adminMode && (
@@ -1530,7 +1665,16 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode 
                   <h3 className="font-display font-semibold text-lg">{g.titulo}</h3>
                   <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(g.data)}</p>
                 </div>
-                {adminMode && <button onClick={() => delSessao(g.id)}><Trash2 size={15} color={C.stone} /></button>}
+                {adminMode && (
+                  <div className="flex items-center gap-3">
+                    {setManchete && (
+                      <button onClick={() => setManchete({ titulo: g.titulo, link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
+                        usar como manchete
+                      </button>
+                    )}
+                    <button onClick={() => delSessao(g.id)}><Trash2 size={15} color={C.stone} /></button>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-4">
                 {g.fotos.map((f, idx) => (
@@ -1868,7 +2012,7 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
 /* ---------------------------------------------------------------- */
 /* Doações                                                              */
 /* ---------------------------------------------------------------- */
-function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
+function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl, nomeRecebedor, cidade }) {
   const [copiado, setCopiado] = useState(false);
   const copiar = () => {
     if (!pixKey) return;
@@ -1877,6 +2021,7 @@ function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
       setTimeout(() => setCopiado(false), 2000);
     });
   };
+  const payload = pixKey ? montarPixPayload({ chave: pixKey, nomeRecebedor, cidade, txid: "AVIVAR" }) : "";
   return (
     <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
       <div className="flex items-center gap-2 mb-1">
@@ -1886,7 +2031,7 @@ function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
       <p className="text-xs mb-3" style={{ color: C.stone }}>{desc}</p>
       <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Chave PIX</p>
       <p className="text-sm font-mono break-all mt-0.5" style={{ color: C.ink }}>{pixKey || "Chave PIX ainda não cadastrada"}</p>
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2 mt-3 flex-wrap">
         {pixKey && (
           <Btn variant="ghost" onClick={copiar}>
             <Copy size={13} /> {copiado ? "Copiado!" : "Copiar chave"}
@@ -1898,6 +2043,37 @@ function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl }) {
           </a>
         )}
       </div>
+      {/* Integração real de checkout (cartão) via Mercado Pago entraria aqui — exige
+          credenciais/API key da conta Mercado Pago do usuário, ainda não fornecidas. */}
+      {payload && (
+        <div className="mt-4 pt-4 border-t flex items-center gap-3 flex-wrap" style={{ borderColor: C.line }}>
+          <div className="bg-white p-2 rounded-lg border" style={{ borderColor: C.line }}>
+            <QRCodeSVG value={payload} size={128} bgColor="#ffffff" fgColor="#0B0B0C" />
+          </div>
+          <p className="text-xs max-w-[160px]" style={{ color: C.stone }}>Aponte a câmera do banco pra esse QR Code Pix e doe direto pelo celular, sem sair daqui.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoCard({ texto, save, adminMode }) {
+  const [draft, setDraft] = useState(texto || "");
+  useEffect(() => setDraft(texto || ""), [texto]);
+  return (
+    <div className="p-5 rounded-xl border" style={{ borderColor: C.line }}>
+      <div className="flex items-center gap-2 mb-1">
+        <FileText size={18} color={C.ember} />
+        <p className="font-display font-semibold">Informações</p>
+      </div>
+      {adminMode ? (
+        <div className="mt-2 space-y-2">
+          <textarea rows={5} className={inputCls} style={{ borderColor: C.line }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Recados/instruções para quem for doar (editável pelo admin)..." />
+          <Btn variant="ghost" onClick={() => save(draft)}>Salvar informações</Btn>
+        </div>
+      ) : (
+        <p className="text-sm mt-2 whitespace-pre-line" style={{ color: C.stone }}>{texto || "Em breve mais informações sobre dízimos e ofertas."}</p>
+      )}
     </div>
   );
 }
@@ -1909,8 +2085,17 @@ function Doacoes({ data, save, adminMode }) {
       <SectionTitle>Dízimos e Ofertas</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Sua contribuição sustenta a obra do Ministério Avivar do Espírito.</p>
 
-      <div className="mt-6">
-        <PixCard icon={HandHeart} titulo="Dízimo e Oferta" desc="A décima parte, como ato de fidelidade, e a contribuição voluntária além dela." pixKey={data.pixKey} mercadoPagoUrl={data.mercadoPagoUrl} />
+      <div className="mt-6 grid sm:grid-cols-2 gap-5 items-start">
+        <PixCard
+          icon={HandHeart}
+          titulo="Dízimo e Oferta"
+          desc="A décima parte, como ato de fidelidade, e a contribuição voluntária além dela."
+          pixKey={data.pixKey}
+          mercadoPagoUrl={data.mercadoPagoUrl}
+          nomeRecebedor={data.nomeRecebedor}
+          cidade={data.cidade}
+        />
+        <InfoCard texto={data.infoTexto} save={(v) => save({ ...data, infoTexto: v })} adminMode={adminMode} />
       </div>
 
       {adminMode && (
@@ -1918,8 +2103,13 @@ function Doacoes({ data, save, adminMode }) {
           <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar doações (mesma chave usada pra Dízimo e Oferta)</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Chave PIX"><input className={inputCls} style={{ borderColor: C.line }} value={data.pixKey} onChange={(e) => save({ ...data, pixKey: e.target.value })} /></Field>
-            <Field label="Link Mercado Pago"><input className={inputCls} style={{ borderColor: C.line }} value={data.mercadoPagoUrl} onChange={(e) => save({ ...data, mercadoPagoUrl: e.target.value })} /></Field>
+            <Field label="Nome do recebedor (aparece no QR)"><input className={inputCls} style={{ borderColor: C.line }} value={data.nomeRecebedor || ""} onChange={(e) => save({ ...data, nomeRecebedor: e.target.value })} /></Field>
+            <Field label="Cidade do recebedor (aparece no QR)"><input className={inputCls} style={{ borderColor: C.line }} value={data.cidade || ""} onChange={(e) => save({ ...data, cidade: e.target.value })} /></Field>
+            <Field label="Link Mercado Pago (opcional — pagamento por cartão)"><input className={inputCls} style={{ borderColor: C.line }} value={data.mercadoPagoUrl} onChange={(e) => save({ ...data, mercadoPagoUrl: e.target.value })} /></Field>
           </div>
+          <p className="text-[11px] mt-2 italic" style={{ color: C.stone }}>
+            Checkout de cartão de crédito de verdade (Mercado Pago) depende das credenciais da conta Mercado Pago do usuário — por enquanto, esse campo só guarda um link opcional.
+          </p>
         </div>
       )}
     </div>
@@ -2172,7 +2362,7 @@ function Igrejas({ igrejas, save, adminMode }) {
       <Eyebrow>Uma família, várias casas</Eyebrow>
       <SectionTitle>Unidades do Ministério</SectionTitle>
       {igrejas.length === 0 && <div className="mt-6"><Empty text="Nenhuma unidade cadastrada ainda." /></div>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+      <div className={`${GRID3} mt-6`}>
         {igrejas.map((i) => (
           <IgrejaCard key={i.id} igreja={i} save={save} all={igrejas} adminMode={adminMode} />
         ))}
@@ -2208,16 +2398,16 @@ function Colaboradores({ items, save, adminMode }) {
       <Eyebrow>Quem serve conosco</Eyebrow>
       <SectionTitle>Colaboradores</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
-      <div className="grid sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
         {sorted.map((c) => (
-          <div key={c.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
-            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-64 object-contain" ph={c.nome} />
-            <div className="p-3" style={{ background: C.parchment }}>
-              <p className="font-display font-semibold text-sm">{c.nome}</p>
-              <p className="text-xs" style={{ color: C.ember }}>{c.cargo}</p>
-              <p className="text-xs mt-1" style={{ color: C.stone }}>{c.ministerio}</p>
-              {c.telefone && <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.stone }}><Phone size={11} />{c.telefone}</p>}
-              {adminMode && <button onClick={() => del(c.id)} className="text-xs underline mt-2" style={{ color: "#B03428" }}>excluir</button>}
+          <div key={c.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
+            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-28 object-cover" ph={c.nome} />
+            <div className="p-2" style={{ background: C.parchment }}>
+              <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
+              <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: C.stone }}>{c.ministerio}</p>
+              {c.telefone && <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><Phone size={10} />{c.telefone}</p>}
+              {adminMode && <button onClick={() => del(c.id)} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>excluir</button>}
             </div>
           </div>
         ))}
@@ -2235,197 +2425,180 @@ function Colaboradores({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 /* Escala de Obreiros                                                   */
 /* ---------------------------------------------------------------- */
-const ESCALA_FUNCOES_PADRAO = ["Recepção", "Ofertas", "Slides", "Mídia", "Louvor", "Anjos de Luz", "Pregador(a)", "Sala Kids", "Coordenação"];
-const DEFAULT_ESCALA = {
-  titulo: "Escala de serviços ministeriais dia a definir",
-  itens: ESCALA_FUNCOES_PADRAO.map((funcao) => ({ id: uid(), funcao, nome: "", telefone: "", indisponivel: false, substituto: "" })),
-};
+const DIAS_SEMANA_PT = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+const OBREIROS_PADRAO = [
+  "Diácono Gilvan", "Diácono Ítalo", "Diácono Vitor Silva", "Diaconisa Michelle Veras", "Diaconisa Michelle Brilhante",
+  "Pra. Gláucia", "Pra. Isabele", "Pra. Wládia", "Pr. Marcos", "Ir. Elias", "Lucas", "Ir. José", "Ir. Vitória Castro",
+  "Ir. Vitória Dimas", "Ir. Livia", "Ir. Bárbara", "Ir. Renato", "Ir. Kauan", "Ir. Brena", "Ir. Samuel", "Ir. Odeuzina", "Ir. Nilcéia",
+];
+const POSTOS_PADRAO = ["Recepção", "Ofertas", "Slides", "Mídia", "Abertura e Semeadura", "Pregação", "Anjos de Luz", "Louvor", "Kids"];
+const HORARIOS_PADRAO = [
+  { dia: "Quarta-feira", inicio: "19:20", fim: "21:00" },
+  { dia: "Sexta-feira", inicio: "19:20", fim: "21:00" },
+  { dia: "Domingo", inicio: "18:30", fim: "20:00" },
+];
+const DEFAULT_ESCALA_OBREIROS = { obreiros: OBREIROS_PADRAO, postos: POSTOS_PADRAO, horarios: HORARIOS_PADRAO, confirmacoes: [] };
 
-function whatsappSaudacao() {
-  const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
+function diaSemanaFromData(dataStr) {
+  if (!dataStr) return "";
+  const d = new Date(dataStr + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return DIAS_SEMANA_PT[d.getDay()];
+}
+function horarioDoDia(dia, horarios) {
+  return (horarios || []).find((h) => h.dia === dia) || null;
+}
+function fmtHorario(h) {
+  return h ? `${h.dia} · ${h.inicio}–${h.fim}` : "Horário não cadastrado para este dia";
 }
 
-function whatsappEscalaLink(telefone, funcao) {
-  const digits = (telefone || "").replace(/\D/g, "");
-  if (!digits) return null;
-  const msg =
-    `${whatsappSaudacao()}! Paz do Senhor Jesus Cristo. Hoje você foi escolhido(a) para servir na Casa de Deus, servindo como: ${funcao}. ` +
-    `Por favor, em caso de impossibilidade, acesse o nosso app e comunique, marcando ao lado do seu nome que não pode. ` +
-    `Agradecemos sua presença, você é muito importante para nós, e o Senhor Jesus confia que você o adorará. Até mais tarde.\n\n` +
-    `Ministério Avivar do Espírito`;
-  const phoneIntl = digits.length <= 11 ? "55" + digits : digits;
-  return `https://wa.me/${phoneIntl}?text=${encodeURIComponent(msg)}`;
-}
-
-function EscalaObreiros({ data, save, historico, saveHistorico, adminMode, operatorMode, onRequestOperator }) {
+function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator }) {
   const canManage = adminMode || operatorMode;
-  const safeData = data && data.itens ? data : DEFAULT_ESCALA;
-  const [tituloEdit, setTituloEdit] = useState(false);
-  const [tituloDraft, setTituloDraft] = useState(safeData.titulo);
-  const [novoNome, setNovoNome] = useState({});
-  const [substitutoDraft, setSubstitutoDraft] = useState({});
+  const safeData = { ...DEFAULT_ESCALA_OBREIROS, ...(data || {}) };
+  const [dataCulto, setDataCulto] = useState(() => new Date().toISOString().slice(0, 10));
+  const [postoDraft, setPostoDraft] = useState({});
+  const [novoObreiro, setNovoObreiro] = useState("");
+  const [novoPosto, setNovoPosto] = useState("");
+  const [novoHorario, setNovoHorario] = useState({ dia: DIAS_SEMANA_PT[0], inicio: "19:00", fim: "21:00" });
 
-  const log = (acao, detalhe) => {
-    const entry = { id: uid(), timestamp: nowISO(), acao, detalhe };
-    saveHistorico([entry, ...(historico || [])]);
+  const diaSemana = diaSemanaFromData(dataCulto);
+  const horarioAtual = horarioDoDia(diaSemana, safeData.horarios);
+
+  const confirmacaoDe = (nome) => (safeData.confirmacoes || []).find((c) => c.obreiroNome === nome && c.dataCulto === dataCulto);
+
+  const upsertConfirmacao = (nome, patch) => {
+    const atuais = safeData.confirmacoes || [];
+    const idx = atuais.findIndex((c) => c.obreiroNome === nome && c.dataCulto === dataCulto);
+    const base = idx >= 0 ? atuais[idx] : { id: uid(), obreiroNome: nome, dataCulto, posto: "", disponivel: true };
+    const atualizado = { ...base, ...patch, horario: horarioAtual ? `${horarioAtual.inicio}–${horarioAtual.fim}` : "" };
+    const novaLista = idx >= 0 ? atuais.map((c, i) => (i === idx ? atualizado : c)) : [...atuais, atualizado];
+    save({ ...safeData, confirmacoes: novaLista });
   };
 
-  const updateItem = (id, patch) => save({ ...safeData, itens: safeData.itens.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
-
-  const saveTitulo = () => {
-    save({ ...safeData, titulo: tituloDraft || safeData.titulo });
-    log("Título alterado", tituloDraft);
-    setTituloEdit(false);
+  const addObreiro = () => {
+    if (!novoObreiro.trim()) return;
+    save({ ...safeData, obreiros: [...safeData.obreiros, novoObreiro.trim()] });
+    setNovoObreiro("");
   };
-
-  const assignName = (id) => {
-    const draft = novoNome[id] || {};
-    if (!draft.nome) return;
-    const it = safeData.itens.find((i) => i.id === id);
-    updateItem(id, { nome: draft.nome, telefone: draft.telefone || "", indisponivel: false, substituto: "" });
-    log("Escalado(a)", `${it?.funcao}: ${draft.nome}`);
-    setNovoNome((m) => ({ ...m, [id]: { nome: "", telefone: "" } }));
+  const delObreiro = (nome) => save({ ...safeData, obreiros: safeData.obreiros.filter((o) => o !== nome) });
+  const addPosto = () => {
+    if (!novoPosto.trim()) return;
+    save({ ...safeData, postos: [...safeData.postos, novoPosto.trim()] });
+    setNovoPosto("");
   };
-
-  const removeName = (id) => {
-    const it = safeData.itens.find((i) => i.id === id);
-    updateItem(id, { nome: "", telefone: "", indisponivel: false, substituto: "" });
-    log("Removido(a) da escala", `${it?.funcao}: ${it?.nome}`);
-  };
-
-  const toggleIndisponivel = (id, checked) => {
-    const it = safeData.itens.find((i) => i.id === id);
-    updateItem(id, { indisponivel: checked });
-    log(checked ? "Marcou indisponibilidade" : "Desmarcou indisponibilidade", `${it?.funcao}: ${it?.nome}`);
-  };
-
-  const saveSubstituto = (id) => {
-    const val = substitutoDraft[id] ?? "";
-    updateItem(id, { substituto: val });
-    const it = safeData.itens.find((i) => i.id === id);
-    log("Substituto informado", `${it?.funcao}: ${val}`);
-  };
+  const delPosto = (nome) => save({ ...safeData, postos: safeData.postos.filter((p) => p !== nome) });
+  const addHorario = () => save({ ...safeData, horarios: [...safeData.horarios, novoHorario] });
+  const delHorario = (idx) => save({ ...safeData, horarios: safeData.horarios.filter((_, i) => i !== idx) });
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><ClipboardList size={12} className="inline mr-1" />Serviço na Casa de Deus</Eyebrow>
-      {tituloEdit && canManage ? (
-        <div className="flex gap-2 items-center mt-2 flex-wrap">
-          <input className={inputCls} style={{ borderColor: C.line, maxWidth: 420 }} value={tituloDraft} onChange={(e) => setTituloDraft(e.target.value)} />
-          <Btn onClick={saveTitulo}>Salvar</Btn>
-          <button onClick={() => setTituloEdit(false)} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 flex-wrap">
-          <SectionTitle>{safeData.titulo}</SectionTitle>
-          {canManage && (
-            <button onClick={() => { setTituloDraft(safeData.titulo); setTituloEdit(true); }} className="text-xs underline" style={{ color: C.stone }}>
-              editar título
-            </button>
-          )}
-        </div>
-      )}
+      <SectionTitle>Escala de Obreiros</SectionTitle>
 
       <p className="mt-3 text-sm font-bold" style={{ color: C.liveRed }}>
-        Caso não possa servir ao Senhor hoje, favor nos avisar com antecedência.
+        Caso não possa servir ao Senhor no culto abaixo, favor marcar como indisponível com antecedência.
       </p>
 
-      <div className="mt-6 space-y-3">
-        {safeData.itens.map((it) => (
-          <div key={it.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
-            <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="mt-4 flex items-center gap-3 flex-wrap p-3 rounded-lg border" style={{ borderColor: C.line, background: C.parchment }}>
+        <Field label="Data do culto">
+          <input type="date" className={inputCls} style={{ borderColor: C.line }} value={dataCulto} onChange={(e) => setDataCulto(e.target.value)} />
+        </Field>
+        <div className="text-sm" style={{ color: C.ink }}>
+          <p className="font-mono text-xs uppercase" style={{ color: C.stone }}>Horário deste culto</p>
+          <p className="font-display font-semibold">{fmtHorario(horarioAtual)}</p>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-2">
+        {safeData.obreiros.map((nome) => {
+          const conf = confirmacaoDe(nome);
+          const disponivel = conf ? conf.disponivel : null;
+          return (
+            <div key={nome} className="p-3 rounded-lg border flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: C.line }}>
               <div>
-                <p className="text-xs font-mono uppercase" style={{ color: C.ember }}>{it.funcao}</p>
-                {it.nome ? (
-                  <p className="font-display font-semibold mt-0.5" style={it.indisponivel ? { color: C.liveRed, textDecoration: "line-through" } : { color: C.ink }}>
-                    {it.nome}
+                <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{nome}</p>
+                {conf && (
+                  <p className="text-xs mt-0.5" style={{ color: conf.disponivel ? "#2E7D4F" : C.liveRed }}>
+                    {conf.disponivel ? `Disponível · ${conf.posto || "posto não escolhido"}` : "Indisponível"}
+                    {conf.disponivel && conf.horario && <span style={{ color: C.stone }}> · {conf.horario}</span>}
                   </p>
-                ) : (
-                  <p className="text-sm italic mt-0.5" style={{ color: C.stone }}>Ainda não escalado(a)</p>
                 )}
+                {canManage && <button onClick={() => delObreiro(nome)} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>remover obreiro(a) da lista</button>}
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                {it.nome && (
-                  <label className="flex items-center gap-1.5 text-xs" style={{ color: C.stone }}>
-                    <input type="checkbox" checked={!!it.indisponivel} onChange={(e) => toggleIndisponivel(it.id, e.target.checked)} />
-                    Não posso servir
-                  </label>
-                )}
-                {it.nome && it.telefone && whatsappEscalaLink(it.telefone, it.funcao) && (
-                  <a href={whatsappEscalaLink(it.telefone, it.funcao)} target="_blank" rel="noreferrer" className="text-xs underline flex items-center gap-1" style={{ color: "#2E7D4F" }}>
-                    <Phone size={12} /> avisar no WhatsApp
-                  </a>
-                )}
-                {canManage && it.nome && (
-                  <button onClick={() => removeName(it.id)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Btn variant={disponivel === true ? "primary" : "ghost"} color="#2E7D4F" onClick={() => upsertConfirmacao(nome, { disponivel: true })}>Disponível</Btn>
+                <Btn variant={disponivel === false ? "primary" : "ghost"} color={C.liveRed} onClick={() => upsertConfirmacao(nome, { disponivel: false, posto: "" })}>Indisponível</Btn>
+                {disponivel && (
+                  <>
+                    <select
+                      className="text-xs rounded-md border px-2 py-2"
+                      style={{ borderColor: C.line }}
+                      value={postoDraft[nome] ?? conf?.posto ?? ""}
+                      onChange={(e) => setPostoDraft((m) => ({ ...m, [nome]: e.target.value }))}
+                    >
+                      <option value="">Escolher posto...</option>
+                      {safeData.postos.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <Btn onClick={() => upsertConfirmacao(nome, { posto: postoDraft[nome] ?? conf?.posto ?? "" })}>Confirmar</Btn>
+                  </>
                 )}
               </div>
             </div>
-
-            {it.indisponivel && (
-              <div className="mt-3 pt-3 border-t" style={{ borderColor: C.line }}>
-                <label className="text-xs font-mono uppercase" style={{ color: C.stone }}>Substituto</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    className={inputCls}
-                    style={{ borderColor: C.line }}
-                    placeholder="Nome de quem vai substituir"
-                    value={substitutoDraft[it.id] ?? it.substituto ?? ""}
-                    onChange={(e) => setSubstitutoDraft((m) => ({ ...m, [it.id]: e.target.value }))}
-                  />
-                  <Btn variant="ghost" onClick={() => saveSubstituto(it.id)}>Salvar</Btn>
-                </div>
-              </div>
-            )}
-
-            {canManage && !it.nome && (
-              <div className="mt-3 pt-3 border-t grid sm:grid-cols-[1fr_1fr_auto] gap-2" style={{ borderColor: C.line }}>
-                <input className={inputCls} style={{ borderColor: C.line }} placeholder="Nome" value={novoNome[it.id]?.nome || ""} onChange={(e) => setNovoNome((m) => ({ ...m, [it.id]: { ...m[it.id], nome: e.target.value } }))} />
-                <input className={inputCls} style={{ borderColor: C.line }} placeholder="WhatsApp (com DDD)" value={novoNome[it.id]?.telefone || ""} onChange={(e) => setNovoNome((m) => ({ ...m, [it.id]: { ...m[it.id], telefone: e.target.value } }))} />
-                <Btn onClick={() => assignName(it.id)}>Escalar</Btn>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
-          Somente o admin ou pessoas autorizadas podem escalar ou remover nomes. Se você já foi escalado(a) e não pode servir, use a caixa "Não posso servir" ao lado do seu nome.
+          Qualquer pessoa pode marcar sua própria disponibilidade e posto acima. Nomes, postos e horários só podem ser editados pelo admin ou por pessoas autorizadas.
         </p>
       )}
 
-      <div className="mt-14 pt-8 border-t" style={{ borderColor: C.line }}>
-        <Eyebrow>Registro de alterações</Eyebrow>
-        <h3 className="font-display text-xl font-semibold" style={{ color: C.ink }}>Histórico</h3>
-        {(!historico || historico.length === 0) ? (
-          <div className="mt-4"><Empty text="Nenhuma alteração registrada ainda." /></div>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.line}` }}>
-                  <th className="text-left py-2 pr-3 font-mono uppercase" style={{ color: C.stone }}>Data/hora</th>
-                  <th className="text-left py-2 pr-3 font-mono uppercase" style={{ color: C.stone }}>Ação</th>
-                  <th className="text-left py-2 font-mono uppercase" style={{ color: C.stone }}>Detalhe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historico.map((h) => (
-                  <tr key={h.id} style={{ borderBottom: `1px solid ${C.line}` }}>
-                    <td className="py-2 pr-3 font-mono whitespace-nowrap" style={{ color: C.stone }}>{fmtDateTime(h.timestamp)}</td>
-                    <td className="py-2 pr-3 whitespace-nowrap">{h.acao}</td>
-                    <td className="py-2" style={{ color: C.ink }}>{h.detalhe}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {canManage && (
+        <div className="mt-12 pt-8 border-t space-y-8" style={{ borderColor: C.line }}>
+          <Eyebrow>Área administrativa</Eyebrow>
+          <div>
+            <p className="font-display font-semibold mb-2">Obreiros</p>
+            <div className="flex gap-2 flex-wrap">
+              <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Nome do(a) novo(a) obreiro(a)" value={novoObreiro} onChange={(e) => setNovoObreiro(e.target.value)} />
+              <Btn onClick={addObreiro}><Plus size={14} /> Adicionar</Btn>
+            </div>
           </div>
-        )}
-      </div>
+          <div>
+            <p className="font-display font-semibold mb-2">Postos / funções</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {safeData.postos.map((p) => (
+                <span key={p} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ background: C.parchment }}>
+                  {p} <button onClick={() => delPosto(p)}><X size={11} color={C.stone} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Novo posto/função" value={novoPosto} onChange={(e) => setNovoPosto(e.target.value)} />
+              <Btn onClick={addPosto}><Plus size={14} /> Adicionar</Btn>
+            </div>
+          </div>
+          <div>
+            <p className="font-display font-semibold mb-2">Horários dos cultos</p>
+            <div className="space-y-1 mb-2">
+              {safeData.horarios.map((h, idx) => (
+                <div key={idx} className="text-sm flex items-center gap-2">
+                  <span>{h.dia} · {h.inicio}–{h.fim}</span>
+                  <button onClick={() => delHorario(idx)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap items-end">
+              <select className="text-sm rounded-md border px-2 py-2" style={{ borderColor: C.line }} value={novoHorario.dia} onChange={(e) => setNovoHorario((h) => ({ ...h, dia: e.target.value }))}>
+                {DIAS_SEMANA_PT.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <input type="time" className="text-sm rounded-md border px-2 py-2" style={{ borderColor: C.line }} value={novoHorario.inicio} onChange={(e) => setNovoHorario((h) => ({ ...h, inicio: e.target.value }))} />
+              <input type="time" className="text-sm rounded-md border px-2 py-2" style={{ borderColor: C.line }} value={novoHorario.fim} onChange={(e) => setNovoHorario((h) => ({ ...h, fim: e.target.value }))} />
+              <Btn onClick={addHorario}><Plus size={14} /> Adicionar horário</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2448,12 +2621,15 @@ function Estudos({ items, save, adminMode }) {
       <Eyebrow>Palavra e vida</Eyebrow>
       <SectionTitle>Estudos Bíblicos</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum estudo publicado ainda." /></div>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+      <div className={`${GRID3} mt-6`}>
         {items.map((e) => (
-          <button key={e.id} onClick={() => setSelected(e)} className="text-left p-4 rounded-lg border focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
-            <p className="font-display font-semibold">{e.titulo}</p>
-            <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{e.referencia}</p>
-            {e.conteudo && <p className="text-xs mt-2 line-clamp-3" style={{ color: C.stone }}>{e.conteudo.slice(0, 110)}{e.conteudo.length > 110 ? "…" : ""}</p>}
+          <button key={e.id} onClick={() => setSelected(e)} className="text-left rounded-lg border overflow-hidden focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+            <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full h-32 object-cover" ph="Imagem do estudo — adicionar depois" />
+            <div className="p-4">
+              <p className="font-display font-semibold">{e.titulo}</p>
+              <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{e.referencia}</p>
+              {e.conteudo && <p className="text-xs mt-2 line-clamp-3" style={{ color: C.stone }}>{e.conteudo.slice(0, 110)}{e.conteudo.length > 110 ? "…" : ""}</p>}
+            </div>
           </button>
         ))}
       </div>
@@ -2671,10 +2847,10 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
                 {e.contato && <p className="text-xs" style={{ color: C.stone }}>Contato: {e.contato}</p>}
               </div>
               {(e.fotos || []).length > 0 && (
-                <div className="grid grid-cols-3 gap-1 px-2 pb-2">
+                <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">
                   {e.fotos.map((f, idx) => (
                     <div key={idx} className="relative">
-                      <img src={f} className="w-full h-16 object-cover rounded" />
+                      <img src={f} className="w-full h-28 object-cover rounded" />
                       {canManageAgenda && (
                         <button onClick={() => delFoto(e.id, idx)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
                           <X size={10} color="#fff" />
@@ -2749,6 +2925,115 @@ function MiniPhotoAdder({ onAdd }) {
       >
         +
       </button>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Pedido de Oração — formulário público; lista de pedidos só em adminMode */
+/* ---------------------------------------------------------------- */
+function PedidoOracao({ items, save, adminMode }) {
+  const empty = { nome: "", local: "", whatsapp: "", email: "", causas: [], intercessaoNomes: "", descricao: "" };
+  const [form, setForm] = useState(empty);
+  const [err, setErr] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleCausa = (c) => setForm((f) => ({ ...f, causas: f.causas.includes(c) ? f.causas.filter((x) => x !== c) : [...f.causas, c] }));
+
+  const enviar = () => {
+    if (!form.nome.trim() || !form.whatsapp.trim()) {
+      setErr("Nome e WhatsApp são obrigatórios.");
+      return;
+    }
+    save([...(items || []), { id: uid(), ...form, timestamp: nowISO() }]);
+    setForm(empty);
+    setErr("");
+    setEnviado(true);
+    setTimeout(() => setEnviado(false), 3500);
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><Sparkles size={12} className="inline mr-1" />Estamos com você</Eyebrow>
+      <SectionTitle>Pedido de Oração</SectionTitle>
+      <p className="text-sm mt-2" style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração — nossa equipe de intercessão vai orar por você.</p>
+
+      <div className="mt-6 grid sm:grid-cols-2 gap-3 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+        <Field label="Nome de quem pediu"><input className={inputCls} style={{ borderColor: C.line }} value={form.nome} onChange={(e) => set("nome", e.target.value)} /></Field>
+        <Field label="Local de onde está pedindo"><input className={inputCls} style={{ borderColor: C.line }} value={form.local} onChange={(e) => set("local", e.target.value)} /></Field>
+        <Field label="WhatsApp (obrigatório)"><input className={inputCls} style={{ borderColor: C.line }} value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} /></Field>
+        <Field label="E-mail"><input type="email" className={inputCls} style={{ borderColor: C.line }} value={form.email} onChange={(e) => set("email", e.target.value)} /></Field>
+
+        <div className="sm:col-span-2">
+          <Field label="Causa do pedido">
+            <div className="flex flex-wrap gap-2 mt-1">
+              {CAUSAS_ORACAO.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleCausa(c)}
+                  className="text-xs px-3 py-1.5 rounded-full border transition"
+                  style={form.causas.includes(c) ? { background: C.purple, color: "#fff", borderColor: C.purple } : { background: "#fff", color: C.ink, borderColor: C.line }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </Field>
+        </div>
+
+        {form.causas.includes("Intercessão") && (
+          <div className="sm:col-span-2">
+            <Field label="Nome das pessoas que necessitam de intercessão">
+              <input className={inputCls} style={{ borderColor: C.line }} value={form.intercessaoNomes} onChange={(e) => set("intercessaoNomes", e.target.value)} />
+            </Field>
+          </div>
+        )}
+
+        <div className="sm:col-span-2">
+          <Field label="Descreva seu pedido">
+            <textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={form.descricao} onChange={(e) => set("descricao", e.target.value)} />
+          </Field>
+        </div>
+
+        {err && <p className="text-xs sm:col-span-2" style={{ color: "#B03428" }}>{err}</p>}
+        {enviado && <p className="text-xs sm:col-span-2" style={{ color: "#2E7D4F" }}>Pedido enviado! Vamos orar com você.</p>}
+
+        <div className="sm:col-span-2">
+          <Btn onClick={enviar}><Send size={14} /> Enviar pedido</Btn>
+        </div>
+      </div>
+
+      {adminMode && (
+        <div className="mt-10 space-y-3">
+          <Eyebrow>Área administrativa</Eyebrow>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>ADMIN · pedidos de oração recebidos (mais recentes primeiro)</p>
+          {(!items || items.length === 0) && <Empty text="Nenhum pedido de oração recebido ainda." />}
+          {[...(items || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((i) => (
+            <div key={i.id} className="p-4 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+              <div className="flex justify-between items-start flex-wrap gap-2">
+                <div>
+                  <p className="font-medium">{i.nome} {i.local && `· ${i.local}`}</p>
+                  <p className="text-xs" style={{ color: C.stone }}>{fmtDateTime(i.timestamp)}</p>
+                </div>
+                <div className="text-xs text-right" style={{ color: C.stone }}>
+                  <p>{i.whatsapp}</p>
+                  {i.email && <p>{i.email}</p>}
+                </div>
+              </div>
+              {i.causas && i.causas.length > 0 && (
+                <p className="text-xs mt-2 flex flex-wrap gap-1">
+                  {i.causas.map((c) => (
+                    <span key={c} className="px-2 py-0.5 rounded-full" style={{ background: C.parchment, color: C.ember }}>{c}</span>
+                  ))}
+                </p>
+              )}
+              {i.intercessaoNomes && <p className="text-xs mt-2" style={{ color: C.ink }}><strong>Intercessão por:</strong> {i.intercessaoNomes}</p>}
+              {i.descricao && <p className="text-sm mt-2" style={{ color: C.ink }}>{i.descricao}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2902,7 +3187,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 
       {tab === "albuns" && (
         <div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={GRID3}>
             {(albuns || []).length === 0 && <Empty text="Nenhum álbum cadastrado ainda." />}
             {(albuns || []).map((a) => (
               <div key={a.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
@@ -2954,16 +3239,24 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
               <div className="mt-4 space-y-3">
                 {c.musicas.length === 0 && <p className="text-xs italic" style={{ color: C.stone }}>Nenhuma música adicionada ainda.</p>}
                 {c.musicas.map((m) => (
-                  <div key={m.id} className="p-3 rounded-lg" style={{ background: C.parchment }}>
+                  <div
+                    key={m.id}
+                    className={`p-3 rounded-lg ${m.youtubeUrl ? "cursor-pointer hover:brightness-95" : ""}`}
+                    style={{ background: C.parchment }}
+                    onClick={() => m.youtubeUrl && window.open(m.youtubeUrl, "_blank", "noopener,noreferrer")}
+                  >
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium text-sm">{m.titulo} {m.tom && <span className="font-mono text-xs" style={{ color: C.ember }}>· Tom: {m.tom}</span>}</p>
+                        <p className="font-medium text-sm flex items-center gap-1.5">
+                          {m.youtubeUrl && <PlayCircle size={13} color={C.ember} />}
+                          {m.titulo} {m.tom && <span className="font-mono text-xs" style={{ color: C.ember }}>· Tom: {m.tom}</span>}
+                        </p>
                         {m.grupo && <p className="text-xs" style={{ color: C.stone }}>{m.grupo}</p>}
                       </div>
-                      {adminMode && <button onClick={() => delMusica(c.id, m.id)}><Trash2 size={13} color={C.stone} /></button>}
+                      {adminMode && <button onClick={(e) => { e.stopPropagation(); delMusica(c.id, m.id); }}><Trash2 size={13} color={C.stone} /></button>}
                     </div>
                     {m.youtubeUrl && (
-                      <a href={m.youtubeUrl} target="_blank" rel="noreferrer" className="text-xs underline mt-1 inline-block" style={{ color: C.ember }}>ver no YouTube</a>
+                      <span className="text-xs underline mt-1 inline-block" style={{ color: C.ember }}>ver no YouTube</span>
                     )}
                     {m.cifra && <p className="text-xs mt-2 whitespace-pre-line font-mono">{m.cifra}</p>}
                     {m.letra && <p className="text-xs mt-2 whitespace-pre-line">{m.letra}</p>}
@@ -2988,7 +3281,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 
       {tab === "musicos" && (
         <div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={GRID3}>
             {musicos.length === 0 && <Empty text="Nenhum músico cadastrado ainda." />}
             {musicos.map((m) => (
               <div key={m.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
@@ -3088,9 +3381,10 @@ export default function App() {
   const [repertorio, setRepertorio] = useState([]);
   const [musicos, setMusicos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
-  const [escala, setEscala] = useState(DEFAULT_ESCALA);
-  const [escalaHistorico, setEscalaHistorico] = useState([]);
+  const [escala, setEscala] = useState(DEFAULT_ESCALA_OBREIROS);
   const [biblioteca, setBiblioteca] = useState([]);
+  const [manchete, setManchete] = useState(DEFAULT_MANCHETE);
+  const [pedidosOracao, setPedidosOracao] = useState([]);
   const [seeds, setSeeds] = useState({});
 
   const sideCarouselPhotos = useMemo(() => {
@@ -3155,8 +3449,9 @@ export default function App() {
       setRepertorio(await loadKey("avivar:repertorio", []));
       setMusicos(await loadKey("avivar:musicos", []));
       setAlbuns(await loadKey("avivar:albuns", []));
-      setEscala(await loadKey("avivar:escala", DEFAULT_ESCALA));
-      setEscalaHistorico(await loadKey("avivar:escalahistorico", []));
+      setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
+      setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
+      setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
       setBiblioteca(await loadKey("avivar:biblioteca", []));
       setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
@@ -3565,6 +3860,53 @@ export default function App() {
       }
       todo.galeriaLouvor1 = true;
     }
+    if (!seeds.estudos1) {
+      const jaTemEstudo = (estudos || []).some((e) => e.seedId && e.seedId.startsWith("estudo-"));
+      if (!jaTemEstudo) {
+        const novosEstudos = [
+          {
+            id: uid(),
+            seedId: "estudo-samaritano",
+            titulo: "O Bom Samaritano: amor que atravessa barreiras",
+            referencia: "Lucas 10:25-37",
+            imageUrl: "",
+            conteudo:
+              "Um mestre da lei pergunta a Jesus quem é o seu próximo, esperando talvez uma resposta que limitasse seu dever de amar. Jesus responde com uma história: um homem é espancado e deixado à beira do caminho; um sacerdote e um levita — pessoas religiosas, que conheciam a Lei — passam de largo. Quem para para ajudar é um samaritano, alguém que os judeus da época tratavam com desprezo.\n\nA parábola vira a pergunta original de cabeça para baixo. Em vez de responder \"quem é meu próximo\", Jesus mostra o que significa \"ser\" próximo de alguém: enxergar a dor concreta de quem está diante de nós, mesmo quando isso custa tempo, dinheiro e conforto. O samaritano cuida do ferido, paga sua estadia numa hospedaria e promete voltar — misericórdia prática, não apenas sentimento.\n\nPara a vida da igreja hoje, o convite permanece o mesmo: o amor cristão não escolhe quem merece ser ajudado com base em religião, nacionalidade ou aparência. Ele se define pela disposição de parar o que se está fazendo diante da necessidade real de alguém — vizinho, estranho ou até quem normalmente rejeitaríamos.",
+          },
+          {
+            id: uid(),
+            seedId: "estudo-videira",
+            titulo: "A Videira e os Ramos: permanecer em Cristo",
+            referencia: "João 15:1-8",
+            imageUrl: "",
+            conteudo:
+              "Na véspera da cruz, Jesus usa uma imagem simples e conhecida de seus discípulos: Ele é a videira verdadeira, o Pai é o agricultor, e nós somos os ramos. Um ramo separado da videira não tem vida própria — ele simplesmente seca. É uma imagem de dependência, não de esforço isolado.\n\nJesus repete o verbo \"permanecer\" várias vezes nessa passagem: permanecer nEle é a condição para dar fruto. Isso muda a forma como entendemos a vida espiritual — ela não é primariamente sobre produzir resultados por conta própria, mas sobre manter uma ligação viva e constante com Cristo, através da oração, da Palavra e da obediência, deixando que a seiva da graça sustente o que fazemos.\n\nO agricultor também poda os ramos que já dão fruto, para que deem mais fruto ainda — um lembrete de que até o crescimento espiritual maduro passa por momentos de corte e ajuste na mão de Deus. O convite da passagem é simples e prático: antes de tentar produzir mais para Deus, verifique se está genuinamente permanecendo nEle.",
+          },
+          {
+            id: uid(),
+            seedId: "estudo-frutoespirito",
+            titulo: "O Fruto do Espírito: uma vida transformada",
+            referencia: "Gálatas 5:22-23",
+            imageUrl: "",
+            conteudo:
+              "Paulo escreve aos gálatas contrastando as \"obras da carne\" com o \"fruto do Espírito\" — não os \"frutos\", no plural, mas um único fruto com várias características: amor, alegria, paz, paciência, amabilidade, bondade, fidelidade, mansidão e domínio próprio. É um conjunto integrado, o retrato do caráter que o Espírito Santo forma em quem anda com Ele.\n\nDiferente de um dom espiritual, que pode variar de pessoa para pessoa, o fruto do Espírito é o resultado esperado na vida de todo cristão — assim como uma árvore saudável naturalmente produz fruto, sem se esforçar artificialmente por isso. O texto sugere que esse caráter cresce organicamente à medida que vivemos em comunhão com o Espírito, não como uma lista de regras a cumprir por força de vontade.\n\nÉ um convite ao exame honesto: não se trata de perguntar quantos dons espirituais alguém tem, mas se amor, paz e domínio próprio estão de fato aparecendo no dia a dia — em casa, no trabalho, na igreja. Onde falta fruto, a resposta bíblica não é tentar mais, mas permanecer mais perto da fonte.",
+          },
+        ];
+        const mergedEstudos = [...(estudos || []), ...novosEstudos];
+        setEstudos(mergedEstudos);
+        saveKey("avivar:estudos", mergedEstudos);
+      }
+      todo.estudos1 = true;
+    }
+    if (!seeds.escalaObreiros1) {
+      // Obreiros/postos/horários padrão da Escala de Obreiros — só populam se o
+      // registro ainda estiver vazio; depois disso o admin controla livremente.
+      if (!escala || !escala.obreiros || escala.obreiros.length === 0) {
+        setEscala(DEFAULT_ESCALA_OBREIROS);
+        saveKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS);
+      }
+      todo.escalaObreiros1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -3597,8 +3939,9 @@ export default function App() {
     membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
     albuns: (v) => { setAlbuns(v); saveKey("avivar:albuns", v); },
-    escala: (v) => { setEscala(v); saveKey("avivar:escala", v); },
-    escalaHistorico: (v) => { setEscalaHistorico(v); saveKey("avivar:escalahistorico", v); },
+    escala: (v) => { setEscala(v); saveKey("avivar:escalaObreiros", v); },
+    manchete: (v) => { setManchete(v); saveKey("avivar:manchete", v); },
+    pedidosOracao: (v) => { setPedidosOracao(v); saveKey("avivar:pedidosOracao", v); },
     biblioteca: (v) => { setBiblioteca(v); saveKey("avivar:biblioteca", v); },
     musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
   };
@@ -3615,6 +3958,13 @@ export default function App() {
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Tangerine:wght@700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @font-face {
+          font-family: "PhotographSignature";
+          src: url("/62-photograph-signature.ttf") format("truetype");
+          font-weight: normal;
+          font-style: normal;
+          font-display: swap;
+        }
         html { scroll-behavior: smooth; }
         @keyframes navPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(107,47,165,0.55); } 50% { box-shadow: 0 0 0 6px rgba(107,47,165,0); } }
         .nav-pulse { animation: navPulse 2.4s ease-in-out infinite; }
@@ -3638,20 +3988,21 @@ export default function App() {
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
-      <main className="lg:ml-[140px] lg:mr-[272px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} /></section>
+      <main className="lg:ml-[200px] lg:mr-[280px]">
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} /></section>
         <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} /></section>
-        <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} /></section>
+        <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} /></section>
         <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
-        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} historico={escalaHistorico} saveHistorico={persist.escalaHistorico} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="pedidooracao" className="scroll-mt-24"><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} /></section>
         <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
