@@ -2061,6 +2061,9 @@ const LOJA_FIELDS = [
   { key: "precoFisico", label: "Preço do exemplar físico (ex: R$ 49,90)" },
   { key: "linkFisico", label: "Link de pagamento do Físico (Mercado Pago)", type: "url" },
   { key: "previewUrl", label: "URL de amostra/prévia (opcional)", type: "url" },
+  { key: "capaVendaUrl", label: "URL da capa na página de venda (se vazio, usa a mesma da vitrine)", type: "url" },
+  { key: "pdfNaoLiberado", label: "PDF ainda não liberado (mostra 'em breve' em vez do preço/download)", type: "select", options: ["Não", "Sim"] },
+  { key: "fisicoEsgotado", label: "Tiragem física esgotada (mostra aviso em vez do formulário de pedido)", type: "select", options: ["Não", "Sim"] },
 ];
 const PEDIDO_FISICO_FIELDS = [
   { key: "nomeRecebedor", label: "Nome de quem vai receber" },
@@ -2115,7 +2118,7 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
   // A Loja pública mostra os produtos que não são "Códigos Avivar" (roupas, utensílios
   // etc., se algum dia existirem) mais os 4 livros da trilogia (vendidos, mesmo sendo
   // categoria "Códigos Avivar"), mas nunca os 16 livros de Hagin da vitrine interna.
-  const itemsLoja = items.filter((p) => p.categoria !== "Códigos Avivar" || (p.seedId && p.seedId.startsWith("trilogia-")));
+  const itemsLoja = items.filter((p) => p.categoria !== "Códigos Avivar" || p.paraVenda || (p.seedId && p.seedId.startsWith("trilogia-")));
   const [pixAbertoId, setPixAbertoId] = useState(null);
   const [produtoAbertoId, setProdutoAbertoId] = useState(null);
   const produtoAberto = itemsLoja.find((p) => p.id === produtoAbertoId) || null;
@@ -2184,7 +2187,7 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
         {produtoAberto && (
           <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[260px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
             <div className="flex flex-col gap-4 h-full">
-              <ImgOrPlaceholder url={produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-56 sm:h-64 object-contain rounded-lg flex-shrink-0" />
+              <ImgOrPlaceholder url={produtoAberto.capaVendaUrl || produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-56 sm:h-64 object-contain rounded-lg flex-shrink-0" />
               {produtoAberto.descricao && (
                 <div className="flex-1">
                   <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
@@ -2202,37 +2205,49 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
                 <div className="grid sm:grid-cols-2 gap-3 mt-4">
                   <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
                     <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>PDF</p>
-                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoPdf || "a definir"}</p>
-                    {precoParaNumero(produtoAberto.precoPdf) ? (
-                      <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => comprarPdfMercadoPago(produtoAberto)}>
-                        <ShoppingBag size={13} /> Comprar PDF
-                      </Btn>
+                    {produtoAberto.pdfNaoLiberado === true || produtoAberto.pdfNaoLiberado === "Sim" ? (
+                      <p className="text-[12px] italic mt-2" style={{ color: C.stone }}>PDF ainda não liberado — em breve</p>
                     ) : (
-                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Preço ainda não definido</p>
+                      <>
+                        <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoPdf || "a definir"}</p>
+                        {precoParaNumero(produtoAberto.precoPdf) ? (
+                          <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => comprarPdfMercadoPago(produtoAberto)}>
+                            <ShoppingBag size={13} /> Comprar PDF
+                          </Btn>
+                        ) : (
+                          <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Preço ainda não definido</p>
+                        )}
+                        <div className="flex flex-col gap-1.5 mt-2">
+                          {produtoAberto.pdfUrl && (
+                            <a href={produtoAberto.pdfUrl} download>
+                              <Btn variant="ghost" className="w-full justify-center"><FileText size={13} /> Baixar PDF</Btn>
+                            </a>
+                          )}
+                          {produtoAberto.imageUrl && (
+                            <a href={produtoAberto.imageUrl} download>
+                              <Btn variant="ghost" className="w-full justify-center"><ImageIcon size={13} /> Baixar capa</Btn>
+                            </a>
+                          )}
+                        </div>
+                      </>
                     )}
-                    <div className="flex flex-col gap-1.5 mt-2">
-                      {produtoAberto.pdfUrl && (
-                        <a href={produtoAberto.pdfUrl} download>
-                          <Btn variant="ghost" className="w-full justify-center"><FileText size={13} /> Baixar PDF</Btn>
-                        </a>
-                      )}
-                      {produtoAberto.imageUrl && (
-                        <a href={produtoAberto.imageUrl} download>
-                          <Btn variant="ghost" className="w-full justify-center"><ImageIcon size={13} /> Baixar capa</Btn>
-                        </a>
-                      )}
-                    </div>
                   </div>
                   <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
                     <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Físico</p>
-                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "Valor combinado após o pedido, pelo WhatsApp"}</p>
-                    <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => setMostrarFormFisico((v) => !v)}>
-                      <Send size={13} /> {mostrarFormFisico ? "Fechar formulário" : "Solicitar exemplar físico"}
-                    </Btn>
-                    <a href="https://www.correios.com.br/precos-e-prazos" target="_blank" rel="noreferrer" className="block mt-1.5">
-                      <Btn variant="ghost" className="w-full justify-center text-xs"><Truck size={13} /> Consultar frete nos Correios</Btn>
-                    </a>
-                    <p className="text-[10px] italic mt-1" style={{ color: C.stone }}>O frete é combinado à parte, pelo WhatsApp, após o pedido.</p>
+                    {produtoAberto.fisicoEsgotado === true || produtoAberto.fisicoEsgotado === "Sim" ? (
+                      <p className="text-[12px] italic mt-2" style={{ color: C.stone }}>Tiragem física esgotada</p>
+                    ) : (
+                      <>
+                        <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "Valor combinado após o pedido, pelo WhatsApp"}</p>
+                        <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => setMostrarFormFisico((v) => !v)}>
+                          <Send size={13} /> {mostrarFormFisico ? "Fechar formulário" : "Solicitar exemplar físico"}
+                        </Btn>
+                        <a href="https://www.correios.com.br/precos-e-prazos" target="_blank" rel="noreferrer" className="block mt-1.5">
+                          <Btn variant="ghost" className="w-full justify-center text-xs"><Truck size={13} /> Consultar frete nos Correios</Btn>
+                        </a>
+                        <p className="text-[10px] italic mt-1" style={{ color: C.stone }}>O frete é combinado à parte, pelo WhatsApp, após o pedido.</p>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -4671,6 +4686,37 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       setLoja(lojaW);
       saveKey("avivar:loja", lojaW);
       todo.lojaFormatoDuplo1 = true;
+    }
+    if (!seeds.lancamentoEnergiaCriador1) {
+      const jaTemEnergia = lojaW.some((p) => p.seedId === "lancamento-energia-criador");
+      if (!jaTemEnergia) {
+        lojaW = [
+          ...lojaW,
+          {
+            id: uid(),
+            seedId: "lancamento-energia-criador",
+            categoria: "Códigos Avivar",
+            paraVenda: true,
+            titulo: "A Energia do Criador",
+            nome: "A Energia do Criador",
+            autor: "Marcos Fagner S. Alves",
+            imageUrl: "/70-livro-a-energia-do-criador-vitrine.jpg",
+            capaVendaUrl: "/71-livro-a-energia-do-criador-capa-venda.jpg",
+            pdfNaoLiberado: true,
+            fisicoEsgotado: true,
+            precoPdf: "",
+            precoFisico: "",
+            preco: "",
+            linkCompra: "",
+            linkCartao: "",
+            destino: "loja",
+            descricao: "Deus escreveu dois livros: a Bíblia e o universo. Nesta obra inédita — Volume IX da Série Códigos Avivar, Revelações dos Últimos Tempos — Marcos Fagner S. Alves mostra como as descobertas mais impressionantes da física quântica (o campo quântico, o efeito do observador, o enlaçamento e a incerteza) ressoam com o que as Escrituras já revelavam há milênios sobre a presença, o poder e a soberania do Criador. Deus não é o campo quântico — Ele o criou. Um convite a enxergar, na estrutura mais profunda do universo, as marcas de Quem o projetou, unindo ciência, fé e revelação em uma leitura que fortalece a adoração e a intimidade com o Espírito Santo.",
+          },
+        ];
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.lancamentoEnergiaCriador1 = true;
     }
     if (!seeds.hagInVitrineCodigos1) {
       const idsBib = ["bib-palavra","bib-aguias","bib-setepassos","bib-familia","bib-uncao","bib-nomejesus","bib-alimentofe","bib-cursofe","bib2-dons","bib2-elshaddai","bib2-sofram","bib2-duelo","bib2-autoridade","bib2-naoculpe","bib2-casamento"];
