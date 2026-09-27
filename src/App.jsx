@@ -29,6 +29,7 @@ const C = {
   violetDeep: "#2C2340",
   purple: "#6B2FA5",
   purpleDeep: "#4A1F73",
+  purpleLight: "#B39DDB",
   indigo: "#17213B",
   indigoDeep: "#0E1526",
   stone: "#1F1B2E", // era cinza (#8A8272) — pedido do usuário: trocar cinza por preto em todo o site
@@ -163,6 +164,7 @@ const DEFAULT_HOMECARDS = [
 
 const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
+  sobreNosImage: "",
   homeCards: DEFAULT_HOMECARDS,
   heroSlides: [
     { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
@@ -1001,6 +1003,34 @@ function LiveHomeCard({ aoVivo, onClick }) {
   );
 }
 
+// Card "Visitantes recentes" — mesmo visual/tamanho dos outros cards da fileira
+// (ao lado do card Ao Vivo), fundo claro com borda, marquee com os últimos visitantes.
+function VisitantesCard({ recentVisitors }) {
+  return (
+    <div className="rounded-xl border-2 shadow-xl p-4" style={{ borderColor: C.gold, background: C.cream }}>
+      <div className="flex items-center gap-2 mb-2" style={{ color: C.ember }}>
+        <HandHeart size={18} />
+        <h3 className="font-display font-semibold text-sm">Visitantes recentes</h3>
+      </div>
+      {recentVisitors.length === 0 ? (
+        <Empty text="Nenhum visitante registrado ainda hoje." />
+      ) : (
+        <div className="h-40 overflow-hidden relative">
+          <div className="marquee-track">
+            {[...recentVisitors, ...recentVisitors].map((v, idx) => (
+              <div key={idx} className="flex items-center justify-between py-1.5 text-sm border-b" style={{ borderColor: C.line }}>
+                <span className="font-medium" style={{ color: C.ink }}>{v.nome}</span>
+                <span className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(v.timestamp)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="text-xs mt-2 font-mono" style={{ color: C.stone }}>Seja muito bem-vindo(a) — cadastre-se em Visitantes.</p>
+    </div>
+  );
+}
+
 function FeaturedBibliaCard({ onClick }) {
   return (
     <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left relative focus:outline-none focus:ring-2" style={{ borderColor: C.gold }}>
@@ -1046,6 +1076,11 @@ function HeroNewsColumn({ news, bgImage, onClick }) {
 
 function HeroDoacoesCard({ data, bgImage, onClick }) {
   const [copiado, setCopiado] = useState(false);
+  const [copiadoImg, setCopiadoImg] = useState(false);
+  const [erroImg, setErroImg] = useState(false);
+  const payload = data.pixKey
+    ? montarPixPayload({ chave: data.pixKey, nomeRecebedor: data.nomeRecebedor, cidade: data.cidade, txid: "AVIVAR" })
+    : "";
   const copiar = (e) => {
     e.stopPropagation();
     if (!data.pixKey) return;
@@ -1053,6 +1088,51 @@ function HeroDoacoesCard({ data, bgImage, onClick }) {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     });
+  };
+  // Copia o QR Code Pix como IMAGEM (PNG) para a área de transferência — converte o
+  // SVG gerado pelo qrcode.react num canvas oculto e usa a Clipboard API. Se o
+  // navegador não suportar (ex: ClipboardItem indisponível), falha silenciosamente.
+  const copiarQRComoImagem = async (e) => {
+    e.stopPropagation();
+    if (!payload) return;
+    try {
+      const svgEl = e.currentTarget.querySelector("svg");
+      if (!svgEl) return;
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+      const size = img.width || 160;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          if (!navigator.clipboard || typeof window.ClipboardItem === "undefined") throw new Error("sem suporte");
+          await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blob })]);
+          setCopiadoImg(true);
+          setErroImg(false);
+          setTimeout(() => setCopiadoImg(false), 2000);
+        } catch (err) {
+          setErroImg(true);
+          setTimeout(() => setErroImg(false), 2500);
+        }
+      }, "image/png");
+    } catch (err) {
+      setErroImg(true);
+      setTimeout(() => setErroImg(false), 2500);
+    }
   };
   return (
     <div className="relative rounded-2xl overflow-hidden border h-full min-h-[280px]" style={{ borderColor: C.line }}>
@@ -1071,7 +1151,21 @@ function HeroDoacoesCard({ data, bgImage, onClick }) {
           <p className="text-sm font-mono break-all text-white">{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
         </div>
         <div className="flex-1" />
-        <span onClick={copiar} className="inline-flex items-center gap-1.5 text-xs mt-3 px-3 py-1.5 rounded-md w-fit" style={{ background: "#ffffff22", color: "#fff" }}>
+        {payload && (
+          <div className="flex flex-col items-center gap-1 mb-2">
+            <div
+              onClick={copiarQRComoImagem}
+              title="Toque para copiar o QR Code como imagem"
+              className="bg-white p-1.5 rounded-lg cursor-pointer"
+            >
+              <QRCodeSVG value={payload} size={96} bgColor="#ffffff" fgColor="#0B0B0C" />
+            </div>
+            <span className="text-[9px] text-center" style={{ color: erroImg ? "#F2A6A6" : "#ffffff88" }}>
+              {copiadoImg ? "Copiado!" : erroImg ? "não foi possível copiar a imagem neste navegador" : "toque no QR Code para copiar a imagem"}
+            </span>
+          </div>
+        )}
+        <span onClick={copiar} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md w-fit mx-auto" style={{ background: "#ffffff22", color: "#fff" }}>
           <Copy size={12} /> {copiado ? "Copiado!" : "Copiar chave PIX"}
         </span>
       </button>
@@ -1081,7 +1175,30 @@ function HeroDoacoesCard({ data, bgImage, onClick }) {
 
 // Antes havia aqui um segundo card de "Oração nos Lares" duplicando o card já existente
 // no grid de ícones da Home — foi transformado no card de "Pedido de Oração" (novo recurso).
-function PedidoOracaoCard({ onClick }) {
+function PedidoOracaoCard({ onClick, compact }) {
+  if (compact) {
+    // Versão compacta — usada na 3ª coluna do Hero da Home, empilhada abaixo do
+    // card de Dízimo e Oferta, com botão roxo claro pulsante convidando ao clique.
+    return (
+      <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left focus:outline-none focus:ring-2 flex flex-col h-full w-full" style={{ borderColor: C.purple }}>
+        <div className="relative pt-4 pb-2 px-4 text-center" style={{ background: C.purpleDeep }}>
+          <HandHeart size={18} color="#fff" className="mx-auto mb-1" />
+          <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#ffffffaa" }}>Intercessão</p>
+        </div>
+        <div className="p-3 text-xs flex-1 flex flex-col" style={{ background: C.cream }}>
+          <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>Pedido de Oração</p>
+          <p className="mt-1" style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração.</p>
+          <div className="flex-1" />
+          <span
+            className="purple-light-pulse inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md w-full mt-2"
+            style={{ background: C.purpleLight, color: C.violetDeep }}
+          >
+            <HandHeart size={13} /> Peça sua oração
+          </span>
+        </div>
+      </button>
+    );
+  }
   return (
     <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left focus:outline-none focus:ring-2" style={{ borderColor: C.purple }}>
       <div className="relative pt-7 pb-3 px-4 text-center" style={{ background: C.purpleDeep }}>
@@ -1168,7 +1285,14 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
           </div>
         </div>
 
-        <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
+        <div className="flex flex-col gap-3 h-full">
+          <div className="flex-1 min-h-0">
+            <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
+          </div>
+          <div className="flex-1 min-h-0">
+            <PedidoOracaoCard compact onClick={() => setPage("pedidooracao")} />
+          </div>
+        </div>
       </div>
 
       {adminMode && (
@@ -1178,13 +1302,14 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
             <Field label="Fundo — coluna Notícias (esquerda)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroLeftBg || ""} onChange={(e) => saveSite({ ...site, heroLeftBg: e.target.value })} /></Field>
             <Field label="Fundo — coluna central"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroMiddleBg || ""} onChange={(e) => saveSite({ ...site, heroMiddleBg: e.target.value })} /></Field>
             <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
+            <Field label="Foto — seção Sobre nós"><input className={inputCls} style={{ borderColor: C.line }} value={site.sobreNosImage || ""} onChange={(e) => saveSite({ ...site, sobreNosImage: e.target.value })} /></Field>
           </div>
         </div>
       )}
 
       {/* Cards da home — sempre depois dos banners do topo (Hero), nunca sobrepostos;
           grade de 3 colunas em telas grandes (classe GRID3 padrão do site). */}
-      <div className={`max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID3}`}>
+      <div className={`max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID3}`}>
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -1203,14 +1328,14 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
       </div>
 
       {adminMode && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
         </div>
       )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-2 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
-        <PedidoOracaoCard onClick={() => setPage("pedidooracao")} />
+        <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
       <section className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
@@ -1221,44 +1346,22 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
             O {site.churchName} é uma igreja interdenominacional, fundamentada na doutrina cristã, dedicada ao ensino da
             Palavra, à comunhão entre irmãos e ao cuidado com quem chega pela primeira vez.
           </p>
+          <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
+            Mesmo sendo interdenominacionais, buscamos constantemente o poder do Senhor Espírito Santo, ativando os dons
+            espirituais de cura, milagres, maravilhas, revelação, profecia e tudo quanto o Senhor determinar — estamos
+            dispostos a fazer. Mesmo sem alardes nem grandes holofotes, milagres, curas, revelações e profecias são
+            constantes neste ministério.
+          </p>
+          <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
+            Os fiéis de Jesus Cristo são tratados sem distinção hierárquica, porque consideramos todos filhos amados de
+            Jesus Cristo. Cremos no batismo nas águas, no Espírito Santo de Deus como nosso Consolador, no Santo Cristo
+            Jesus como Redentor, e no Deus Todo-Poderoso como um só Deus, que nos sustenta.
+          </p>
         </div>
-        <div className="rounded-xl border p-5" style={{ borderColor: C.line, background: C.cream }}>
-          <div className="flex items-center gap-2 mb-3" style={{ color: C.ember }}>
-            <HandHeart size={18} />
-            <h3 className="font-display font-semibold">Visitantes recentes</h3>
-          </div>
-          {recentVisitors.length === 0 ? (
-            <Empty text="Nenhum visitante registrado ainda hoje." />
-          ) : (
-            <div className="h-40 overflow-hidden relative">
-              <div className="marquee-track">
-                {[...recentVisitors, ...recentVisitors].map((v, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-1.5 text-sm border-b" style={{ borderColor: C.line }}>
-                    <span className="font-medium" style={{ color: C.ink }}>{v.nome}</span>
-                    <span className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(v.timestamp)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <p className="text-xs mt-2 font-mono" style={{ color: C.stone }}>Seja muito bem-vindo(a) — cadastre-se em Visitantes.</p>
+        <div className="rounded-xl border overflow-hidden shadow-md" style={{ borderColor: C.line }}>
+          <ImgOrPlaceholder url={site.sobreNosImage} alt="Ministério Avivar do Espírito" className="w-full h-full min-h-[280px] object-cover" ph="Foto do Ministério — adicionar depois" />
         </div>
       </section>
-
-      {/* Banner da revista Códigos Avivar — reduzido e movido pra cá (logo antes da
-          seção Códigos Avivar), fora do gate/página protegida */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16">
-        <button
-          onClick={() => setPage("codigos")}
-          className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl focus:outline-none focus:ring-2"
-          style={{ borderColor: C.gold }}
-        >
-          <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[280px]" ph="Banner revista Códigos Avivar — em destaque" />
-        </button>
-        <p className="text-sm text-center italic mt-3" style={{ color: C.stone }}>
-          Deus está revelando os seus mistérios aos profetas. Em breve, Códigos Avivar em sua nova fase com a série Profetas dos Últimos Dias. Tudo que tiver relação com Códigos Avivar levaremos para o nosso app, dentro de poucos dias.
-        </p>
-      </div>
     </div>
   );
 }
@@ -1421,6 +1524,16 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
 
           {/* Coluna 2 — reportagens: portais espirituais, horas dimensionais, energia quântica */}
           <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
+            {/* Banner da revista Códigos Avivar — movido pra cá (reduzido pela metade),
+                já estamos dentro de Códigos Avivar então não precisa navegar de novo */}
+            <div className="mb-6">
+              <div className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl" style={{ borderColor: C.gold }}>
+                <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[140px]" ph="Banner revista Códigos Avivar — em destaque" />
+              </div>
+              <p className="text-xs text-center italic mt-2" style={{ color: "#D9D2EA" }}>
+                Deus está revelando os seus mistérios aos profetas. Em breve, Códigos Avivar em sua nova fase com a série Profetas dos Últimos Dias. Tudo que tiver relação com Códigos Avivar levaremos para o nosso app, dentro de poucos dias.
+              </p>
+            </div>
             <Eyebrow color={C.goldBright}><Sparkles size={11} className="inline mr-1" />Ciência, tempo e espírito</Eyebrow>
             <h3 className="font-display text-xl font-semibold text-white mt-2 mb-5">Reflexões Avivar News</h3>
             <div className="rounded-xl p-4" style={{ background: "#ffffff0f" }}>
@@ -1937,9 +2050,48 @@ const LOJA_FIELDS = [
   { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
 ];
 
-function Loja({ items, save, adminMode }) {
+// Extrai o valor numérico de um preço em texto livre (ex: "R$ 49,90" -> 49.9), pra
+// usar no valor fixo do QR Code Pix. Retorna undefined se não der pra interpretar.
+function precoParaNumero(preco) {
+  if (!preco) return undefined;
+  const limpo = String(preco).replace(/[^\d,.-]/g, "").replace(".", "").replace(",", ".");
+  const n = parseFloat(limpo);
+  return isNaN(n) ? undefined : n;
+}
+
+function LojaProdutoPix({ produto, doacoes }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!doacoes?.pixKey) return null;
+  const payload = montarPixPayload({
+    chave: doacoes.pixKey,
+    nomeRecebedor: doacoes.nomeRecebedor,
+    cidade: doacoes.cidade,
+    valor: precoParaNumero(produto.preco),
+    txid: "AVIVAR",
+  });
+  const copiar = () => {
+    navigator.clipboard?.writeText(doacoes.pixKey).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+  return (
+    <div className="mt-2 p-3 rounded-lg border flex flex-col items-center gap-2" style={{ borderColor: C.line, background: C.cream }}>
+      <div className="bg-white p-2 rounded-lg border" style={{ borderColor: C.line }}>
+        <QRCodeSVG value={payload} size={120} bgColor="#ffffff" fgColor="#0B0B0C" />
+      </div>
+      <p className="text-[10px] font-mono break-all text-center" style={{ color: C.stone }}>{doacoes.pixKey}</p>
+      <Btn variant="ghost" className="w-full justify-center" onClick={copiar}>
+        <Copy size={13} /> {copiado ? "Copiado!" : "Copiar chave PIX"}
+      </Btn>
+    </div>
+  );
+}
+
+function Loja({ items, save, adminMode, doacoes }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
+  const [pixAbertoId, setPixAbertoId] = useState(null);
   return (
     <div>
       {/* Frase de incentivo + versículo no lugar da antiga imagem-colagem de livros */}
@@ -1964,6 +2116,16 @@ function Loja({ items, save, adminMode }) {
                 {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
                 <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>
                 <div className="flex flex-col gap-1.5 mt-2">
+                  {doacoes?.pixKey && (
+                    <Btn
+                      color={C.gold}
+                      className="w-full justify-center"
+                      onClick={() => setPixAbertoId((id) => (id === p.id ? null : p.id))}
+                    >
+                      <Send size={13} /> {pixAbertoId === p.id ? "Fechar Pix" : "Pagar com Pix"}
+                    </Btn>
+                  )}
+                  {pixAbertoId === p.id && <LojaProdutoPix produto={p} doacoes={doacoes} />}
                   {p.linkCompra && (
                     <a href={p.linkCompra} target="_blank" rel="noreferrer">
                       <Btn className="w-full justify-center"><ShoppingBag size={13} /> PIX / Mercado Pago</Btn>
@@ -2474,7 +2636,7 @@ function Colaboradores({ items, save, adminMode }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
         {sorted.map((c) => (
           <div key={c.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
-            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-28 object-cover" ph={c.nome} />
+            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-44 object-cover" ph={c.nome} />
             <div className="p-2" style={{ background: C.parchment }}>
               <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
               <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>
@@ -2505,6 +2667,9 @@ const OBREIROS_PADRAO = [
   "Ir. Vitória Dimas", "Ir. Livia", "Ir. Bárbara", "Ir. Renato", "Ir. Kauan", "Ir. Brena", "Ir. Samuel", "Ir. Odeuzina", "Ir. Nilcéia",
 ];
 const POSTOS_PADRAO = ["Recepção", "Ofertas", "Slides", "Mídia", "Abertura e Semeadura", "Pregação", "Anjos de Luz", "Louvor", "Kids"];
+// Ordem fixa de exibição na tabela "Escala de Serviços Ministeriais" — postos que não
+// estiverem nessa lista (customizados pelo admin) aparecem depois, na ordem cadastrada.
+const ORDEM_POSTOS_TABELA = ["Abertura e Semeadura", "Pregação", "Ofertas", "Kids", "Slides", "Mídia", "Recepção", "Louvor", "Anjos de Luz"];
 const HORARIOS_PADRAO = [
   { dia: "Quarta-feira", inicio: "19:20", fim: "21:00" },
   { dia: "Sexta-feira", inicio: "19:20", fim: "21:00" },
@@ -2544,6 +2709,8 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
   const [mudandoIdeiaId, setMudandoIdeiaId] = useState(null);
   const [motivoDraft, setMotivoDraft] = useState("");
   const [nomeConferente, setNomeConferente] = useState("");
+  const [obsAbertoId, setObsAbertoId] = useState(null); // id do escalado com o campo de texto de observação aberto
+  const [obsTextoDraft, setObsTextoDraft] = useState("");
 
   const diaSemana = diaSemanaFromData(dataCulto);
   const horarioAtual = horarioDoDia(diaSemana, safeData.horarios);
@@ -2553,6 +2720,12 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
   const fechado = !!diaAtual.conferidoEm;
   const podeMexerNoDia = canManage; // admin/operador sempre podem mexer, mesmo fechado
   const disponiveis = safeData.obreiros.filter((o) => !escalados.some((e) => e.obreiroNome === o));
+  // Ordem fixa dos ministérios na tabela-resumo — postos customizados que não estejam
+  // na ordem padrão entram no final, na ordem em que foram cadastrados.
+  const postosTabela = [
+    ...ORDEM_POSTOS_TABELA.filter((p) => safeData.postos.includes(p)),
+    ...safeData.postos.filter((p) => !ORDEM_POSTOS_TABELA.includes(p)),
+  ];
 
   const salvarDia = (patchDia) => {
     save({
@@ -2589,6 +2762,13 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
     salvarDia({ conferidoPor: nomeConferente.trim(), conferidoEm: nowISO() });
   };
   const reabrirDia = () => salvarDia({ conferidoPor: null, conferidoEm: null });
+  const responderObs = (id, respondeu, texto) => {
+    salvarDia({
+      escalados: escalados.map((e) => (e.id === id ? { ...e, respondeuObs: true, textoObs: respondeu ? texto || "" : "", travado: true } : e)),
+    });
+    setObsAbertoId(null);
+    setObsTextoDraft("");
+  };
 
   const addObreiro = () => {
     if (!novoObreiro.trim()) return;
@@ -2616,6 +2796,22 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
   const delHorario = (idx) => save({ ...safeData, horarios: safeData.horarios.filter((_, i) => i !== idx) });
 
   const StatusObreiro = ({ e }) => {
+    if (e.travado) {
+      // Status travado — depois de responder às observações, a pessoa não pode mais
+      // alterar o status, então mostramos só o texto, sem os botões de troca.
+      if (e.status === "aguardando") {
+        return <span className="text-xs italic" style={{ color: C.stone }}>aguardando confirmação</span>;
+      }
+      const isDispTravado = e.status === "disponivel";
+      return (
+        <span className="inline-flex items-center gap-2 flex-wrap text-xs">
+          <span className="font-semibold" style={{ color: isDispTravado ? "#2E7D4F" : C.liveRed }}>
+            {isDispTravado ? "Disponível" : "Indisponível"}
+          </span>
+          {e.horarioConfirmacao && <span style={{ color: C.stone }}>· {fmtHM(e.horarioConfirmacao)}</span>}
+        </span>
+      );
+    }
     const podeEditar = podeMexerNoDia && (!fechado || adminMode);
     if (e.status === "aguardando") {
       if (!podeEditar) return <span className="text-xs italic" style={{ color: C.stone }}>aguardando confirmação</span>;
@@ -2655,8 +2851,43 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
     );
   };
 
+  // Coluna Observações da tabela-resumo — fluxo Sim/Não: "Não" trava direto sem texto,
+  // "Sim" abre um campo curto; depois de respondido, mostra só o texto salvo (sem opção de alterar).
+  const ObsCell = ({ e }) => {
+    if (e.respondeuObs) {
+      return (
+        <span className="text-xs" style={{ color: C.stone }}>
+          {e.textoObs ? e.textoObs : <span className="italic">sem observações</span>}
+        </span>
+      );
+    }
+    if (obsAbertoId === e.id) {
+      return (
+        <span className="flex items-center gap-1 flex-wrap">
+          <input
+            autoFocus
+            placeholder="Observação (curta)"
+            value={obsTextoDraft}
+            onChange={(ev) => setObsTextoDraft(ev.target.value)}
+            className="text-xs rounded-md border px-2 py-1"
+            style={{ borderColor: C.line }}
+          />
+          <button onClick={() => responderObs(e.id, true, obsTextoDraft)} className="underline text-xs" style={{ color: C.violet }}>enviar</button>
+          <button onClick={() => { setObsAbertoId(null); setObsTextoDraft(""); }} className="underline text-xs" style={{ color: C.stone }}>cancelar</button>
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-2 text-xs flex-wrap">
+        <span style={{ color: C.stone }}>Tem observação?</span>
+        <button onClick={() => { setObsAbertoId(e.id); setObsTextoDraft(""); }} className="underline" style={{ color: C.violet }}>Sim</button>
+        <button onClick={() => responderObs(e.id, false, "")} className="underline" style={{ color: C.stone }}>Não</button>
+      </span>
+    );
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><ClipboardList size={12} className="inline mr-1" />Serviço na Casa de Deus</Eyebrow>
       <SectionTitle>Escala de Obreiros</SectionTitle>
 
@@ -2679,8 +2910,68 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
         )}
       </div>
 
+      {/* Quadro-resumo — movido pra antes dos postos; agora em formato de tabela com
+          Ministério / Nome / Disponibilidade / Observações. Só aparece depois do
+          primeiro obreiro escalado no dia. */}
+      {escalados.length > 0 && (
+        <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
+          <Eyebrow color={C.ember}>Escala de Serviços Ministeriais</Eyebrow>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm mt-3">
+              <thead>
+                <tr className="text-xs font-mono uppercase text-left" style={{ color: C.stone }}>
+                  <th className="pb-2 pr-3 font-semibold">Ministério</th>
+                  <th className="pb-2 pr-3 font-semibold">Nome</th>
+                  <th className="pb-2 pr-3 font-semibold">Disponibilidade</th>
+                  <th className="pb-2 font-semibold">Observações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {postosTabela.map((posto) => {
+                  const doPosto = escalados.filter((e) => e.posto === posto);
+                  if (doPosto.length === 0) {
+                    return (
+                      <tr key={posto} className="border-b align-top" style={{ borderColor: C.line }}>
+                        <td className="py-1.5 pr-3 font-medium" style={{ color: C.ink }}>{posto}</td>
+                        <td className="py-1.5 pr-3 italic" style={{ color: C.stone }}>—</td>
+                        <td className="py-1.5 pr-3 italic" style={{ color: C.stone }}>—</td>
+                        <td className="py-1.5 italic" style={{ color: C.stone }}>—</td>
+                      </tr>
+                    );
+                  }
+                  return doPosto.map((e) => (
+                    <tr key={e.id} className="border-b align-top" style={{ borderColor: C.line }}>
+                      <td className="py-1.5 pr-3 font-medium" style={{ color: C.ink }}>{posto}</td>
+                      <td className="py-1.5 pr-3" style={{ color: C.ink }}>{e.obreiroNome}</td>
+                      <td className="py-1.5 pr-3"><StatusObreiro e={e} /></td>
+                      <td className="py-1.5"><ObsCell e={e} /></td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {adminMode && !fechado && (
+            <div className="mt-4 pt-3 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: C.line }}>
+              <input
+                placeholder="Seu nome (responsável pela conferência)"
+                value={nomeConferente}
+                onChange={(e) => setNomeConferente(e.target.value)}
+                className="text-sm rounded-md border px-2 py-1.5"
+                style={{ borderColor: C.line }}
+              />
+              <Btn color={C.gold} onClick={conferirDia}><ShieldCheck size={14} /> Conferido</Btn>
+            </div>
+          )}
+          {adminMode && fechado && (
+            <button onClick={reabrirDia} className="text-xs underline mt-3" style={{ color: C.stone }}>reabrir escala do dia (admin)</button>
+          )}
+        </div>
+      )}
+
       {/* Postos e suas caixas de disponíveis / escalados */}
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {safeData.postos.map((posto) => {
           const doPosto = escalados.filter((e) => e.posto === posto);
           return (
@@ -2703,7 +2994,7 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
                 </div>
               )}
 
-              {(!fechado || adminMode) && (
+              {canManage && (!fechado || adminMode) && (
                 <div className="mt-2">
                   <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Obreiros disponíveis — clique pra escalar</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -2713,7 +3004,7 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
                         key={nome}
                         onClick={() => escalarObreiro(nome, posto)}
                         className="text-xs px-2 py-1 rounded-full border"
-                        style={{ borderColor: C.line, color: C.ink }}
+                        style={{ borderColor: C.line, color: C.ink, background: C.parchment }}
                       >
                         {nome}
                       </button>
@@ -2725,45 +3016,6 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
           );
         })}
       </div>
-
-      {/* Quadro-resumo — só aparece depois do primeiro obreiro escalado no dia */}
-      {escalados.length > 0 && (
-        <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
-          <Eyebrow color={C.ember}>Visão geral do dia</Eyebrow>
-          <div className="space-y-1.5 mt-2">
-            {escalados.map((e) => (
-              <div key={e.id} className="text-sm flex items-center justify-between gap-2 flex-wrap border-b pb-1.5" style={{ borderColor: C.line }}>
-                <span><strong>{e.obreiroNome}</strong> · {e.posto}</span>
-                <span className="text-xs">
-                  {e.status === "aguardando" ? (
-                    <span className="italic" style={{ color: C.stone }}>aguardando confirmação</span>
-                  ) : (
-                    <span style={{ color: e.status === "disponivel" ? "#2E7D4F" : C.liveRed }}>
-                      {e.status === "disponivel" ? "Disponível" : "Indisponível"}{e.horarioConfirmacao ? ` · ${fmtHM(e.horarioConfirmacao)}` : ""}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {adminMode && !fechado && (
-            <div className="mt-4 pt-3 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: C.line }}>
-              <input
-                placeholder="Seu nome (responsável pela conferência)"
-                value={nomeConferente}
-                onChange={(e) => setNomeConferente(e.target.value)}
-                className="text-sm rounded-md border px-2 py-1.5"
-                style={{ borderColor: C.line }}
-              />
-              <Btn color={C.gold} onClick={conferirDia}><ShieldCheck size={14} /> Conferido</Btn>
-            </div>
-          )}
-          {adminMode && fechado && (
-            <button onClick={reabrirDia} className="text-xs underline mt-3" style={{ color: C.stone }}>reabrir escala do dia (admin)</button>
-          )}
-        </div>
-      )}
 
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
@@ -4214,6 +4466,20 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       }
       todo.escalaObreiros1 = true;
     }
+    if (!seeds.colaboradoresNovos1) {
+      const jaTemColab = (colaboradores || []).some((c) => c.seedId && c.seedId.startsWith("colab-novo-"));
+      if (!jaTemColab) {
+        const novosColab = [
+          { id: uid(), seedId: "colab-novo-elias", nome: "Elias", cargo: "Irmão", fotoUrl: "/66-colaborador-elias.jpg" },
+          { id: uid(), seedId: "colab-novo-bene", nome: "Bené", cargo: "Diaconisa", fotoUrl: "/67-colaboradora-bene.jpg" },
+          { id: uid(), seedId: "colab-novo-livia", nome: "Lívia", cargo: "Irmã", fotoUrl: "/68-colaboradora-livia.jpg" },
+        ];
+        const mergedColab = [...colaboradores, ...novosColab];
+        setColaboradores(mergedColab);
+        saveKey("avivar:colaboradores", mergedColab);
+      }
+      todo.colaboradoresNovos1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -4277,6 +4543,10 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         .nav-pulse { animation: navPulse 2.4s ease-in-out infinite; }
         .nav-pulse:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) { .nav-pulse { animation: none; } }
+        @keyframes purpleLightPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(179,157,219,0.65); } 50% { box-shadow: 0 0 0 7px rgba(179,157,219,0); } }
+        .purple-light-pulse { animation: purpleLightPulse 2.2s ease-in-out infinite; }
+        .purple-light-pulse:hover { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) { .purple-light-pulse { animation: none; } }
         .font-display { font-family: 'Playfair Display', serif; }
         .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
@@ -4304,7 +4574,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
         <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} /></section>
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
