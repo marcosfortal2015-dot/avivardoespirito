@@ -4,7 +4,8 @@ import {
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
-  Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText
+  Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
+  Truck, Pencil, Save
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -1390,6 +1391,8 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
   const [err, setErr] = useState("");
   const [showAccessMgmt, setShowAccessMgmt] = useState(false);
   const [selectedTema, setSelectedTema] = useState(null);
+  const [holderTier, setHolderTier] = useState("geral");
+  const [livroInternoAberto, setLivroInternoAberto] = useState(null);
 
   const reportagensDestaque = [...(avivarNews || [])]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1419,16 +1422,18 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
     if (match) {
       setUnlocked(true);
       setHolderName(nameInput || match.holder);
+      setHolderTier(match.tier || "geral");
       setErr("");
     } else {
       setErr("Código inválido, inativo ou pessoa não cadastrada.");
     }
   };
 
-  const genCode = (holder) => {
+  const genCode = (holder, tier) => {
     const code = "AVR-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-    save({ ...data, codes: [...data.codes, { id: uid(), holder, code, active: true }] });
+    save({ ...data, codes: [...data.codes, { id: uid(), holder, code, active: true, tier: tier || "geral" }] });
   };
+  const toggleTier = (id) => save({ ...data, codes: data.codes.map((c) => (c.id === id ? { ...c, tier: c.tier === "serafim" ? "geral" : "serafim" } : c)) });
   const toggleCode = (id) => save({ ...data, codes: data.codes.map((c) => (c.id === id ? { ...c, active: !c.active } : c)) });
   const resetCode = (id) => {
     const nc = "AVR-" + Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -1444,32 +1449,6 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
   if (!unlocked) {
     return (
       <div className="min-h-[70vh]" style={{ background: C.violetDeep }}>
-        {/* Divulgação em destaque — revista, trilogia de livros, Bíblia Avivar e capas individuais */}
-        <div className="px-4 sm:px-6 lg:px-10 pt-10 pb-2">
-          <div className="max-w-6xl mx-auto">
-            {/* A imagem "conjugada" com a colagem das 3 capas da trilogia foi removida daqui
-                a pedido — cada capa já aparece individualmente mais abaixo. O card da Bíblia
-                Avivar que ficava aqui foi movido pra Home (fileira de 3 colunas). */}
-            <div className="grid sm:grid-cols-3 gap-4 mb-8">
-              {[
-                { img: LIVRO_DONS_CAPA, titulo: "Conquistando os Dons do Espírito Santo" },
-                { img: LIVRO_CURA_CAPA, titulo: "Praticando a Cura Divina" },
-                { img: LIVRO_GLORIA_CAPA, titulo: "O Impacto da Glória" },
-              ].map((l) => (
-                <button
-                  key={l.titulo}
-                  onClick={() => setPage && setPage("loja")}
-                  className="rounded-lg overflow-hidden border shadow-md text-left focus:outline-none focus:ring-2"
-                  style={{ borderColor: "#ffffff33" }}
-                >
-                  <ImgOrPlaceholder url={l.img} alt={l.titulo} className="w-full aspect-[3/4] object-cover" ph={l.titulo} />
-                  <p className="text-[11px] text-white p-2" style={{ background: "#00000055" }}>{l.titulo}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <div className="grid lg:grid-cols-3 items-stretch">
           {/* Coluna 1 — credenciais de acesso */}
           <div className="flex items-center justify-center px-4 py-12" style={{ background: C.violetDeep }}>
@@ -1527,7 +1506,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 já estamos dentro de Códigos Avivar então não precisa navegar de novo */}
             <div className="mb-6">
               <div className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl" style={{ borderColor: C.gold }}>
-                <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[140px]" ph="Banner revista Códigos Avivar — em destaque" />
+                <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-contain max-h-[260px]" ph="Banner revista Códigos Avivar — em destaque" />
               </div>
               <p className="text-xs text-center italic mt-2" style={{ color: "#D9D2EA" }}>
                 Deus está revelando os seus mistérios aos profetas. Em breve, Códigos Avivar em sua nova fase com a série Profetas dos Últimos Dias. Tudo que tiver relação com Códigos Avivar levaremos para o nosso app, dentro de poucos dias.
@@ -1565,39 +1544,11 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
             <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
             <p className="text-xs mt-2" style={{ color: "#ffffffbb" }}>O Conhecimento Revelado pelo Espírito Santo</p>
             <div className="rounded-xl p-4 mt-5" style={{ background: "#ffffff0f" }}>
-              <div className="grid grid-cols-2 gap-3">
-                {vitrineItems.length === 0 && (
-                  <p className="text-xs italic col-span-2" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
-                )}
-                {vitrineItems.map((item) => (
-                  <div key={item.id} className="rounded-lg overflow-hidden border" style={{ borderColor: "#ffffff22" }}>
-                    <button onClick={() => goVitrine(item)} className="block w-full focus:outline-none focus:ring-2">
-                      <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-28 object-cover" />
-                      <p className="text-[11px] text-white p-1.5 text-left leading-snug">{item.titulo || item.nome}</p>
-                    </button>
-                    {adminMode && (
-                      <button onClick={() => delVitrineItem(item.id)} className="text-[10px] underline w-full text-left px-1.5 pb-1.5" style={{ color: "#ffffff88" }}>
-                        excluir
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
               {/* Curiosidade / divulgação — banner Profetas dos Últimos Dias (imagem 65) */}
-              <div className="mt-4 rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33" }}>
+              <div className="rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33" }}>
                 <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[160px]" ph="Série Profetas dos Últimos Dias — em breve" />
               </div>
             </div>
-            <p className="text-[11px] mt-3" style={{ color: "#ffffff88" }}>
-              Estes mesmos títulos ficam à venda na Loja Avivar; aqui, para quem já tem acesso, a leitura é livre.
-            </p>
-            {adminMode && (
-              <div className="mt-5 pt-4 border-t" style={{ borderColor: "#ffffff22" }}>
-                <p className="text-xs font-mono mb-2" style={{ color: "#ffffffaa" }}>ADMIN · nova capa (ebook/livro)</p>
-                <DynamicForm fields={CODIGOS_VITRINE_FIELDS} accent={C.gold} submitLabel="Cadastrar" onSubmit={addVitrineItem} />
-              </div>
-            )}
           </div>
         </div>
 
@@ -1608,7 +1559,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Códigos de acesso</h3>
                 <button onClick={() => setShowAccessMgmt(false)}><X size={18} /></button>
               </div>
-              <DynamicForm fields={[{ key: "holder", label: "Nome da pessoa" }]} accent={C.violet} submitLabel="Gerar código" onSubmit={(v) => v.holder && genCode(v.holder)} />
+              <DynamicForm fields={[{ key: "holder", label: "Nome da pessoa" }, { key: "tier", label: "Nível de acesso", type: "select", options: ["geral", "serafim"] }]} accent={C.violet} submitLabel="Gerar código" onSubmit={(v) => v.holder && genCode(v.holder, v.tier)} />
               <div className="mt-4 space-y-2">
                 {data.codes.map((c) => (
                   <div key={c.id} className="flex items-center justify-between text-sm p-2 rounded-md" style={{ background: C.parchment }}>
@@ -1620,6 +1571,10 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                       <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.active ? "#2E7D4F22" : "#B0342822", color: c.active ? "#2E7D4F" : "#B03428" }}>
                         {c.active ? "ativo" : "revogado"}
                       </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.tier === "serafim" ? C.gold : "#00000011", color: c.tier === "serafim" ? "#fff" : C.stone }}>
+                        {c.tier === "serafim" ? "Serafim" : "geral"}
+                      </span>
+                      <button onClick={() => toggleTier(c.id)} className="text-xs underline" style={{ color: C.violet }}>trocar nível</button>
                       <button onClick={() => toggleCode(c.id)} className="text-xs underline" style={{ color: C.violet }}>{c.active ? "revogar" : "ativar"}</button>
                       <button onClick={() => resetCode(c.id)} className="text-xs underline" style={{ color: C.ember }}>resetar</button>
                     </div>
@@ -1634,6 +1589,9 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
   }
 
   const coursesForTema = selectedTema ? data.courses.filter((c) => c.tema === selectedTema.nome) : data.courses;
+  const bibliotecaCodigosGeral = (loja || []).filter((p) => p.categoria === "Códigos Avivar" && !(p.seedId && p.seedId.startsWith("trilogia-")));
+  const bibliotecaCodigosSerafim = (loja || []).filter((p) => p.seedId && p.seedId.startsWith("trilogia-"));
+  const bibliotecaCodigos = holderTier === "serafim" ? [...bibliotecaCodigosGeral, ...bibliotecaCodigosSerafim] : bibliotecaCodigosGeral;
 
   return (
     <div style={{ background: C.violetDeep, minHeight: "70vh" }} className="pb-16">
@@ -1716,6 +1674,50 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
             <div className="mt-6 rounded-lg p-4" style={{ background: "#ffffff10" }}>
               <p className="text-xs font-mono mb-2 text-white/70">ADMIN · novo curso</p>
               <DynamicForm fields={CURSO_FIELDS} accent={C.gold} onSubmit={addCourse} submitLabel="Criar curso" />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 pt-8 border-t" style={{ borderColor: "#ffffff22" }}>
+          <Eyebrow color={C.gold}>Leitura exclusiva</Eyebrow>
+          <h3 className="font-display text-xl font-semibold text-white mb-1">Biblioteca Códigos Avivar</h3>
+          <p className="text-xs mb-4" style={{ color: "#D9D2EA" }}>
+            {holderTier === "serafim"
+              ? "Como aluno(a) Serafim, você tem acesso livre a todos os títulos, incluindo os que são vendidos na Loja Avivar."
+              : "Livros exclusivos pra quem já tem acesso a Códigos Avivar. Os títulos à venda na Loja Avivar ficam liberados só pra alunos(as) Serafim."}
+          </p>
+          {bibliotecaCodigos.length === 0 ? (
+            <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {bibliotecaCodigos.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setLivroInternoAberto(item)}
+                  className="rounded-lg overflow-hidden border text-left focus:outline-none focus:ring-2"
+                  style={{ borderColor: "#ffffff22", background: "#ffffff0d" }}
+                >
+                  <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-40 object-cover" />
+                  <p className="text-xs text-white p-2 leading-snug">{item.titulo || item.nome}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          {livroInternoAberto && (
+            <div className="mt-5 rounded-xl border p-5 grid sm:grid-cols-[140px_1fr] gap-5" style={{ borderColor: "#ffffff33", background: "#ffffff0d" }}>
+              <ImgOrPlaceholder url={livroInternoAberto.imageUrl} alt={livroInternoAberto.titulo || livroInternoAberto.nome} className="w-full h-52 object-cover rounded-lg" />
+              <div>
+                <button onClick={() => setLivroInternoAberto(null)} className="text-xs underline mb-2" style={{ color: "#D9D2EA" }}>fechar</button>
+                <h4 className="font-display font-semibold text-white">{livroInternoAberto.titulo || livroInternoAberto.nome}</h4>
+                {livroInternoAberto.autor && <p className="text-xs mt-1" style={{ color: C.goldBright }}>{livroInternoAberto.autor}</p>}
+                {livroInternoAberto.pdfUrl ? (
+                  <a href={livroInternoAberto.pdfUrl} download className="inline-block mt-3">
+                    <Btn color={C.gold}><FileText size={14} /> Baixar PDF</Btn>
+                  </a>
+                ) : (
+                  <p className="text-xs italic mt-3" style={{ color: "#ffffffaa" }}>PDF ainda não cadastrado para este livro.</p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2060,6 +2062,14 @@ const LOJA_FIELDS = [
   { key: "linkFisico", label: "Link de pagamento do Físico (Mercado Pago)", type: "url" },
   { key: "previewUrl", label: "URL de amostra/prévia (opcional)", type: "url" },
 ];
+const PEDIDO_FISICO_FIELDS = [
+  { key: "nomeRecebedor", label: "Nome de quem vai receber" },
+  { key: "whatsapp", label: "WhatsApp (com DDD)" },
+  { key: "cep", label: "CEP" },
+  { key: "rua", label: "Rua e número" },
+  { key: "cidade", label: "Cidade" },
+  { key: "referencia", label: "Ponto de referência (opcional)" },
+];
 
 // Extrai o valor numérico de um preço em texto livre (ex: "R$ 49,90" -> 49.9), pra
 // usar no valor fixo do QR Code Pix. Retorna undefined se não der pra interpretar.
@@ -2099,11 +2109,51 @@ function LojaProdutoPix({ produto, doacoes }) {
   );
 }
 
-function Loja({ items, save, adminMode, doacoes }) {
+function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisicos }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
+  // A Loja pública mostra os produtos que não são "Códigos Avivar" (roupas, utensílios
+  // etc., se algum dia existirem) mais os 4 livros da trilogia (vendidos, mesmo sendo
+  // categoria "Códigos Avivar"), mas nunca os 16 livros de Hagin da vitrine interna.
+  const itemsLoja = items.filter((p) => p.categoria !== "Códigos Avivar" || (p.seedId && p.seedId.startsWith("trilogia-")));
   const [pixAbertoId, setPixAbertoId] = useState(null);
-  const [produtoAberto, setProdutoAberto] = useState(null);
+  const [produtoAbertoId, setProdutoAbertoId] = useState(null);
+  const produtoAberto = itemsLoja.find((p) => p.id === produtoAbertoId) || null;
+  const [mostrarFormFisico, setMostrarFormFisico] = useState(false);
+  const [editandoPrecoId, setEditandoPrecoId] = useState(null);
+  const [precoPdfEdit, setPrecoPdfEdit] = useState("");
+  const [precoFisicoEdit, setPrecoFisicoEdit] = useState("");
+  const abrirEdicaoPreco = (p) => {
+    setPrecoPdfEdit(p.precoPdf || "");
+    setPrecoFisicoEdit(p.precoFisico || "");
+    setEditandoPrecoId(p.id);
+  };
+  const salvarPrecos = (p) => {
+    save(items.map((i) => (i.id === p.id ? { ...i, precoPdf: precoPdfEdit, precoFisico: precoFisicoEdit } : i)));
+    setEditandoPrecoId(null);
+  };
+  const comprarPdfMercadoPago = async (produto) => {
+    const valor = precoParaNumero(produto.precoPdf);
+    if (!valor) {
+      alert("O preço do PDF ainda não foi definido pelo admin.");
+      return;
+    }
+    try {
+      const resp = await fetch("/api/criar-pagamento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titulo: `${produto.nome} (PDF)`, preco: valor }),
+      });
+      const dados = await resp.json();
+      if (dados && dados.url) {
+        window.location.href = dados.url;
+      } else {
+        alert("Não foi possível iniciar o pagamento agora. Tente novamente em instantes.");
+      }
+    } catch (e) {
+      alert("Não foi possível iniciar o pagamento agora. Verifique sua conexão.");
+    }
+  };
   return (
     <div>
       {/* Frase de incentivo + versículo no lugar da antiga imagem-colagem de livros */}
@@ -2117,16 +2167,16 @@ function Loja({ items, save, adminMode, doacoes }) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
         <SectionTitle>Loja Avivar</SectionTitle>
-        {items.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
+        {itemsLoja.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
-          {items.map((p) => (
+          {itemsLoja.map((p) => (
             <div key={p.id} className="rounded-xl border overflow-hidden max-w-[240px] w-full mx-auto" style={{ borderColor: C.line, background: C.parchment }}>
-              <button onClick={() => setProdutoAberto(p)} className="block w-full text-left focus:outline-none focus:ring-2">
+              <button onClick={() => setProdutoAbertoId(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
                 <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 object-contain" />
               </button>
               <div className="p-4">
                 {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
-                <button onClick={() => setProdutoAberto(p)} className="block w-full text-left focus:outline-none focus:ring-2">
+                <button onClick={() => setProdutoAbertoId(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
                   <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
                 </button>
                 {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
@@ -2162,38 +2212,103 @@ function Loja({ items, save, adminMode, doacoes }) {
           <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[220px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
             <ImgOrPlaceholder url={produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-64 sm:h-full object-contain rounded-lg" />
             <div>
-              <button onClick={() => setProdutoAberto(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
+              <button onClick={() => setProdutoAbertoId(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
               {produtoAberto.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{produtoAberto.categoria}</p>}
               <h3 className="font-display text-xl font-semibold mt-1" style={{ color: C.ink }}>{produtoAberto.nome}</h3>
               {produtoAberto.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{produtoAberto.autor}</p>}
 
-              {(produtoAberto.precoPdf || produtoAberto.precoFisico) ? (
+              {produtoAberto.categoria === "Códigos Avivar" ? (
                 <div className="grid sm:grid-cols-2 gap-3 mt-4">
                   <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
                     <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>PDF</p>
                     <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoPdf || "a definir"}</p>
-                    {produtoAberto.linkPdf ? (
-                      <a href={produtoAberto.linkPdf} target="_blank" rel="noreferrer" className="block mt-2">
-                        <Btn color={C.gold} className="w-full justify-center"><FileText size={13} /> Comprar PDF</Btn>
-                      </a>
+                    {precoParaNumero(produtoAberto.precoPdf) ? (
+                      <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => comprarPdfMercadoPago(produtoAberto)}>
+                        <ShoppingBag size={13} /> Comprar PDF
+                      </Btn>
                     ) : (
-                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Pagamento em breve</p>
+                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Preço ainda não definido</p>
                     )}
+                    <div className="flex flex-col gap-1.5 mt-2">
+                      {produtoAberto.pdfUrl && (
+                        <a href={produtoAberto.pdfUrl} download>
+                          <Btn variant="ghost" className="w-full justify-center"><FileText size={13} /> Baixar PDF</Btn>
+                        </a>
+                      )}
+                      {produtoAberto.imageUrl && (
+                        <a href={produtoAberto.imageUrl} download>
+                          <Btn variant="ghost" className="w-full justify-center"><ImageIcon size={13} /> Baixar capa</Btn>
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
                     <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Físico</p>
-                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "a definir"}</p>
-                    {produtoAberto.linkFisico ? (
-                      <a href={produtoAberto.linkFisico} target="_blank" rel="noreferrer" className="block mt-2">
-                        <Btn color={C.gold} className="w-full justify-center"><ShoppingBag size={13} /> Comprar Físico</Btn>
-                      </a>
-                    ) : (
-                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Pagamento em breve</p>
-                    )}
+                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "Valor combinado após o pedido, pelo WhatsApp"}</p>
+                    <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => setMostrarFormFisico((v) => !v)}>
+                      <Send size={13} /> {mostrarFormFisico ? "Fechar formulário" : "Solicitar exemplar físico"}
+                    </Btn>
+                    <a href="https://www.correios.com.br/precos-e-prazos" target="_blank" rel="noreferrer" className="block mt-1.5">
+                      <Btn variant="ghost" className="w-full justify-center text-xs"><Truck size={13} /> Consultar frete nos Correios</Btn>
+                    </a>
+                    <p className="text-[10px] italic mt-1" style={{ color: C.stone }}>O frete é combinado à parte, pelo WhatsApp, após o pedido.</p>
                   </div>
                 </div>
               ) : (
                 <p className="font-display font-bold mt-3" style={{ color: C.ember }}>{produtoAberto.preco}</p>
+              )}
+
+              {adminMode && produtoAberto.categoria === "Códigos Avivar" && (
+                <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: C.stone, background: "#00000006" }}>
+                  {editandoPrecoId === produtoAberto.id ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-mono" style={{ color: C.stone }}>
+                        Preço PDF
+                        <input
+                          value={precoPdfEdit}
+                          onChange={(e) => setPrecoPdfEdit(e.target.value)}
+                          placeholder="Ex: R$ 29,90"
+                          className="block w-full mt-1 px-2 py-1 rounded border text-sm"
+                          style={{ borderColor: C.line }}
+                        />
+                      </label>
+                      <label className="text-xs font-mono" style={{ color: C.stone }}>
+                        Preço Físico
+                        <input
+                          value={precoFisicoEdit}
+                          onChange={(e) => setPrecoFisicoEdit(e.target.value)}
+                          placeholder="Ex: R$ 49,90"
+                          className="block w-full mt-1 px-2 py-1 rounded border text-sm"
+                          style={{ borderColor: C.line }}
+                        />
+                      </label>
+                      <div className="flex gap-2 mt-1">
+                        <Btn color={C.gold} onClick={() => salvarPrecos(produtoAberto)}><Save size={13} /> Salvar preços</Btn>
+                        <Btn variant="ghost" onClick={() => setEditandoPrecoId(null)}>Cancelar</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => abrirEdicaoPreco(produtoAberto)} className="text-xs underline flex items-center gap-1" style={{ color: C.ember }}>
+                      <Pencil size={12} /> editar preço
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {mostrarFormFisico && (
+                <div className="mt-4">
+                  <p className="text-xs font-mono uppercase mb-2" style={{ color: C.stone }}>Dados para entrega</p>
+                  <DynamicForm
+                    fields={PEDIDO_FISICO_FIELDS}
+                    submitLabel="Enviar pedido"
+                    onSubmit={(v) => {
+                      if (!v.nomeRecebedor || !v.whatsapp) return;
+                      savePedidosFisicos([...(pedidosFisicos || []), { id: uid(), produtoId: produtoAberto.id, produtoNome: produtoAberto.nome, ...v, status: "novo", timestamp: nowISO() }]);
+                      setMostrarFormFisico(false);
+                      alert("Pedido enviado! Entraremos em contato pelo WhatsApp pra combinar o valor e a entrega.");
+                    }}
+                  />
+                </div>
               )}
 
               {doacoes?.pixKey && (
@@ -2216,6 +2331,21 @@ function Loja({ items, save, adminMode, doacoes }) {
                   <Btn variant="ghost"><FileText size={13} /> Ver amostra (primeiras páginas)</Btn>
                 </a>
               )}
+            </div>
+          </div>
+        )}
+        {adminMode && pedidosFisicos && pedidosFisicos.length > 0 && (
+          <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
+            <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · pedidos de exemplar físico</p>
+            <div className="space-y-2">
+              {[...pedidosFisicos].reverse().map((p) => (
+                <div key={p.id} className="p-3 rounded-md text-sm" style={{ background: C.parchment }}>
+                  <p className="font-display font-semibold">{p.produtoNome}</p>
+                  <p className="text-xs mt-1" style={{ color: C.ink }}>{p.nomeRecebedor} · {p.whatsapp}</p>
+                  <p className="text-xs" style={{ color: C.stone }}>{p.rua}, {p.cidade} — CEP {p.cep}{p.referencia ? ` (${p.referencia})` : ""}</p>
+                  <p className="text-[10px] font-mono mt-1" style={{ color: C.stone }}>{fmtDateTime(p.timestamp)}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -2262,7 +2392,7 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
           <div key={b.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
             <button onClick={() => setSelected(b)} className="block w-full text-left focus:outline-none focus:ring-2">
               <div className="relative">
-                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-48 object-cover" ph={b.titulo} />
+                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-36 object-cover" ph={b.titulo} />
                 {b.linkLoja && (
                   <span className="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded-full text-white" style={{ background: C.emberDeep }}>à venda</span>
                 )}
@@ -2272,6 +2402,11 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
                 {b.autor && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{b.autor}</p>}
               </div>
             </button>
+            {b.pdfUrl && !b.linkLoja && (
+              <a href={b.pdfUrl} download className="block px-3 pb-2">
+                <span className="text-xs underline" style={{ color: C.violet }}>baixar PDF</span>
+              </a>
+            )}
             {adminMode && (
               <button onClick={() => del(b.id)} className="text-xs underline block px-3 pb-3" style={{ color: "#B03428" }}>
                 excluir
@@ -2295,8 +2430,8 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
                   <Btn><ShoppingBag size={14} /> Ver na Loja Avivar</Btn>
                 </button>
               ) : selected.pdfUrl ? (
-                <a href={selected.pdfUrl} target="_blank" rel="noreferrer">
-                  <Btn><FileText size={14} /> Abrir PDF</Btn>
+                <a href={selected.pdfUrl} download>
+                  <Btn><FileText size={14} /> Baixar PDF</Btn>
                 </a>
               ) : (
                 <p className="text-xs italic" style={{ color: C.stone }}>PDF ainda não cadastrado para este livro.</p>
@@ -3054,11 +3189,11 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
       )}
 
       {/* Postos e suas caixas de disponíveis / escalados */}
-      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mt-6 grid sm:grid-cols-3 gap-4">
         {safeData.postos.map((posto) => {
           const doPosto = escalados.filter((e) => e.posto === posto);
           return (
-            <div key={posto} className="p-3 rounded-lg border" style={{ borderColor: C.line }}>
+            <div key={posto} className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
               <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{posto}</p>
 
               {doPosto.length > 0 && (
@@ -3978,6 +4113,7 @@ export default function App() {
   const [biblioteca, setBiblioteca] = useState([]);
   const [manchete, setManchete] = useState(DEFAULT_MANCHETE);
   const [pedidosOracao, setPedidosOracao] = useState([]);
+  const [pedidosFisicos, setPedidosFisicos] = useState([]);
   const [seeds, setSeeds] = useState({});
 
   const sideCarouselPhotos = useMemo(() => {
@@ -4045,6 +4181,7 @@ export default function App() {
       setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
       setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
       setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
+      setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
       setBiblioteca(await loadKey("avivar:biblioteca", []));
       setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
@@ -4502,6 +4639,17 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       }
       todo.repairBiblioteca1 = true;
     }
+    // Os 4 livros da trilogia agora só existem pra venda na Loja Avivar — remove as
+    // cópias que ficavam na Biblioteca pública (Parte G).
+    if (!seeds.removerLivrosVendidosDaBiblioteca1) {
+      const tinhaAlgum = bibliotecaW.some((b) => b.seedId && b.seedId.startsWith("trilogia-bib-"));
+      if (tinhaAlgum) {
+        bibliotecaW = bibliotecaW.filter((b) => !(b.seedId && b.seedId.startsWith("trilogia-bib-")));
+        setBiblioteca(bibliotecaW);
+        saveKey("avivar:biblioteca", bibliotecaW);
+      }
+      todo.removerLivrosVendidosDaBiblioteca1 = true;
+    }
     if (!seeds.repairGaleria1) {
       const canonicalGaleria = [
         {
@@ -4682,6 +4830,15 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       }
       todo.escalaObreiros1 = true;
     }
+    if (!seeds.escalaHorariosCorretos1) {
+      // Força os horários padrão (Quarta e Sexta 19:20-21:00, Domingo 18:30-20:00) —
+      // a escala já salva no banco pode estar com valores antigos.
+      const escalaAtual = escala || DEFAULT_ESCALA_OBREIROS;
+      const novaEscala = { ...escalaAtual, horarios: HORARIOS_PADRAO };
+      setEscala(novaEscala);
+      saveKey("avivar:escalaObreiros", novaEscala);
+      todo.escalaHorariosCorretos1 = true;
+    }
     if (!seeds.colaboradoresNovos1) {
       const jaTemColab = (colaboradores || []).some((c) => c.seedId && c.seedId.startsWith("colab-novo-"));
       if (!jaTemColab) {
@@ -4754,6 +4911,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
     escala: (v) => { setEscala(v); saveKey("avivar:escalaObreiros", v); },
     manchete: (v) => { setManchete(v); saveKey("avivar:manchete", v); },
     pedidosOracao: (v) => { setPedidosOracao(v); saveKey("avivar:pedidosOracao", v); },
+    pedidosFisicos: (v) => { setPedidosFisicos(v); saveKey("avivar:pedidosfisicos", v); },
     biblioteca: (v) => { setBiblioteca(v); saveKey("avivar:biblioteca", v); },
     musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
   };
@@ -4813,7 +4971,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
         <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
