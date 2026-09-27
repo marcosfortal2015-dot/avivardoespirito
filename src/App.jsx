@@ -447,6 +447,7 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
 const NAV = [
   { key: "home", label: "Início", icon: HomeIcon },
   { key: "codigos", label: "Códigos Avivar", icon: KeyRound },
+  { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "eventos", label: "Eventos/Galeria", icon: Calendar },
   { key: "aovivo", label: "Ao Vivo", icon: Radio },
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
@@ -459,7 +460,6 @@ const SUBMENU = [
   { key: "escala", label: "Escala de Obreiros", icon: ClipboardList },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "biblioteca", label: "Biblioteca Avivar", icon: Library },
-  { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "membros", label: "Membros", icon: UserPlus },
   { key: "avivarmusic", label: "Avivar Music", icon: Music },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
@@ -1689,7 +1689,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
           {bibliotecaCodigos.length === 0 ? (
             <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {bibliotecaCodigos.map((item) => (
                 <button
                   key={item.id}
@@ -1697,7 +1697,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                   className="rounded-lg overflow-hidden border text-left focus:outline-none focus:ring-2"
                   style={{ borderColor: "#ffffff22", background: "#ffffff0d" }}
                 >
-                  <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-40 object-cover" />
+                  <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-24 sm:h-28 object-cover" />
                   <p className="text-xs text-white p-2 leading-snug">{item.titulo || item.nome}</p>
                 </button>
               ))}
@@ -2156,61 +2156,42 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
   };
   return (
     <div>
-      {/* Frase de incentivo + versículo no lugar da antiga imagem-colagem de livros */}
-      <div className="w-full py-10 px-4 text-center" style={{ background: C.violetDeep }}>
-        <BookOpen size={26} color={C.goldBright} className="mx-auto" />
-        <p className="font-script text-2xl sm:text-3xl mt-3" style={{ color: C.goldBright }}>
-          "Busca a sabedoria, pois ela vale mais que qualquer tesouro."
-        </p>
-        <p className="text-xs font-mono mt-2 tracking-wide" style={{ color: "#ffffffaa" }}>Provérbios 4:7</p>
-      </div>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
         <SectionTitle>Loja Avivar</SectionTitle>
         {itemsLoja.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 mt-6">
           {itemsLoja.map((p) => (
-            <div key={p.id} className="rounded-xl border overflow-hidden max-w-[240px] w-full mx-auto" style={{ borderColor: C.line, background: C.parchment }}>
-              <button onClick={() => setProdutoAbertoId(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
-                <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 object-contain" />
+            <div key={p.id} className="rounded-xl border overflow-hidden w-full flex flex-col lg:flex-row" style={{ borderColor: C.line, background: C.parchment }}>
+              <button onClick={() => setProdutoAbertoId(p.id)} className="block lg:w-40 lg:flex-shrink-0 focus:outline-none focus:ring-2">
+                <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 lg:h-full object-contain" />
               </button>
-              <div className="p-4">
+              <div className="p-4 flex flex-col flex-1">
                 {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
                 <button onClick={() => setProdutoAbertoId(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
                   <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
                 </button>
-                {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
-                <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {doacoes?.pixKey && (
-                    <Btn
-                      color={C.gold}
-                      className="w-full justify-center"
-                      onClick={() => setPixAbertoId((id) => (id === p.id ? null : p.id))}
-                    >
-                      <Send size={13} /> {pixAbertoId === p.id ? "Fechar Pix" : "Pagar com Pix"}
-                    </Btn>
-                  )}
-                  {pixAbertoId === p.id && <LojaProdutoPix produto={p} doacoes={doacoes} />}
-                  {p.linkCompra && (
-                    <a href={p.linkCompra} target="_blank" rel="noreferrer">
-                      <Btn className="w-full justify-center"><ShoppingBag size={13} /> PIX / Mercado Pago</Btn>
-                    </a>
-                  )}
-                  {p.linkCartao && (
-                    <a href={p.linkCartao} target="_blank" rel="noreferrer">
-                      <Btn variant="ghost" className="w-full justify-center"><CreditCard size={13} /> Pagar com cartão</Btn>
-                    </a>
-                  )}
-                </div>
+                {p.descricao && <p className="text-xs mt-1 flex-1" style={{ color: C.stone }}>{p.descricao}</p>}
+                {p.preco && <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>}
+                <Btn color={C.gold} className="w-full justify-center mt-2 lg:mt-auto" onClick={() => setProdutoAbertoId(p.id)}>
+                  <ShoppingBag size={13} /> Comprar
+                </Btn>
                 {adminMode && <button onClick={() => del(p.id)} className="text-xs underline mt-2" style={{ color: "#B03428" }}>excluir</button>}
               </div>
             </div>
           ))}
         </div>
         {produtoAberto && (
-          <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[220px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
-            <ImgOrPlaceholder url={produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-64 sm:h-full object-contain rounded-lg" />
+          <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[260px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
+            <div className="flex flex-col gap-4 h-full">
+              <ImgOrPlaceholder url={produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-56 sm:h-64 object-contain rounded-lg flex-shrink-0" />
+              {produtoAberto.descricao && (
+                <div className="flex-1">
+                  <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
+                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{produtoAberto.descricao}</p>
+                </div>
+              )}
+            </div>
             <div>
               <button onClick={() => setProdutoAbertoId(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
               {produtoAberto.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{produtoAberto.categoria}</p>}
@@ -2320,12 +2301,6 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
                 </div>
               )}
 
-              {produtoAberto.descricao && (
-                <div className="mt-4">
-                  <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
-                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{produtoAberto.descricao}</p>
-                </div>
-              )}
               {produtoAberto.previewUrl && (
                 <a href={produtoAberto.previewUrl} target="_blank" rel="noreferrer" className="inline-block mt-3">
                   <Btn variant="ghost"><FileText size={13} /> Ver amostra (primeiras páginas)</Btn>
@@ -2387,12 +2362,12 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
 
       {sorted.length === 0 && <div className="mt-6"><Empty text="Nenhum livro cadastrado ainda." /></div>}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 mt-6">
         {sorted.map((b) => (
           <div key={b.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
             <button onClick={() => setSelected(b)} className="block w-full text-left focus:outline-none focus:ring-2">
               <div className="relative">
-                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-36 object-cover" ph={b.titulo} />
+                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-24 sm:h-28 object-cover" ph={b.titulo} />
                 {b.linkLoja && (
                   <span className="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded-full text-white" style={{ background: C.emberDeep }}>à venda</span>
                 )}
@@ -4965,13 +4940,13 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       <main className="lg:ml-[200px] lg:mr-[280px]">
         <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} /></section>
         <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} newsAbrirId={newsAbrirId} onNewsAberta={() => setNewsAbrirId(null)} /></section>
         <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
         <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
