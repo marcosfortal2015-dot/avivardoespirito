@@ -15,12 +15,16 @@ export default async function handler(req, res) {
     return;
   }
   try {
-    const { titulo, preco } = req.body || {};
+    const { titulo, preco, referencia } = req.body || {};
     const valor = Number(preco);
     if (!titulo || !valor || isNaN(valor) || valor <= 0) {
       res.status(400).json({ error: "Dados inválidos: informe título e preço." });
       return;
     }
+    // Importante: os back_urls NÃO levam "#loja" (fragmento), porque o Mercado Pago
+    // devolve o usuário anexando parâmetros de busca (?payment_id=...&status=...) e
+    // misturar query string com fragmento é ambíguo entre navegadores. O front-end lê
+    // esses parâmetros na raiz do site e só então rola até a seção Loja.
     const origem = req.headers.origin || "https://avivardoespirito.com.br";
     const resposta = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -37,10 +41,11 @@ export default async function handler(req, res) {
             unit_price: valor,
           },
         ],
+        external_reference: referencia ? String(referencia) : undefined,
         back_urls: {
-          success: `${origem}/#loja`,
-          failure: `${origem}/#loja`,
-          pending: `${origem}/#loja`,
+          success: origem,
+          failure: origem,
+          pending: origem,
         },
         auto_return: "approved",
       }),
