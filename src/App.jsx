@@ -5,7 +5,7 @@ import {
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
-  Truck, Pencil, Save
+  Truck, Pencil, Save, ArrowLeft
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -39,7 +39,7 @@ const C = {
 
 // Grid reaproveitável de 3 colunas responsivo — usado em todas as seções de cards
 // (Estudos Bíblicos, Avivar Music, vitrines, etc.) para manter o padrão visual do site.
-const GRID3 = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5";
+const GRID3 = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5";
 
 const CAUSAS_ORACAO = ["Financeiras", "Saúde", "Libertação", "Intercessão", "Causas jurídicas", "Oportunidade de emprego", "Outros"];
 
@@ -281,6 +281,20 @@ function Btn({ children, onClick, variant = "primary", color = C.gold, className
   return (
     <button type={type} onClick={onClick} className={`${base} ${className} hover:opacity-90`} style={style} {...rest}>
       {children}
+    </button>
+  );
+}
+
+// Botão padrão de "Voltar" — vermelho com texto branco — usado em todas as
+// telas do tipo página/detalhe (produto, notícia, evento, álbum, etc.).
+function VoltarBtn({ onClick, className = "" }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-md focus:outline-none focus:ring-2 hover:opacity-90 ${className}`}
+      style={{ background: "#B03428", color: "#ffffff" }}
+    >
+      <ArrowLeft size={14} /> Voltar
     </button>
   );
 }
@@ -1479,14 +1493,16 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 </button>
               )}
 
-              {/* Card de reforço do convite pra assinar — fundo claro, abaixo do login,
-                  no mesmo tamanho dos demais cards de divulgação desta seção */}
-              <div className="mt-8 rounded-lg overflow-hidden border shadow-md aspect-[3/4] flex flex-col items-center justify-center text-center p-5" style={{ borderColor: "#ffffff33", background: C.parchment }}>
-                <Sparkles size={22} color={C.violet} />
-                <p className="font-display font-semibold mt-3" style={{ color: C.ink }}>Eleve sua consciência espiritual</p>
-                <p className="text-xs mt-2" style={{ color: C.stone }}>
-                  Assine os Códigos Avivar e entre na frequência de revelação, ciência e espiritualidade que Deus reserva para os últimos dias.
-                </p>
+              {/* Card de reforço do convite pra assinar — fundo claro, abaixo do login;
+                  tamanho compacto (só o necessário pro texto), ícone bem próximo do texto */}
+              <div className="mt-6 rounded-lg border shadow-md p-3 flex items-start gap-2.5 text-left" style={{ borderColor: "#ffffff33", background: C.parchment }}>
+                <Sparkles size={18} color={C.violet} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>Eleve sua consciência espiritual</p>
+                  <p className="text-xs mt-1" style={{ color: C.stone }}>
+                    Assine os Códigos Avivar e entre na frequência de revelação, ciência e espiritualidade que Deus reserva para os últimos dias.
+                  </p>
+                </div>
               </div>
 
               {/* Curiosidade científico-espiritual — imagem 63 */}
@@ -1707,7 +1723,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
             <div className="mt-5 rounded-xl border p-5 grid sm:grid-cols-[140px_1fr] gap-5" style={{ borderColor: "#ffffff33", background: "#ffffff0d" }}>
               <ImgOrPlaceholder url={livroInternoAberto.imageUrl} alt={livroInternoAberto.titulo || livroInternoAberto.nome} className="w-full h-52 object-cover rounded-lg" />
               <div>
-                <button onClick={() => setLivroInternoAberto(null)} className="text-xs underline mb-2" style={{ color: "#D9D2EA" }}>fechar</button>
+                <VoltarBtn onClick={() => setLivroInternoAberto(null)} className="mb-2" />
                 <h4 className="font-display font-semibold text-white">{livroInternoAberto.titulo || livroInternoAberto.nome}</h4>
                 {livroInternoAberto.autor && <p className="text-xs mt-1" style={{ color: C.goldBright }}>{livroInternoAberto.autor}</p>}
                 {livroInternoAberto.pdfUrl ? (
@@ -1806,7 +1822,7 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode,
           </div>
           {selected && (
             <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
-              <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+              <VoltarBtn onClick={() => setSelected(null)} className="mb-2" />
               <h3 className="font-display text-xl font-semibold">{selected.titulo}</h3>
               <div className="flex flex-wrap gap-4 text-xs font-mono mt-2" style={{ color: C.stone }}>
                 <span className="flex items-center gap-1"><Calendar size={13} />{fmtDate(selected.data)}</span>
@@ -2020,7 +2036,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
           <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
             {selectedNews.imageUrl && <ImgOrPlaceholder url={selectedNews.imageUrl} alt={selectedNews.titulo} className="w-full h-48 object-cover" />}
             <div className="p-5">
-              <button onClick={() => setSelectedNews(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+              <VoltarBtn onClick={() => setSelectedNews(null)} className="mb-2" />
               <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(selectedNews.timestamp)}</p>
               <h4 className="font-display font-semibold text-lg mt-1">{selectedNews.titulo}</h4>
               {selectedNews.autor && <p className="text-xs italic mt-0.5" style={{ color: C.stone }}>por {selectedNews.autor}</p>}
@@ -2112,9 +2128,26 @@ function LojaProdutoPix({ produto, doacoes }) {
   );
 }
 
-function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisicos }) {
+const GREEN = "#2E7D4F";
+const COMPRAS_LS_KEY = "avivar_compras_aprovadas";
+
+function lerComprasAprovadasLS() {
+  try {
+    return JSON.parse(localStorage.getItem(COMPRAS_LS_KEY) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+function gravarComprasAprovadasLS(v) {
+  try {
+    localStorage.setItem(COMPRAS_LS_KEY, JSON.stringify(v));
+  } catch (e) {}
+}
+
+function Loja({ items, save, adminMode, operatorMode, onRequestOperator, doacoes, pedidosFisicos, savePedidosFisicos }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
+  const podeVerFrete = adminMode || operatorMode;
   // A Loja pública mostra os produtos que não são "Códigos Avivar" (roupas, utensílios
   // etc., se algum dia existirem) mais os 4 livros da trilogia (vendidos, mesmo sendo
   // categoria "Códigos Avivar"), mas nunca os 16 livros de Hagin da vitrine interna.
@@ -2122,10 +2155,25 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
   const [pixAbertoId, setPixAbertoId] = useState(null);
   const [produtoAbertoId, setProdutoAbertoId] = useState(null);
   const produtoAberto = itemsLoja.find((p) => p.id === produtoAbertoId) || null;
+  const [mostrarOpcoesCompra, setMostrarOpcoesCompra] = useState(false);
   const [mostrarFormFisico, setMostrarFormFisico] = useState(false);
+  const [verificandoPagamento, setVerificandoPagamento] = useState(false);
+  const [comprasAprovadas, setComprasAprovadas] = useState(() => lerComprasAprovadasLS());
   const [editandoPrecoId, setEditandoPrecoId] = useState(null);
   const [precoPdfEdit, setPrecoPdfEdit] = useState("");
   const [precoFisicoEdit, setPrecoFisicoEdit] = useState("");
+
+  const abrirProduto = (id) => {
+    setProdutoAbertoId(id);
+    setMostrarOpcoesCompra(false);
+    setMostrarFormFisico(false);
+  };
+  const fecharProduto = () => {
+    setProdutoAbertoId(null);
+    setMostrarOpcoesCompra(false);
+    setMostrarFormFisico(false);
+  };
+
   const abrirEdicaoPreco = (p) => {
     setPrecoPdfEdit(p.precoPdf || "");
     setPrecoFisicoEdit(p.precoFisico || "");
@@ -2135,17 +2183,72 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
     save(items.map((i) => (i.id === p.id ? { ...i, precoPdf: precoPdfEdit, precoFisico: precoFisicoEdit } : i)));
     setEditandoPrecoId(null);
   };
-  const comprarPdfMercadoPago = async (produto) => {
-    const valor = precoParaNumero(produto.precoPdf);
+
+  const marcarAprovado = (produtoId, tipo, paymentId) => {
+    setComprasAprovadas((prev) => {
+      const atual = { ...(prev[produtoId] || {}) };
+      atual[tipo] = { ...(atual[tipo] || {}), aprovado: true, paymentId };
+      const novo = { ...prev, [produtoId]: atual };
+      gravarComprasAprovadasLS(novo);
+      return novo;
+    });
+  };
+  const marcarDadosEnviados = (produtoId) => {
+    setComprasAprovadas((prev) => {
+      const atual = { ...(prev[produtoId] || {}) };
+      atual.fisico = { ...(atual.fisico || {}), dadosEnviados: true };
+      const novo = { ...prev, [produtoId]: atual };
+      gravarComprasAprovadasLS(novo);
+      return novo;
+    });
+  };
+
+  // Ao voltar do Mercado Pago, confirma o pagamento de verdade no servidor (nunca confia
+  // só no que vem na URL) e, se aprovado, abre direto o produto já liberado.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentId = params.get("payment_id") || params.get("collection_id");
+    if (!paymentId) return;
+    setVerificandoPagamento(true);
+    fetch(`/api/verificar-pagamento?payment_id=${encodeURIComponent(paymentId)}`)
+      .then((r) => r.json())
+      .then((dados) => {
+        if (dados && dados.status === "approved" && dados.external_reference) {
+          const partes = String(dados.external_reference).split(":");
+          const produtoId = partes[0];
+          const tipo = partes[1];
+          if (produtoId && tipo) {
+            marcarAprovado(produtoId, tipo, paymentId);
+            setProdutoAbertoId(produtoId);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setVerificandoPagamento(false);
+        const url = new URL(window.location.href);
+        url.search = "";
+        window.history.replaceState({}, "", url.toString());
+        requestAnimationFrame(() => {
+          const el = document.getElementById("loja");
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const escolherTipo = async (produto, tipo) => {
+    const valor = tipo === "digital" ? precoParaNumero(produto.precoPdf) : precoParaNumero(produto.precoFisico);
     if (!valor) {
-      alert("O preço do PDF ainda não foi definido pelo admin.");
+      alert("O preço ainda não foi definido pelo admin.");
       return;
     }
+    const referencia = `${produto.id}:${tipo}:${uid()}`;
     try {
       const resp = await fetch("/api/criar-pagamento", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ titulo: `${produto.nome} (PDF)`, preco: valor }),
+        body: JSON.stringify({ titulo: `${produto.nome} (${tipo === "digital" ? "Digital/PDF" : "Físico"})`, preco: valor, referencia }),
       });
       const dados = await resp.json();
       if (dados && dados.url) {
@@ -2157,26 +2260,58 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
       alert("Não foi possível iniciar o pagamento agora. Verifique sua conexão.");
     }
   };
+
+  const comprarGenerico = async (produto) => {
+    const valor = precoParaNumero(produto.preco);
+    if (!valor) {
+      alert("O preço ainda não foi definido pelo admin.");
+      return;
+    }
+    try {
+      const resp = await fetch("/api/criar-pagamento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titulo: produto.nome, preco: valor, referencia: `${produto.id}:geral:${uid()}` }),
+      });
+      const dados = await resp.json();
+      if (dados && dados.url) {
+        window.location.href = dados.url;
+      } else {
+        alert("Não foi possível iniciar o pagamento agora. Tente novamente em instantes.");
+      }
+    } catch (e) {
+      alert("Não foi possível iniciar o pagamento agora. Verifique sua conexão.");
+    }
+  };
+
+  const statusProduto = produtoAberto ? comprasAprovadas[produtoAberto.id] || {} : {};
+  const digitalAprovado = !!statusProduto.digital?.aprovado;
+  const fisicoAprovado = !!statusProduto.fisico?.aprovado;
+  const fisicoEnviado = !!statusProduto.fisico?.dadosEnviados;
+  const naoLiberadoDigital = produtoAberto && (produtoAberto.pdfNaoLiberado === true || produtoAberto.pdfNaoLiberado === "Sim");
+  const esgotadoFisico = produtoAberto && (produtoAberto.fisicoEsgotado === true || produtoAberto.fisicoEsgotado === "Sim");
+
   return (
     <div>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
         <SectionTitle>Loja Avivar</SectionTitle>
+        {verificandoPagamento && <p className="text-sm mt-3 italic" style={{ color: C.stone }}>Verificando pagamento…</p>}
         {itemsLoja.length === 0 && <div className="mt-6"><Empty text="Nenhum produto cadastrado ainda." /></div>}
         <div className="grid grid-cols-2 gap-4 sm:gap-5 mt-6">
           {itemsLoja.map((p) => (
             <div key={p.id} className="rounded-xl border overflow-hidden w-full flex flex-col lg:flex-row" style={{ borderColor: C.line, background: C.parchment }}>
-              <button onClick={() => setProdutoAbertoId(p.id)} className="block lg:w-40 lg:flex-shrink-0 focus:outline-none focus:ring-2">
+              <button onClick={() => abrirProduto(p.id)} className="block lg:w-40 lg:flex-shrink-0 focus:outline-none focus:ring-2">
                 <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 lg:h-full object-contain" />
               </button>
               <div className="p-4 flex flex-col flex-1">
                 {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
-                <button onClick={() => setProdutoAbertoId(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
+                <button onClick={() => abrirProduto(p.id)} className="block w-full text-left focus:outline-none focus:ring-2">
                   <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
                 </button>
                 {p.descricao && <p className="text-xs mt-1 flex-1" style={{ color: C.stone }}>{p.descricao}</p>}
                 {p.preco && <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>}
-                <Btn color={C.gold} className="w-full justify-center mt-2 lg:mt-auto" onClick={() => setProdutoAbertoId(p.id)}>
+                <Btn color={C.gold} className="w-full justify-center mt-2 lg:mt-auto" onClick={() => abrirProduto(p.id)}>
                   <ShoppingBag size={13} /> Comprar
                 </Btn>
                 {adminMode && <button onClick={() => del(p.id)} className="text-xs underline mt-2" style={{ color: "#B03428" }}>excluir</button>}
@@ -2184,143 +2319,196 @@ function Loja({ items, save, adminMode, doacoes, pedidosFisicos, savePedidosFisi
             </div>
           ))}
         </div>
+
+        {/* Página de venda — overlay em tela cheia: abre na hora, sem precisar rolar */}
         {produtoAberto && (
-          <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[260px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
-            <div className="flex flex-col gap-4 h-full">
-              <ImgOrPlaceholder url={produtoAberto.capaVendaUrl || produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-56 sm:h-64 object-contain rounded-lg flex-shrink-0" />
-              {produtoAberto.descricao && (
-                <div className="flex-1">
-                  <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
-                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{produtoAberto.descricao}</p>
-                </div>
-              )}
-            </div>
-            <div>
-              <button onClick={() => setProdutoAbertoId(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
-              {produtoAberto.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{produtoAberto.categoria}</p>}
-              <h3 className="font-display text-xl font-semibold mt-1" style={{ color: C.ink }}>{produtoAberto.nome}</h3>
-              {produtoAberto.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{produtoAberto.autor}</p>}
-
-              {produtoAberto.categoria === "Códigos Avivar" ? (
-                <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                  <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
-                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>PDF</p>
-                    {produtoAberto.pdfNaoLiberado === true || produtoAberto.pdfNaoLiberado === "Sim" ? (
-                      <p className="text-[12px] italic mt-2" style={{ color: C.stone }}>PDF ainda não liberado — em breve</p>
-                    ) : (
-                      <>
-                        <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoPdf || "a definir"}</p>
-                        {precoParaNumero(produtoAberto.precoPdf) ? (
-                          <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => comprarPdfMercadoPago(produtoAberto)}>
-                            <ShoppingBag size={13} /> Comprar PDF
-                          </Btn>
-                        ) : (
-                          <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Preço ainda não definido</p>
-                        )}
-                        <div className="flex flex-col gap-1.5 mt-2">
-                          {produtoAberto.pdfUrl && (
-                            <a href={produtoAberto.pdfUrl} download>
-                              <Btn variant="ghost" className="w-full justify-center"><FileText size={13} /> Baixar PDF</Btn>
-                            </a>
-                          )}
-                          {produtoAberto.imageUrl && (
-                            <a href={produtoAberto.imageUrl} download>
-                              <Btn variant="ghost" className="w-full justify-center"><ImageIcon size={13} /> Baixar capa</Btn>
-                            </a>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
-                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Físico</p>
-                    {produtoAberto.fisicoEsgotado === true || produtoAberto.fisicoEsgotado === "Sim" ? (
-                      <p className="text-[12px] italic mt-2" style={{ color: C.stone }}>Tiragem física esgotada</p>
-                    ) : (
-                      <>
-                        <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "Valor combinado após o pedido, pelo WhatsApp"}</p>
-                        <Btn color={C.gold} className="w-full justify-center mt-2" onClick={() => setMostrarFormFisico((v) => !v)}>
-                          <Send size={13} /> {mostrarFormFisico ? "Fechar formulário" : "Solicitar exemplar físico"}
-                        </Btn>
-                        <a href="https://www.correios.com.br/precos-e-prazos" target="_blank" rel="noreferrer" className="block mt-1.5">
-                          <Btn variant="ghost" className="w-full justify-center text-xs"><Truck size={13} /> Consultar frete nos Correios</Btn>
-                        </a>
-                        <p className="text-[10px] italic mt-1" style={{ color: C.stone }}>O frete é combinado à parte, pelo WhatsApp, após o pedido.</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="font-display font-bold mt-3" style={{ color: C.ember }}>{produtoAberto.preco}</p>
-              )}
-
-              {adminMode && produtoAberto.categoria === "Códigos Avivar" && (
-                <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: C.stone, background: "#00000006" }}>
-                  {editandoPrecoId === produtoAberto.id ? (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-mono" style={{ color: C.stone }}>
-                        Preço PDF
-                        <input
-                          value={precoPdfEdit}
-                          onChange={(e) => setPrecoPdfEdit(e.target.value)}
-                          placeholder="Ex: R$ 29,90"
-                          className="block w-full mt-1 px-2 py-1 rounded border text-sm"
-                          style={{ borderColor: C.line }}
-                        />
-                      </label>
-                      <label className="text-xs font-mono" style={{ color: C.stone }}>
-                        Preço Físico
-                        <input
-                          value={precoFisicoEdit}
-                          onChange={(e) => setPrecoFisicoEdit(e.target.value)}
-                          placeholder="Ex: R$ 49,90"
-                          className="block w-full mt-1 px-2 py-1 rounded border text-sm"
-                          style={{ borderColor: C.line }}
-                        />
-                      </label>
-                      <div className="flex gap-2 mt-1">
-                        <Btn color={C.gold} onClick={() => salvarPrecos(produtoAberto)}><Save size={13} /> Salvar preços</Btn>
-                        <Btn variant="ghost" onClick={() => setEditandoPrecoId(null)}>Cancelar</Btn>
-                      </div>
+          <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.parchment }}>
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+              <VoltarBtn onClick={fecharProduto} />
+              <div className="mt-4 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[260px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
+                <div className="flex flex-col gap-4 h-full">
+                  <ImgOrPlaceholder url={produtoAberto.capaVendaUrl || produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-56 sm:h-64 object-contain rounded-lg flex-shrink-0" />
+                  {produtoAberto.descricao && (
+                    <div className="flex-1">
+                      <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
+                      <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{produtoAberto.descricao}</p>
                     </div>
-                  ) : (
-                    <button onClick={() => abrirEdicaoPreco(produtoAberto)} className="text-xs underline flex items-center gap-1" style={{ color: C.ember }}>
-                      <Pencil size={12} /> editar preço
-                    </button>
                   )}
                 </div>
-              )}
+                <div>
+                  {produtoAberto.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{produtoAberto.categoria}</p>}
+                  <h3 className="font-display text-xl font-semibold mt-1" style={{ color: C.ink }}>{produtoAberto.nome}</h3>
+                  {produtoAberto.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{produtoAberto.autor}</p>}
 
-              {mostrarFormFisico && (
-                <div className="mt-4">
-                  <p className="text-xs font-mono uppercase mb-2" style={{ color: C.stone }}>Dados para entrega</p>
-                  <DynamicForm
-                    fields={PEDIDO_FISICO_FIELDS}
-                    submitLabel="Enviar pedido"
-                    onSubmit={(v) => {
-                      if (!v.nomeRecebedor || !v.whatsapp) return;
-                      savePedidosFisicos([...(pedidosFisicos || []), { id: uid(), produtoId: produtoAberto.id, produtoNome: produtoAberto.nome, ...v, status: "novo", timestamp: nowISO() }]);
-                      setMostrarFormFisico(false);
-                      alert("Pedido enviado! Entraremos em contato pelo WhatsApp pra combinar o valor e a entrega.");
-                    }}
-                  />
+                  {produtoAberto.categoria === "Códigos Avivar" ? (
+                    <div className="mt-4">
+                      {/* DIGITAL — aprovado: libera downloads em verde */}
+                      {digitalAprovado && (
+                        <div className="p-3 rounded-lg border mb-3" style={{ borderColor: GREEN, background: C.cream }}>
+                          <p className="text-xs font-mono uppercase" style={{ color: GREEN }}>Pagamento confirmado — Digital</p>
+                          <div className="flex flex-col gap-2 mt-2">
+                            {produtoAberto.pdfUrl && (
+                              <a href={produtoAberto.pdfUrl} download>
+                                <Btn color={GREEN} className="w-full justify-center"><FileText size={14} /> BAIXAR PDF</Btn>
+                              </a>
+                            )}
+                            {produtoAberto.imageUrl && (
+                              <a href={produtoAberto.imageUrl} download>
+                                <Btn color={GREEN} className="w-full justify-center"><ImageIcon size={14} /> BAIXAR CAPA</Btn>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FÍSICO — aprovado: pede dados de envio, depois confirma */}
+                      {fisicoAprovado && (
+                        <div className="p-3 rounded-lg border mb-3" style={{ borderColor: GREEN, background: C.cream }}>
+                          <p className="text-xs font-mono uppercase" style={{ color: GREEN }}>Pagamento confirmado — Físico</p>
+                          {fisicoEnviado ? (
+                            <p className="text-sm mt-2" style={{ color: GREEN }}>Seu pedido já está sendo preparado. Aguarde para receber os dados via WhatsApp cadastrado.</p>
+                          ) : (
+                            <>
+                              {!mostrarFormFisico ? (
+                                <Btn color={GREEN} className="w-full justify-center mt-2" onClick={() => setMostrarFormFisico(true)}>
+                                  <Send size={14} /> PREENCHER DADOS DE ENVIO
+                                </Btn>
+                              ) : (
+                                <div className="mt-3">
+                                  <DynamicForm
+                                    fields={PEDIDO_FISICO_FIELDS}
+                                    submitLabel="Enviar dados de envio"
+                                    onSubmit={(v) => {
+                                      if (!v.nomeRecebedor || !v.whatsapp) return;
+                                      savePedidosFisicos([...(pedidosFisicos || []), { id: uid(), produtoId: produtoAberto.id, produtoNome: produtoAberto.nome, ...v, status: "novo", timestamp: nowISO() }]);
+                                      marcarDadosEnviados(produtoAberto.id);
+                                      setMostrarFormFisico(false);
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Ainda falta escolher/pagar alguma modalidade */}
+                      {(!digitalAprovado || !fisicoAprovado) && (
+                        <div>
+                          {!mostrarOpcoesCompra ? (
+                            <Btn color={C.gold} className="w-full justify-center" onClick={() => setMostrarOpcoesCompra(true)}>
+                              <ShoppingBag size={14} /> Comprar
+                            </Btn>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                              {!fisicoAprovado && (
+                                esgotadoFisico ? (
+                                  <div className="p-3 rounded-lg border text-center" style={{ borderColor: C.line, background: C.cream }}>
+                                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Físico</p>
+                                    <p className="text-[11px] italic mt-1" style={{ color: C.stone }}>Tiragem esgotada</p>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => escolherTipo(produtoAberto, "fisico")}
+                                    className="p-3 rounded-lg border text-center transition hover:-translate-y-0.5"
+                                    style={{ borderColor: C.gold, background: C.gold, color: "#fff" }}
+                                  >
+                                    <p className="font-display font-bold">FÍSICO</p>
+                                    <p className="text-xs mt-1">{produtoAberto.precoFisico || "valor a definir"}</p>
+                                  </button>
+                                )
+                              )}
+                              {!digitalAprovado && (
+                                naoLiberadoDigital ? (
+                                  <div className="p-3 rounded-lg border text-center" style={{ borderColor: C.line, background: C.cream }}>
+                                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Digital</p>
+                                    <p className="text-[11px] italic mt-1" style={{ color: C.stone }}>Em breve</p>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => escolherTipo(produtoAberto, "digital")}
+                                    className="p-3 rounded-lg border text-center transition hover:-translate-y-0.5"
+                                    style={{ borderColor: C.gold, background: C.gold, color: "#fff" }}
+                                  >
+                                    <p className="font-display font-bold">DIGITAL</p>
+                                    <p className="text-xs mt-1">{produtoAberto.precoPdf || "valor a definir"}</p>
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          )}
+                          <p className="text-[10px] italic mt-1.5" style={{ color: C.stone }}>O valor do exemplar físico já inclui o frete.</p>
+                        </div>
+                      )}
+
+                      {podeVerFrete && (
+                        <a href="https://www.correios.com.br/precos-e-prazos" target="_blank" rel="noreferrer" className="block mt-2">
+                          <Btn variant="ghost" className="w-full justify-center text-xs"><Truck size={13} /> Calcular frete nos Correios (admin)</Btn>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-display font-bold mt-3" style={{ color: C.ember }}>{produtoAberto.preco}</p>
+                      <Btn color={C.gold} className="w-full justify-center mt-3" onClick={() => comprarGenerico(produtoAberto)}>
+                        <ShoppingBag size={13} /> Comprar
+                      </Btn>
+                    </>
+                  )}
+
+                  {adminMode && produtoAberto.categoria === "Códigos Avivar" && (
+                    <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: C.stone, background: "#00000006" }}>
+                      {editandoPrecoId === produtoAberto.id ? (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs font-mono" style={{ color: C.stone }}>
+                            Preço Digital/PDF (já pronto pra baixar)
+                            <input
+                              value={precoPdfEdit}
+                              onChange={(e) => setPrecoPdfEdit(e.target.value)}
+                              placeholder="Ex: R$ 29,90"
+                              className="block w-full mt-1 px-2 py-1 rounded border text-sm"
+                              style={{ borderColor: C.line }}
+                            />
+                          </label>
+                          <label className="text-xs font-mono" style={{ color: C.stone }}>
+                            Preço Físico (já incluindo o frete)
+                            <input
+                              value={precoFisicoEdit}
+                              onChange={(e) => setPrecoFisicoEdit(e.target.value)}
+                              placeholder="Ex: R$ 49,90"
+                              className="block w-full mt-1 px-2 py-1 rounded border text-sm"
+                              style={{ borderColor: C.line }}
+                            />
+                          </label>
+                          <div className="flex gap-2 mt-1">
+                            <Btn color={C.gold} onClick={() => salvarPrecos(produtoAberto)}><Save size={13} /> Salvar preços</Btn>
+                            <Btn variant="ghost" onClick={() => setEditandoPrecoId(null)}>Cancelar</Btn>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => abrirEdicaoPreco(produtoAberto)} className="text-xs underline flex items-center gap-1" style={{ color: C.ember }}>
+                          <Pencil size={12} /> editar preço
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {produtoAberto.categoria !== "Códigos Avivar" && doacoes?.pixKey && (
+                    <div className="mt-3">
+                      <Btn variant="ghost" className="w-full sm:w-auto justify-center" onClick={() => setPixAbertoId((id) => (id === produtoAberto.id ? null : produtoAberto.id))}>
+                        <Send size={13} /> {pixAbertoId === produtoAberto.id ? "Fechar Pix" : "Pagar com Pix"}
+                      </Btn>
+                      {pixAbertoId === produtoAberto.id && <LojaProdutoPix produto={produtoAberto} doacoes={doacoes} />}
+                    </div>
+                  )}
+
+                  {produtoAberto.previewUrl && (
+                    <a href={produtoAberto.previewUrl} target="_blank" rel="noreferrer" className="inline-block mt-3">
+                      <Btn variant="ghost"><FileText size={13} /> Ver amostra (primeiras páginas)</Btn>
+                    </a>
+                  )}
                 </div>
-              )}
-
-              {doacoes?.pixKey && (
-                <div className="mt-3">
-                  <Btn variant="ghost" className="w-full sm:w-auto justify-center" onClick={() => setPixAbertoId((id) => (id === produtoAberto.id ? null : produtoAberto.id))}>
-                    <Send size={13} /> {pixAbertoId === produtoAberto.id ? "Fechar Pix" : "Pagar com Pix"}
-                  </Btn>
-                  {pixAbertoId === produtoAberto.id && <LojaProdutoPix produto={produtoAberto} doacoes={doacoes} />}
-                </div>
-              )}
-
-              {produtoAberto.previewUrl && (
-                <a href={produtoAberto.previewUrl} target="_blank" rel="noreferrer" className="inline-block mt-3">
-                  <Btn variant="ghost"><FileText size={13} /> Ver amostra (primeiras páginas)</Btn>
-                </a>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -2410,7 +2598,7 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
         <div className="mt-6 rounded-xl border p-5 grid sm:grid-cols-[160px_1fr] gap-5" style={{ borderColor: C.line }}>
           <ImgOrPlaceholder url={selected.capaUrl} alt={selected.titulo} className="w-full h-56 sm:h-full object-cover rounded-lg" ph={selected.titulo} />
           <div>
-            <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+            <VoltarBtn onClick={() => setSelected(null)} className="mb-2" />
             <h3 className="font-display text-xl font-semibold">{selected.titulo}</h3>
             {selected.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{selected.autor}</p>}
             {selected.sinopse && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selected.sinopse}</p>}
@@ -3339,7 +3527,7 @@ function Estudos({ items, save, adminMode }) {
       </div>
       {selected && (
         <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
-          <button onClick={() => setSelected(null)} className="text-xs underline mb-2" style={{ color: C.stone }}>fechar</button>
+          <VoltarBtn onClick={() => setSelected(null)} className="mb-2" />
           <p className="font-display text-xl font-semibold">{selected.titulo}</p>
           <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{selected.referencia}</p>
           <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selected.conteudo}</p>
@@ -3511,7 +3699,7 @@ const ENCONTRO_FIELDS = [
   { key: "contato", label: "Contato" },
 ];
 
-function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operatorMode, onRequestOperator }) {
+function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operatorMode, onRequestOperator, localDia, saveLocalDia }) {
   const canManageAgenda = adminMode || operatorMode;
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO(), status: "pendente" }]);
   const setStatus = (id, status) => save(items.map((i) => (i.id === id ? { ...i, status } : i)));
@@ -3526,14 +3714,53 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
     saveEncontros(encontros.map((e) => (e.id === id ? { ...e, fotos: e.fotos.filter((_, i) => i !== idx) } : e)));
   };
 
+  const [editandoLocal, setEditandoLocal] = useState(false);
+  const [fotoDiaEdit, setFotoDiaEdit] = useState((localDia && localDia.fotoUrl) || "");
+  const [localDiaEdit, setLocalDiaEdit] = useState((localDia && localDia.local) || "");
+  const abrirEdicaoLocal = () => {
+    setFotoDiaEdit((localDia && localDia.fotoUrl) || "");
+    setLocalDiaEdit((localDia && localDia.local) || "");
+    setEditandoLocal(true);
+  };
+  const salvarLocalDia = () => {
+    saveLocalDia({ fotoUrl: fotoDiaEdit, local: localDiaEdit });
+    setEditandoLocal(false);
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
       <SectionTitle>Orações nos Lares</SectionTitle>
 
-      <div className="rounded-xl overflow-hidden border mb-8" style={{ borderColor: C.line }}>
-        <ImgOrPlaceholder url={ORACOES_BANNER} alt="Oração nos Lares" className="w-full object-cover max-h-[360px]" ph="Banner Oração nos Lares" />
+      {/* Banner reduzido pela metade — apenas ilustrativo */}
+      <div className="rounded-xl overflow-hidden border mb-4" style={{ borderColor: C.line }}>
+        <ImgOrPlaceholder url={ORACOES_BANNER} alt="Oração nos Lares" className="w-full object-cover max-h-[170px]" ph="Banner Oração nos Lares" />
       </div>
+
+      {/* Card do local de oração do dia — fundo creme, com foto e local cadastrados pelo admin/autorizado */}
+      <div className="rounded-xl border p-4 mb-4 flex flex-col sm:flex-row gap-4 items-center" style={{ borderColor: C.gold, background: C.cream }}>
+        <ImgOrPlaceholder url={localDia && localDia.fotoUrl} alt="Local da oração de hoje" className="w-full sm:w-48 h-36 object-cover rounded-lg flex-shrink-0" ph="Foto do local de hoje — a cadastrar" />
+        <div className="flex-1 text-center sm:text-left">
+          <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Oração de hoje</p>
+          <p className="font-display font-semibold text-lg mt-1" style={{ color: C.ink }}>{(localDia && localDia.local) || "Local a definir"}</p>
+        </div>
+      </div>
+      {canManageAgenda && (
+        editandoLocal ? (
+          <div className="mb-8 p-4 rounded-lg border grid sm:grid-cols-2 gap-3" style={{ borderColor: C.line, background: "#00000006" }}>
+            <Field label="URL da foto do local de hoje"><input className={inputCls} style={{ borderColor: C.line }} value={fotoDiaEdit} onChange={(e) => setFotoDiaEdit(e.target.value)} /></Field>
+            <Field label="Local da oração de hoje"><input className={inputCls} style={{ borderColor: C.line }} value={localDiaEdit} onChange={(e) => setLocalDiaEdit(e.target.value)} /></Field>
+            <div className="flex gap-2 sm:col-span-2">
+              <Btn onClick={salvarLocalDia}><Save size={13} /> Salvar</Btn>
+              <Btn variant="ghost" onClick={() => setEditandoLocal(false)}>Cancelar</Btn>
+            </div>
+          </div>
+        ) : (
+          <button onClick={abrirEdicaoLocal} className="text-xs underline mb-8 flex items-center gap-1" style={{ color: C.ember }}>
+            <Pencil size={12} /> editar local de hoje
+          </button>
+        )
+      )}
 
       {/* Agenda de encontros — pública pra ver, restrita pra cadastrar */}
       <div className="mt-4">
@@ -3585,8 +3812,14 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
       </div>
 
       <div className="mt-12 pt-8 border-t" style={{ borderColor: C.line }}>
-        <p className="text-sm mt-2 mb-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
-        <DynamicForm fields={ORACAO_FIELDS} onSubmit={(v) => v.nome && v.pedido && add(v)} submitLabel="Enviar pedido" />
+        {canManageAgenda ? (
+          <>
+            <p className="text-sm mt-2 mb-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
+            <DynamicForm fields={ORACAO_FIELDS} onSubmit={(v) => v.nome && v.pedido && add(v)} submitLabel="Enviar pedido" />
+          </>
+        ) : (
+          <RestrictedNotice onUnlock={onRequestOperator} />
+        )}
 
         {adminMode && (
           <div className="mt-10 space-y-3">
@@ -3909,7 +4142,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
           </div>
           {openAlbum && (
             <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
-              <button onClick={() => setOpenAlbum(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
+              <VoltarBtn onClick={() => setOpenAlbum(null)} className="mb-3" />
               <p className="font-display font-semibold text-lg mb-3">{openAlbum.titulo}</p>
               {openAlbum.videoUrl ? (
                 <div className="aspect-video rounded-md overflow-hidden bg-black">
@@ -4104,6 +4337,7 @@ export default function App() {
   const [manchete, setManchete] = useState(DEFAULT_MANCHETE);
   const [pedidosOracao, setPedidosOracao] = useState([]);
   const [pedidosFisicos, setPedidosFisicos] = useState([]);
+  const [oracaoLocalDia, setOracaoLocalDia] = useState({ fotoUrl: "", local: "" });
   const [seeds, setSeeds] = useState({});
 
   const sideCarouselPhotos = useMemo(() => {
@@ -4172,6 +4406,7 @@ export default function App() {
       setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
       setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
       setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
+      setOracaoLocalDia(await loadKey("avivar:oracaolocaldia", { fotoUrl: "", local: "" }));
       setBiblioteca(await loadKey("avivar:biblioteca", []));
       setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
@@ -4933,6 +5168,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
     manchete: (v) => { setManchete(v); saveKey("avivar:manchete", v); },
     pedidosOracao: (v) => { setPedidosOracao(v); saveKey("avivar:pedidosOracao", v); },
     pedidosFisicos: (v) => { setPedidosFisicos(v); saveKey("avivar:pedidosfisicos", v); },
+    oracaoLocalDia: (v) => { setOracaoLocalDia(v); saveKey("avivar:oracaolocaldia", v); },
     biblioteca: (v) => { setBiblioteca(v); saveKey("avivar:biblioteca", v); },
     musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
   };
@@ -4986,7 +5222,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       <main className="lg:ml-[200px] lg:mr-[280px]">
         <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} /></section>
         <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} newsAbrirId={newsAbrirId} onNewsAberta={() => setNewsAbrirId(null)} /></section>
         <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
@@ -4996,7 +5232,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} /></section>
