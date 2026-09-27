@@ -73,6 +73,7 @@ const LIVRO_GLORIA_CAPA = "/29-livro-o-impacto-da-gloria.jpg";
 const CODIGOS_CURIOSIDADE_AGUA_VINHO = "/63-codigos-curiosidade-agua-vinho.jpg";
 const CODIGOS_ARTIGO_ARQUITETURA_CONSCIENCIA = "/64-codigos-artigo-arquitetura-consciencia.jpg";
 const CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER = "/65-codigos-profetas-ultimos-dias-banner.jpg";
+const CODIGOS_ARTIGO_PORTAIS_ESPIRITUAIS = "/69-codigos-artigo-portais-espirituais.jpg";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -154,7 +155,7 @@ const DEFAULT_HOMECARDS = [
   { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", imageUrl: LOJA_BANNER, tone: "gold" },
   { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
   { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
-  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: null, tone: "violet" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "violet" },
   { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
   { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
   { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
@@ -1044,10 +1045,10 @@ function FeaturedBibliaCard({ onClick }) {
   );
 }
 
-function HeroNewsColumn({ news, bgImage, onClick }) {
+function HeroNewsColumn({ news, bgImage, onClick, onOpenNews }) {
   const top = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
   return (
-    <button onClick={onClick} className="relative rounded-2xl overflow-hidden border text-left h-full min-h-[280px] focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+    <div className="relative rounded-2xl overflow-hidden border text-left h-full min-h-[280px] focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
       {bgImage ? (
         <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
       ) : (
@@ -1061,16 +1062,16 @@ function HeroNewsColumn({ news, bgImage, onClick }) {
             <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
           ) : (
             top.map((n) => (
-              <div key={n.id} className="pb-3 border-b" style={{ borderColor: "#ffffff22" }}>
+              <button key={n.id} onClick={() => onOpenNews && onOpenNews(n.id)} className="pb-3 border-b w-full text-left hover:brightness-110 focus:outline-none focus:ring-1 rounded-md" style={{ borderColor: "#ffffff22" }}>
                 <p className="text-sm font-display font-semibold text-white leading-snug">{n.titulo}</p>
                 {n.texto && <p className="text-xs mt-1" style={{ color: "#ffffffaa" }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
-              </div>
+              </button>
             ))
           )}
         </div>
-        <span className="text-[10px] font-mono tracking-wide underline decoration-dotted text-white/80 mt-2">ver todas as reportagens</span>
+        <button onClick={onClick} className="text-[10px] font-mono tracking-wide underline decoration-dotted text-white/80 mt-2 text-left">ver todas as reportagens</button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1181,13 +1182,13 @@ function PedidoOracaoCard({ onClick, compact }) {
     // card de Dízimo e Oferta, com botão roxo claro pulsante convidando ao clique.
     return (
       <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left focus:outline-none focus:ring-2 flex flex-col h-full w-full" style={{ borderColor: C.purple }}>
-        <div className="relative pt-4 pb-2 px-4 text-center" style={{ background: C.purpleDeep }}>
+        <div className="relative pt-2 pb-1.5 px-3 text-center" style={{ background: C.purpleDeep }}>
           <HandHeart size={18} color="#fff" className="mx-auto mb-1" />
           <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#ffffffaa" }}>Intercessão</p>
         </div>
         <div className="p-3 text-xs flex-1 flex flex-col" style={{ background: C.cream }}>
           <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>Pedido de Oração</p>
-          <p className="mt-1" style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração.</p>
+          <p className="mt-0.5 text-[11px] line-clamp-1" style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração.</p>
           <div className="flex-1" />
           <span
             className="purple-light-pulse inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md w-full mt-2"
@@ -1265,14 +1266,14 @@ function MancheteBar({ manchete, save, adminMode }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
       <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
-        <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} />
+        <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} onOpenNews={onOpenNews} />
 
         <div className="relative rounded-2xl overflow-hidden h-full min-h-[280px] sm:min-h-[360px]" style={{ background: C.black }}>
           <img src={site.heroMiddleBg || HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(1px) brightness(0.5)" }} />
@@ -1286,10 +1287,10 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         </div>
 
         <div className="flex flex-col gap-3 h-full">
-          <div className="flex-1 min-h-0">
+          <div className="flex-[7] min-h-0">
             <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-[3] min-h-0">
             <PedidoOracaoCard compact onClick={() => setPage("pedidooracao")} />
           </div>
         </div>
@@ -1333,8 +1334,9 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-2 gap-5">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
+        <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
         <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
@@ -1380,7 +1382,7 @@ const CODIGOS_VITRINE_FIELDS = [
   { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
 ];
 
-function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage }) {
+function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage, onOpenNews }) {
   const [unlocked, setUnlocked] = useState(false);
   const [holderName, setHolderName] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -1446,11 +1448,8 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
         <div className="px-4 sm:px-6 lg:px-10 pt-10 pb-2">
           <div className="max-w-6xl mx-auto">
             {/* A imagem "conjugada" com a colagem das 3 capas da trilogia foi removida daqui
-                a pedido — cada capa já aparece individualmente mais abaixo. */}
-            <div className="grid sm:grid-cols-2 gap-4 mb-4">
-              <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
-            </div>
-
+                a pedido — cada capa já aparece individualmente mais abaixo. O card da Bíblia
+                Avivar que ficava aqui foi movido pra Home (fileira de 3 colunas). */}
             <div className="grid sm:grid-cols-3 gap-4 mb-8">
               {[
                 { img: LIVRO_DONS_CAPA, titulo: "Conquistando os Dons do Espírito Santo" },
@@ -1544,7 +1543,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 {reportagensDestaque.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => setPage && setPage("aovivo")}
+                    onClick={() => (onOpenNews ? onOpenNews(n.id) : (setPage && setPage("aovivo")))}
                     className="block text-left w-full p-4 rounded-lg transition hover:brightness-110 focus:outline-none focus:ring-2"
                     style={{ background: "#ffffff0f" }}
                   >
@@ -1896,9 +1895,16 @@ const PASSADA_FIELDS = [
   { key: "videoUrl", label: "Link do vídeo (YouTube ou Vimeo)", type: "url" },
 ];
 
-function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode }) {
+function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode, newsAbrirId, onNewsAberta }) {
   const [mainPassadaId, setMainPassadaId] = useState(null);
   const [selectedNews, setSelectedNews] = useState(null);
+  useEffect(() => {
+    if (newsAbrirId) {
+      const n = news.find((x) => x.id === newsAbrirId);
+      if (n) setSelectedNews(n);
+      onNewsAberta && onNewsAberta();
+    }
+  }, [newsAbrirId]);
 
   const addPassada = (v) => savePassadas([...passadas, { id: uid(), ...v }]);
   const delPassada = (id) => savePassadas(passadas.filter((p) => p.id !== id));
@@ -1995,7 +2001,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode 
         <Eyebrow>Reportagens do ministério</Eyebrow>
         <h3 className="font-display text-2xl font-semibold" style={{ color: C.ink }}>Avivar News</h3>
         {sortedNews.length === 0 && <div className="mt-4"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 items-start">
           {sortedNews.map((n) => (
             <button key={n.id} onClick={() => setSelectedNews(n)} className="text-left rounded-xl border overflow-hidden focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
               {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-36 object-cover" />}
@@ -2048,6 +2054,11 @@ const LOJA_FIELDS = [
   { key: "imageUrl", label: "URL da imagem", type: "url" },
   { key: "linkCompra", label: "Link de compra — PIX/Mercado Pago", type: "url" },
   { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
+  { key: "precoPdf", label: "Preço do PDF (ex: R$ 19,90)" },
+  { key: "linkPdf", label: "Link de pagamento do PDF (Mercado Pago)", type: "url" },
+  { key: "precoFisico", label: "Preço do exemplar físico (ex: R$ 49,90)" },
+  { key: "linkFisico", label: "Link de pagamento do Físico (Mercado Pago)", type: "url" },
+  { key: "previewUrl", label: "URL de amostra/prévia (opcional)", type: "url" },
 ];
 
 // Extrai o valor numérico de um preço em texto livre (ex: "R$ 49,90" -> 49.9), pra
@@ -2092,6 +2103,7 @@ function Loja({ items, save, adminMode, doacoes }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
   const [pixAbertoId, setPixAbertoId] = useState(null);
+  const [produtoAberto, setProdutoAberto] = useState(null);
   return (
     <div>
       {/* Frase de incentivo + versículo no lugar da antiga imagem-colagem de livros */}
@@ -2109,10 +2121,14 @@ function Loja({ items, save, adminMode, doacoes }) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
           {items.map((p) => (
             <div key={p.id} className="rounded-xl border overflow-hidden max-w-[240px] w-full mx-auto" style={{ borderColor: C.line, background: C.parchment }}>
-              <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 object-contain" />
+              <button onClick={() => setProdutoAberto(p)} className="block w-full text-left focus:outline-none focus:ring-2">
+                <ImgOrPlaceholder url={p.imageUrl} alt={p.nome} className="w-full h-32 object-contain" />
+              </button>
               <div className="p-4">
                 {p.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{p.categoria}</p>}
-                <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
+                <button onClick={() => setProdutoAberto(p)} className="block w-full text-left focus:outline-none focus:ring-2">
+                  <h3 className="font-display font-semibold mt-1">{p.nome}</h3>
+                </button>
                 {p.descricao && <p className="text-xs mt-1" style={{ color: C.stone }}>{p.descricao}</p>}
                 <p className="font-display font-bold mt-2" style={{ color: C.ember }}>{p.preco}</p>
                 <div className="flex flex-col gap-1.5 mt-2">
@@ -2142,6 +2158,67 @@ function Loja({ items, save, adminMode, doacoes }) {
             </div>
           ))}
         </div>
+        {produtoAberto && (
+          <div className="mt-8 rounded-xl border p-5 sm:p-6 grid sm:grid-cols-[220px_1fr] gap-6" style={{ borderColor: C.gold, background: C.parchment }}>
+            <ImgOrPlaceholder url={produtoAberto.imageUrl} alt={produtoAberto.nome} className="w-full h-64 sm:h-full object-contain rounded-lg" />
+            <div>
+              <button onClick={() => setProdutoAberto(null)} className="text-xs underline mb-3" style={{ color: C.stone }}>fechar</button>
+              {produtoAberto.categoria && <p className="text-xs font-mono" style={{ color: C.stone }}>{produtoAberto.categoria}</p>}
+              <h3 className="font-display text-xl font-semibold mt-1" style={{ color: C.ink }}>{produtoAberto.nome}</h3>
+              {produtoAberto.autor && <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{produtoAberto.autor}</p>}
+
+              {(produtoAberto.precoPdf || produtoAberto.precoFisico) ? (
+                <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                  <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
+                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>PDF</p>
+                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoPdf || "a definir"}</p>
+                    {produtoAberto.linkPdf ? (
+                      <a href={produtoAberto.linkPdf} target="_blank" rel="noreferrer" className="block mt-2">
+                        <Btn color={C.gold} className="w-full justify-center"><FileText size={13} /> Comprar PDF</Btn>
+                      </a>
+                    ) : (
+                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Pagamento em breve</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
+                    <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Físico</p>
+                    <p className="font-display font-bold mt-1" style={{ color: C.ember }}>{produtoAberto.precoFisico || "a definir"}</p>
+                    {produtoAberto.linkFisico ? (
+                      <a href={produtoAberto.linkFisico} target="_blank" rel="noreferrer" className="block mt-2">
+                        <Btn color={C.gold} className="w-full justify-center"><ShoppingBag size={13} /> Comprar Físico</Btn>
+                      </a>
+                    ) : (
+                      <p className="text-[11px] italic mt-2" style={{ color: C.stone }}>Pagamento em breve</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="font-display font-bold mt-3" style={{ color: C.ember }}>{produtoAberto.preco}</p>
+              )}
+
+              {doacoes?.pixKey && (
+                <div className="mt-3">
+                  <Btn variant="ghost" className="w-full sm:w-auto justify-center" onClick={() => setPixAbertoId((id) => (id === produtoAberto.id ? null : produtoAberto.id))}>
+                    <Send size={13} /> {pixAbertoId === produtoAberto.id ? "Fechar Pix" : "Pagar com Pix"}
+                  </Btn>
+                  {pixAbertoId === produtoAberto.id && <LojaProdutoPix produto={produtoAberto} doacoes={doacoes} />}
+                </div>
+              )}
+
+              {produtoAberto.descricao && (
+                <div className="mt-4">
+                  <p className="text-xs font-mono uppercase" style={{ color: C.stone }}>Sinopse</p>
+                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{produtoAberto.descricao}</p>
+                </div>
+              )}
+              {produtoAberto.previewUrl && (
+                <a href={produtoAberto.previewUrl} target="_blank" rel="noreferrer" className="inline-block mt-3">
+                  <Btn variant="ghost"><FileText size={13} /> Ver amostra (primeiras páginas)</Btn>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
         {adminMode && (
           <div className="mt-8">
             <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo produto</p>
@@ -2862,6 +2939,9 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
       );
     }
     if (obsAbertoId === e.id) {
+      if (!canManage) {
+        return <span className="text-xs italic" style={{ color: C.stone }}>aguardando revisão (admin)</span>;
+      }
       return (
         <span className="flex items-center gap-1 flex-wrap">
           <input
@@ -2876,6 +2956,9 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
           <button onClick={() => { setObsAbertoId(null); setObsTextoDraft(""); }} className="underline text-xs" style={{ color: C.stone }}>cancelar</button>
         </span>
       );
+    }
+    if (!canManage) {
+      return <span className="text-xs italic" style={{ color: C.stone }}>aguardando revisão (admin)</span>;
     }
     return (
       <span className="flex items-center gap-2 text-xs flex-wrap">
@@ -3019,7 +3102,7 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
 
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
-          Qualquer pessoa pode clicar no próprio nome pra se escalar e marcar disponibilidade. Nomes, postos e horários só podem ser editados pelo admin ou por pessoas autorizadas.
+          Esta escala fica visível para todos acompanharem. Somente o admin ou pessoas autorizadas (mediante senha) podem escalar nomes, editar postos e horários, ou responder às observações.
         </p>
       )}
 
@@ -3848,6 +3931,18 @@ export default function App() {
       if (el) el.scrollIntoView({ behavior: "smooth" });
     });
   };
+  // Abre uma reportagem específica do Avivar News a partir de outra seção (Home ou
+  // Códigos Avivar) — marca a reportagem como "recém-aberta" (atualiza timestamp, pra
+  // reordenar pro topo) e navega até a seção Ao Vivo, que lê newsAbrirId pra selecioná-la.
+  const abrirReportagem = (id) => {
+    const n = (avivarNews || []).find((x) => x.id === id);
+    if (n) {
+      const atualizada = avivarNews.map((x) => (x.id === id ? { ...x, timestamp: nowISO() } : x));
+      persist.avivarNews(atualizada);
+    }
+    setNewsAbrirId(id);
+    scrollToSection("aovivo");
+  };
   const [loading, setLoading] = useState(true);
   const [adminMode, setAdminMode] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
@@ -3855,6 +3950,7 @@ export default function App() {
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
   const [operatorCodes, setOperatorCodes] = useState([]);
   const [oracaoEncontros, setOracaoEncontros] = useState([]);
+  const [newsAbrirId, setNewsAbrirId] = useState(null);
 
   const [site, setSite] = useState(DEFAULT_SITE);
   const [codigos, setCodigos] = useState(DEFAULT_CODIGOS);
@@ -3961,6 +4057,12 @@ export default function App() {
   useEffect(() => {
     if (loading) return;
     const todo = {};
+    // Variáveis "de trabalho" — usadas por TODOS os blocos que mexem em loja/biblioteca/
+    // galeria nesta mesma passagem síncrona do efeito, pra cada bloco enxergar o resultado
+    // do bloco anterior (evita a corrida de estado / stale closure que já apagou dados).
+    let lojaW = loja || [];
+    let bibliotecaW = biblioteca || [];
+    let galeriaW = galeria || [];
     if (!seeds.reportagensCodigos) {
       const jaTem = avivarNews.some((n) => n.seedId && n.seedId.startsWith("codigos-"));
       if (!jaTem) {
@@ -3970,6 +4072,7 @@ export default function App() {
             seedId: "codigos-portais",
             titulo: "Portais espirituais na Bíblia: quando o céu se abre sobre a Terra",
             texto: "Em vários momentos das Escrituras, o véu entre o céu e a terra parece se afinar. Jacó, fugindo de Esaú, dorme numa pedra em Betel e sonha com uma escada que liga a terra ao céu — ao acordar, declara: \"Este é o portal do céu\" (Gênesis 28:10-17). No batismo de Jesus, os céus se abrem e o Espírito desce como pomba (Mateus 3:16). Estêvão, prestes a ser apedrejado, vê o céu aberto e a glória de Deus (Atos 7:55-56). E João, em Patmos, escreve: \"Depois destas coisas olhei, e eis uma porta aberta no céu\" (Apocalipse 4:1). São lugares e momentos em que o Reino invisível toca visivelmente a vida de quem busca a Deus — não fórmulas, mas encontros que Deus mesmo escolhe abrir.",
+            imageUrl: CODIGOS_ARTIGO_PORTAIS_ESPIRITUAIS,
             timestamp: nowISO(),
           },
           {
@@ -4097,7 +4200,7 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       todo.eventos3 = true;
     }
     if (!seeds.biblioteca1) {
-      const jaTem = biblioteca.some((b) => b.seedId && b.seedId.startsWith("bib-"));
+      const jaTem = bibliotecaW.some((b) => b.seedId && b.seedId.startsWith("bib-"));
       if (!jaTem) {
         const novosLivros = [
           {
@@ -4173,14 +4276,14 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
             sinopse: "Um curso completo e didático sobre como a fé bíblica funciona: como ela vem, como é liberada, os passos para o mais alto tipo de fé e os maiores inimigos que a atacam. Referência clássica de Hagin sobre o tema, indicada tanto para o estudo pessoal quanto para discipulado em grupo.",
           },
         ];
-        const mergedBiblioteca = [...biblioteca, ...novosLivros];
-        setBiblioteca(mergedBiblioteca);
-        saveKey("avivar:biblioteca", mergedBiblioteca);
+        bibliotecaW = [...bibliotecaW, ...novosLivros];
+        setBiblioteca(bibliotecaW);
+        saveKey("avivar:biblioteca", bibliotecaW);
       }
       todo.biblioteca1 = true;
     }
     if (!seeds.biblioteca2) {
-      const jaTem = biblioteca.some((b) => b.seedId && b.seedId.startsWith("bib2-"));
+      const jaTem = bibliotecaW.some((b) => b.seedId && b.seedId.startsWith("bib2-"));
       if (!jaTem) {
         const maisLivros = [
           {
@@ -4247,14 +4350,14 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
             sinopse: "Hagin trata com equilíbrio bíblico os temas do casamento, do divórcio e da possibilidade de um novo casamento, buscando o que as Escrituras realmente ensinam para além do senso comum religioso. Aborda também a visão de Deus para o lar e os principais desafios entre marido e mulher.",
           },
         ];
-        const mergedBiblioteca2 = [...biblioteca, ...maisLivros];
-        setBiblioteca(mergedBiblioteca2);
-        saveKey("avivar:biblioteca", mergedBiblioteca2);
+        bibliotecaW = [...bibliotecaW, ...maisLivros];
+        setBiblioteca(bibliotecaW);
+        saveKey("avivar:biblioteca", bibliotecaW);
       }
       todo.biblioteca2 = true;
     }
     if (!seeds.trilogiaLivros1) {
-      const jaTemTrilogia = (loja || []).some((p) => p.seedId && p.seedId.startsWith("trilogia-"));
+      const jaTemTrilogia = lojaW.some((p) => p.seedId && p.seedId.startsWith("trilogia-"));
       if (!jaTemTrilogia) {
         const livrosTrilogia = [
           {
@@ -4300,9 +4403,9 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
             descricao: "Uma reflexão sobre o impacto da glória de Deus manifestada por meio dos dons espirituais, à luz da profecia de Joel 2:28. O livro convida a Igreja a viver o derramamento profetizado — com sonhos, visões e profecias — reacendendo o avivamento nos últimos dias.",
           },
         ];
-        const mergedLoja = [...(loja || []), ...livrosTrilogia];
-        setLoja(mergedLoja);
-        saveKey("avivar:loja", mergedLoja);
+        lojaW = [...lojaW, ...livrosTrilogia];
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
       }
       todo.trilogiaLivros1 = true;
     }
@@ -4314,13 +4417,13 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         "trilogia-cura": "/44-livro-praticando-a-cura-divina.pdf",
         "trilogia-gloria": "/45-livro-o-impacto-da-gloria.pdf",
       };
-      let lojaAtualizada = (loja || []).map((p) =>
+      lojaW = lojaW.map((p) =>
         p.seedId && pdfMap[p.seedId] && !p.pdfUrl ? { ...p, pdfUrl: pdfMap[p.seedId] } : p
       );
-      const jaTemRevelacao = lojaAtualizada.some((p) => p.seedId === "trilogia-revelacao");
+      const jaTemRevelacao = lojaW.some((p) => p.seedId === "trilogia-revelacao");
       if (!jaTemRevelacao) {
-        lojaAtualizada = [
-          ...lojaAtualizada,
+        lojaW = [
+          ...lojaW,
           {
             id: uid(),
             seedId: "trilogia-revelacao",
@@ -4338,12 +4441,12 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
           },
         ];
       }
-      setLoja(lojaAtualizada);
-      saveKey("avivar:loja", lojaAtualizada);
+      setLoja(lojaW);
+      saveKey("avivar:loja", lojaW);
 
       // Os mesmos 4 livros também aparecem na Biblioteca Avivar (pública), mas
       // como são vendidos, o clique redireciona para a Loja em vez de abrir o PDF ali.
-      const jaTemNaBiblioteca = (biblioteca || []).some((b) => b.seedId && b.seedId.startsWith("trilogia-bib-"));
+      const jaTemNaBiblioteca = bibliotecaW.some((b) => b.seedId && b.seedId.startsWith("trilogia-bib-"));
       if (!jaTemNaBiblioteca) {
         const copiasBiblioteca = [
           { id: uid(), seedId: "trilogia-bib-dons", titulo: "Conquistando os Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", capaUrl: "/27-livro-conquistando-os-dons.jpg", linkLoja: true, sinopse: "Um guia prático para reconhecer, desenvolver e operar os dons do Espírito Santo na vida cristã, treinando os filhos de Deus para a batalha espiritual pela salvação das almas. Disponível para aquisição na Loja Avivar." },
@@ -4351,14 +4454,127 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
           { id: uid(), seedId: "trilogia-bib-gloria", titulo: "O Impacto da Glória — Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", capaUrl: "/29-livro-o-impacto-da-gloria.jpg", linkLoja: true, sinopse: "Uma reflexão sobre o impacto da glória de Deus manifestada pelos dons espirituais, à luz da profecia de Joel 2:28. Disponível para aquisição na Loja Avivar." },
           { id: uid(), seedId: "trilogia-bib-revelacao", titulo: "O Dom da Revelação — Segredos e Técnicas", autor: "Filho do Deus Altíssimo", capaUrl: "/46-livro-o-dom-da-revelacao.jpg", linkLoja: true, sinopse: "Uma obra dedicada ao dom da revelação e da palavra de ciência, com explicações simples e exercícios práticos fundamentados nas Escrituras. Disponível para aquisição na Loja Avivar." },
         ];
-        const mergedBiblioteca3 = [...(biblioteca || []), ...copiasBiblioteca];
-        setBiblioteca(mergedBiblioteca3);
-        saveKey("avivar:biblioteca", mergedBiblioteca3);
+        bibliotecaW = [...bibliotecaW, ...copiasBiblioteca];
+        setBiblioteca(bibliotecaW);
+        saveKey("avivar:biblioteca", bibliotecaW);
       }
       todo.trilogiaLivros2 = true;
     }
+    // --- Reparo de dados perdidos em produção pela corrida de estado corrigida acima (Parte A2) ---
+    if (!seeds.repairLoja1) {
+      const canonicalTrilogia = [
+        { seedId: "trilogia-dons", categoria: "Códigos Avivar", titulo: "Conquistando os Dons do Espírito Santo", nome: "Conquistando os Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", imageUrl: LIVRO_DONS_CAPA, pdfUrl: "/43-livro-conquistando-os-dons.pdf", destino: "loja", preco: "", linkCompra: "", linkCartao: "", descricao: "Um guia prático para reconhecer, desenvolver e operar os dons do Espírito Santo na vida cristã. A obra conduz o leitor a compreender como o derramar do Espírito prometido em Isaías 44:3 se manifesta hoje, treinando os filhos de Deus para a batalha espiritual pela salvação das almas." },
+        { seedId: "trilogia-cura", categoria: "Códigos Avivar", titulo: "Praticando a Cura Divina", nome: "Praticando a Cura Divina", autor: "Filho do Deus Altíssimo", imageUrl: LIVRO_CURA_CAPA, pdfUrl: "/44-livro-praticando-a-cura-divina.pdf", destino: "loja", preco: "", linkCompra: "", linkCartao: "", descricao: "Um manual de fé e ação sobre a cura divina, ensinando princípios bíblicos para orar pelos enfermos e libertar os oprimidos. A obra resgata o exemplo de Jesus e dos apóstolos, mostrando que o poder de curar os enfermos e expulsar demônios continua disponível à Igreja hoje." },
+        { seedId: "trilogia-gloria", categoria: "Códigos Avivar", titulo: "O Impacto da Glória — Dons do Espírito Santo", nome: "O Impacto da Glória — Dons do Espírito Santo", autor: "Filho do Deus Altíssimo", imageUrl: LIVRO_GLORIA_CAPA, pdfUrl: "/45-livro-o-impacto-da-gloria.pdf", destino: "loja", preco: "", linkCompra: "", linkCartao: "", descricao: "Uma reflexão sobre o impacto da glória de Deus manifestada por meio dos dons espirituais, à luz da profecia de Joel 2:28. O livro convida a Igreja a viver o derramamento profetizado — com sonhos, visões e profecias — reacendendo o avivamento nos últimos dias." },
+        { seedId: "trilogia-revelacao", categoria: "Códigos Avivar", titulo: "O Dom da Revelação — Segredos e Técnicas", nome: "O Dom da Revelação — Segredos e Técnicas", autor: "Filho do Deus Altíssimo", imageUrl: "/46-livro-o-dom-da-revelacao.jpg", pdfUrl: "/47-livro-o-dom-da-revelacao.pdf", destino: "loja", preco: "", linkCompra: "", linkCartao: "", descricao: "Uma obra dedicada ao dom da revelação e da palavra de ciência, com explicações simples e minuciosas fundamentadas nas Escrituras e garantidas pelo Espírito Santo. Traz também exercícios práticos para que o leitor experimente uma fluidez maior na manifestação desse dom em sua vida espiritual." },
+      ];
+      const faltando = canonicalTrilogia.filter((c) => !lojaW.some((p) => p.seedId === c.seedId));
+      if (faltando.length > 0) {
+        lojaW = [...lojaW, ...faltando.map((c) => ({ id: uid(), ...c }))];
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.repairLoja1 = true;
+    }
+    if (!seeds.repairBiblioteca1) {
+      const canonicalBiblioteca = [
+        { seedId: "bib-palavra", titulo: "A Palavra de Deus: Um Remédio Infalível", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/6-biblioteca-a-palavra-de-deus.jpg", pdfUrl: "/biblioteca/7-biblioteca-a-palavra-de-deus.pdf", sinopse: "A partir de Provérbios 4.20-22, Kenneth Hagin mostra como a Palavra de Deus funciona como remédio para o corpo e para a vida — não apenas metáfora, mas promessa concreta de cura e sustento. Um convite a tratar as Escrituras com a mesma constância de um tratamento médico: lidas, guardadas no coração e proclamadas com fé." },
+        { seedId: "bib-aguias", titulo: "Voando com as Águias", autor: "Kenneth Hagin Jr.", capaUrl: "/biblioteca/8-biblioteca-voando-com-as-aguias.jpg", pdfUrl: "/biblioteca/9-biblioteca-voando-com-as-aguias.pdf", sinopse: "Usando a águia como símbolo bíblico de força e renovação, Kenneth Hagin Jr. ensina como o cristão pode se erguer acima das tempestades da vida pela fé, em vez de reagir como as aves comuns diante das dificuldades. Um chamado à maturidade espiritual e à confiança na provisão de Deus mesmo em meio à adversidade." },
+        { seedId: "bib-setepassos", titulo: "Sete Passos Vitais Para Receber o Espírito Santo", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/10-biblioteca-sete-passos-espirito-santo.jpg", pdfUrl: "/biblioteca/11-biblioteca-sete-passos-espirito-santo.pdf", sinopse: "Um guia prático e pastoral para ajudar alguém a receber o batismo no Espírito Santo, com base em Atos 2 e João 14, explicando o papel da fé, da expectativa e da liberdade para orar em línguas. Traz também dez razões bíblicas para valorizar essa experiência na vida de todo crente." },
+        { seedId: "bib-familia", titulo: "Ministrando à Sua Família", autor: "Kenneth E. Hagin e Kenneth Hagin Jr.", capaUrl: "/biblioteca/12-biblioteca-ministrando-a-sua-familia.jpg", pdfUrl: "/biblioteca/13-biblioteca-ministrando-a-sua-familia.pdf", sinopse: "Coletânea de sermões dos dois autores sobre como aplicar princípios bíblicos de fé, amor e ordem na vida familiar. Aborda o papel de pais e cônjuges à luz da Palavra, com ênfase prática para o dia a dia do lar cristão." },
+        { seedId: "bib-uncao", titulo: "Uma Nova Unção", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "", sinopse: "Hagin explica a diferença entre a unção que já habita todo crente e uma unção renovada e intensificada para o serviço, mostrando exemplos do Velho e do Novo Testamento de homens e mulheres que a buscaram e a mantiveram viva mesmo em circunstâncias adversas. Um chamado a não se contentar com reservatórios vazios quando Deus oferece um fluir constante do Espírito." },
+        { seedId: "bib-nomejesus", titulo: "O Nome de Jesus", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "", sinopse: "Um estudo detalhado sobre a autoridade que Deus depositou no nome de Jesus — herdada, concedida e conquistada pela igreja — e como usá-la em oração, na cura, na libertação e no dia a dia da fé cristã. Percorre desde a origem desse Nome \"acima de todo nome\" até seu uso prático contra a opressão espiritual." },
+        { seedId: "bib-alimentofe", titulo: "Alimento da Fé — Devocionais", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "", sinopse: "Uma coletânea de devocionais curtos, um para cada ocasião de leitura, criada para alimentar a fé do leitor diariamente através de confissões bíblicas e reflexões objetivas. Pensado para ser lido em voz alta, fortalecendo a prática da confissão da Palavra no dia a dia." },
+        { seedId: "bib-cursofe", titulo: "Curso de Estudo Bíblico Sobre a Fé", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "", sinopse: "Um curso completo e didático sobre como a fé bíblica funciona: como ela vem, como é liberada, os passos para o mais alto tipo de fé e os maiores inimigos que a atacam. Referência clássica de Hagin sobre o tema, indicada tanto para o estudo pessoal quanto para discipulado em grupo." },
+        { seedId: "bib2-dons", titulo: "Os Dons do Ministério", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/14-biblioteca-os-dons-do-ministerio.jpg", pdfUrl: "/biblioteca/15-biblioteca-os-dons-do-ministerio.pdf", sinopse: "Um estudo sobre os cinco dons ministeriais mencionados em Efésios 4 — apóstolo, profeta, evangelista, pastor e mestre — e como cada um deles equipa a igreja para o crescimento e a maturidade espiritual. Hagin explica como reconhecer esses chamados e por que eles continuam atuantes no Corpo de Cristo hoje." },
+        { seedId: "bib2-elshaddai", titulo: "El Shaddai: O Deus Mais do que Suficiente", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/16-biblioteca-el-shaddai.jpg", pdfUrl: "/biblioteca/17-biblioteca-el-shaddai.pdf", sinopse: "A partir do nome hebraico El Shaddai, Hagin explora a suficiência de Deus para suprir cada necessidade do crente — física, financeira e espiritual. Um convite a confiar na provisão divina mesmo diante de circunstâncias que parecem maiores do que os próprios recursos." },
+        { seedId: "bib2-sofram", titulo: "É Necessário que os Cristãos Sofram?", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/18-biblioteca-e-necessario-que-os-cristaos-sofram.jpg", pdfUrl: "/biblioteca/19-biblioteca-e-necessario-que-os-cristaos-sofram.pdf", sinopse: "Hagin examina, à luz das Escrituras, se o sofrimento é parte do plano de Deus para o crente ou consequência de outros fatores, distinguindo entre a perseguição pela fé e as aflições que a Palavra ensina a resistir. Uma reflexão pastoral para quem enfrenta dificuldades e busca entender o papel de Deus nelas." },
+        { seedId: "bib2-duelo", titulo: "Duelo con el Diablo (em espanhol)", autor: "Kenneth Hagin Jr.", capaUrl: "/biblioteca/20-biblioteca-duelo-con-el-diablo.jpg", pdfUrl: "/biblioteca/21-biblioteca-duelo-con-el-diablo.pdf", sinopse: "Kenneth Hagin Jr. ensina como identificar as imitações e ciladas espirituais do diabo e como resistir a elas com autoridade na fé cristã. Atenção: este exemplar está em espanhol, não em português." },
+        { seedId: "bib2-autoridade", titulo: "A Autoridade do Crente", autor: "Kenneth E. Hagin", capaUrl: "/biblioteca/22-biblioteca-a-autoridade-do-crente.jpg", pdfUrl: "/biblioteca/23-biblioteca-a-autoridade-do-crente.pdf", sinopse: "Um dos ensinos mais conhecidos de Hagin sobre a autoridade espiritual que o crente recebe em Cristo — a base bíblica para resistir ao inimigo, orar com convicção e viver de forma vitoriosa. Referência clássica sobre o tema no meio evangélico." },
+        { seedId: "bib2-naoculpe", titulo: "Não Culpe a Deus", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "/biblioteca/24-biblioteca-nao-culpe-a-deus.pdf", sinopse: "A partir da própria história de enfermidade na infância, Hagin desmonta a ideia de que Deus é o autor do sofrimento, mostrando pelas Escrituras que a cura e a vida abundante são a vontade de Deus para todos. Um livro pastoral e testemunhal sobre encontrar respostas bíblicas em meio à dor." },
+        { seedId: "bib2-casamento", titulo: "Casamento, Divórcio e Novo Casamento", autor: "Kenneth E. Hagin", capaUrl: "", pdfUrl: "", sinopse: "Hagin trata com equilíbrio bíblico os temas do casamento, do divórcio e da possibilidade de um novo casamento, buscando o que as Escrituras realmente ensinam para além do senso comum religioso. Aborda também a visão de Deus para o lar e os principais desafios entre marido e mulher." },
+      ];
+      const faltandoBib = canonicalBiblioteca.filter((c) => !bibliotecaW.some((b) => b.seedId === c.seedId));
+      if (faltandoBib.length > 0) {
+        bibliotecaW = [...bibliotecaW, ...faltandoBib.map((c) => ({ id: uid(), ...c }))];
+        setBiblioteca(bibliotecaW);
+        saveKey("avivar:biblioteca", bibliotecaW);
+      }
+      todo.repairBiblioteca1 = true;
+    }
+    if (!seeds.repairGaleria1) {
+      const canonicalGaleria = [
+        {
+          seedId: "galeria-comunidade-1",
+          titulo: "Vida em Comunidade",
+          data: "2026-09-26",
+          videos: [],
+          fotos: [
+            "/32-galeria-comunidade.jpg", "/33-galeria-comunidade.jpg", "/34-galeria-comunidade.jpg",
+            "/35-galeria-comunidade.jpg", "/36-galeria-comunidade.jpg", "/37-galeria-comunidade.jpg",
+            "/38-galeria-comunidade.jpg", "/39-galeria-comunidade.jpg", "/40-galeria-comunidade.jpg",
+            "/41-galeria-comunidade.jpg", "/42-galeria-comunidade.jpg",
+          ],
+        },
+        {
+          seedId: "galeria-louvor-1",
+          titulo: "Louvor Avivar",
+          data: "2026-09-26",
+          videos: [],
+          fotos: [
+            LOUVOR_LOGO,
+            "/48-louvor-avivar.jpg", "/49-louvor-avivar.jpg", "/50-louvor-avivar.jpg", "/51-louvor-avivar.jpg",
+            "/52-louvor-avivar.jpg", "/53-louvor-avivar.jpg", "/54-louvor-avivar.jpg", "/55-louvor-avivar.jpg",
+            "/56-louvor-avivar.jpg", "/57-louvor-avivar.jpg", "/58-louvor-avivar.jpg", "/59-louvor-avivar.jpg",
+            "/60-louvor-avivar.jpg", "/61-louvor-avivar.jpg",
+          ],
+        },
+      ];
+      const faltandoGaleria = canonicalGaleria.filter((c) => !galeriaW.some((g) => g.seedId === c.seedId));
+      if (faltandoGaleria.length > 0) {
+        galeriaW = [...galeriaW, ...faltandoGaleria.map((c) => ({ id: uid(), ...c }))];
+        setGaleria(galeriaW);
+        saveKey("avivar:galeria", galeriaW);
+      }
+      todo.repairGaleria1 = true;
+    }
+    // --- Parte F: Loja com formato PDF/Físico + vitrine dos livros de Hagin em Códigos Avivar ---
+    if (!seeds.lojaFormatoDuplo1) {
+      lojaW = lojaW.map((p) =>
+        p.seedId && p.seedId.startsWith("trilogia-") && p.precoPdf === undefined
+          ? { ...p, precoPdf: "", linkPdf: "", precoFisico: "", linkFisico: "", previewUrl: "" }
+          : p
+      );
+      setLoja(lojaW);
+      saveKey("avivar:loja", lojaW);
+      todo.lojaFormatoDuplo1 = true;
+    }
+    if (!seeds.hagInVitrineCodigos1) {
+      const idsBib = ["bib-palavra","bib-aguias","bib-setepassos","bib-familia","bib-uncao","bib-nomejesus","bib-alimentofe","bib-cursofe","bib2-dons","bib2-elshaddai","bib2-sofram","bib2-duelo","bib2-autoridade","bib2-naoculpe","bib2-casamento"];
+      const jaTem = lojaW.some((p) => p.seedId && p.seedId.startsWith("vitrine-bib"));
+      if (!jaTem) {
+        const novosVitrine = idsBib
+          .map((sid) => bibliotecaW.find((b) => b.seedId === sid))
+          .filter(Boolean)
+          .map((b) => ({
+            id: uid(),
+            seedId: "vitrine-" + b.seedId,
+            categoria: "Códigos Avivar",
+            titulo: b.titulo,
+            nome: b.titulo,
+            autor: b.autor || "",
+            imageUrl: b.capaUrl || "",
+            pdfUrl: b.pdfUrl || "",
+            destino: "biblioteca",
+          }));
+        lojaW = [...lojaW, ...novosVitrine];
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.hagInVitrineCodigos1 = true;
+    }
     if (!seeds.galeriaComunidade1) {
-      const jaTemSessao = (galeria || []).some((g) => g.seedId === "galeria-comunidade-1");
+      const jaTemSessao = galeriaW.some((g) => g.seedId === "galeria-comunidade-1");
       if (!jaTemSessao) {
         const novaSessao = {
           id: uid(),
@@ -4380,14 +4596,14 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
             "/42-galeria-comunidade.jpg",
           ],
         };
-        const mergedGaleria = [...(galeria || []), novaSessao];
-        setGaleria(mergedGaleria);
-        saveKey("avivar:galeria", mergedGaleria);
+        galeriaW = [...galeriaW, novaSessao];
+        setGaleria(galeriaW);
+        saveKey("avivar:galeria", galeriaW);
       }
       todo.galeriaComunidade1 = true;
     }
     if (!seeds.galeriaLouvor1) {
-      const jaTemLouvor = (galeria || []).some((g) => g.seedId === "galeria-louvor-1");
+      const jaTemLouvor = galeriaW.some((g) => g.seedId === "galeria-louvor-1");
       if (!jaTemLouvor) {
         const sessaoLouvor = {
           id: uid(),
@@ -4413,9 +4629,9 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
             "/61-louvor-avivar.jpg",
           ],
         };
-        const mergedGaleria2 = [...(galeria || []), sessaoLouvor];
-        setGaleria(mergedGaleria2);
-        saveKey("avivar:galeria", mergedGaleria2);
+        galeriaW = [...galeriaW, sessaoLouvor];
+        setGaleria(galeriaW);
+        saveKey("avivar:galeria", galeriaW);
       }
       todo.galeriaLouvor1 = true;
     }
@@ -4479,6 +4695,29 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         saveKey("avivar:colaboradores", mergedColab);
       }
       todo.colaboradoresNovos1 = true;
+    }
+    if (!seeds.homeCardsOracaoImg1) {
+      const hc = site.homeCards || DEFAULT_HOMECARDS;
+      const precisaCorrigir = hc.some((c) => c.key === "oracoes" && !c.imageUrl);
+      if (precisaCorrigir) {
+        const hcCorrigido = hc.map((c) => (c.key === "oracoes" && !c.imageUrl ? { ...c, imageUrl: ORACOES_BANNER } : c));
+        const siteAtual = site || DEFAULT_SITE;
+        const novoSite = { ...siteAtual, homeCards: hcCorrigido };
+        setSite(novoSite);
+        saveKey("avivar:site", novoSite);
+      }
+      todo.homeCardsOracaoImg1 = true;
+    }
+    if (!seeds.reportagemPortaisImg1) {
+      const precisaImagem = avivarNews.some((n) => n.seedId === "codigos-portais" && !n.imageUrl);
+      if (precisaImagem) {
+        const newsCorrigida = avivarNews.map((n) =>
+          n.seedId === "codigos-portais" && !n.imageUrl ? { ...n, imageUrl: CODIGOS_ARTIGO_PORTAIS_ESPIRITUAIS } : n
+        );
+        setAvivarNews(newsCorrigida);
+        saveKey("avivar:avivarnews", newsCorrigida);
+      }
+      todo.reportagemPortaisImg1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
@@ -4566,10 +4805,10 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main className="lg:ml-[200px] lg:mr-[280px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} /></section>
-        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} /></section>
+        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
-        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} /></section>
+        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} newsAbrirId={newsAbrirId} onNewsAberta={() => setNewsAbrirId(null)} /></section>
         <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
         <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
