@@ -40,6 +40,10 @@ const C = {
 // Grid reaproveitável de 3 colunas responsivo — usado em todas as seções de cards
 // (Estudos Bíblicos, Avivar Music, vitrines, etc.) para manter o padrão visual do site.
 const GRID3 = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5";
+// Grid só dos cards-menu da Home (Loja, Igrejas, Códigos, Orações, etc.) — mais colunas
+// e mais espaçamento que o GRID3 padrão, pra caber em menos linhas com cards menores
+// (cada card ~1/3 menor que antes, já que agora tem mais colunas dividindo a mesma largura).
+const GRID_HOMECARDS = "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6";
 
 const CAUSAS_ORACAO = ["Financeiras", "Saúde", "Libertação", "Intercessão", "Causas jurídicas", "Oportunidade de emprego", "Outros"];
 
@@ -75,6 +79,11 @@ const CODIGOS_CURIOSIDADE_AGUA_VINHO = "/63-codigos-curiosidade-agua-vinho.jpg";
 const CODIGOS_ARTIGO_ARQUITETURA_CONSCIENCIA = "/64-codigos-artigo-arquitetura-consciencia.jpg";
 const CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER = "/65-codigos-profetas-ultimos-dias-banner.jpg";
 const CODIGOS_ARTIGO_PORTAIS_ESPIRITUAIS = "/69-codigos-artigo-portais-espirituais.jpg";
+const CODIGOS_ARTIGO_HORAS_DIMENSIONAIS = "/72-codigos-artigo-horas-dimensionais.jpg";
+const CODIGOS_ARTIGO_ENERGIA_QUANTICA = "/73-codigos-artigo-energia-quantica.jpg";
+const CODIGOS_ARTIGO_DOM_DISCERNIMENTO = "/74-codigos-artigo-dom-discernimento.jpg";
+const CODIGOS_ARTIGO_BOM_SAMARITANO = "/75-codigos-artigo-bom-samaritano.jpg";
+const CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES = "/76-codigos-artigo-refidim-maos-moises.jpg";
 
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
@@ -167,6 +176,7 @@ const DEFAULT_HOMECARDS = [
 const DEFAULT_SITE = {
   churchName: "Ministério Avivar do Espírito",
   sobreNosImage: "",
+  whatsappMinisterio: "",
   homeCards: DEFAULT_HOMECARDS,
   heroSlides: [
     { id: uid(), titulo: "Avivar do Espírito", subtitulo: "", imageUrl: HERO_BANNER, linkTo: "home", selfContained: true },
@@ -191,6 +201,11 @@ const DEFAULT_MANCHETE = {
   titulo: "A Oração de Hoje será na quadra 1, lote 4, bloco 1 ap 300",
   link: "",
   ativo: true,
+  // modo: "auto" (padrão) passa as manchetes internas (Avivar News) em rodízio até o
+  // admin cadastrar a oração nos lares de hoje — aí passa a mostrar só o local de hoje;
+  // "novidades" força sempre o rodízio de manchetes internas; "oracao" força sempre o
+  // local da oração de hoje; "manual" usa o texto/link fixos digitados abaixo (comportamento antigo).
+  modo: "auto",
 };
 
 /* ---------------------------------------------------------------- */
@@ -387,6 +402,25 @@ function SectionTitle({ children }) {
   );
 }
 
+// Selo usado em toda reportagem marcada como "exclusiva" (avivarNews com exclusiva:
+// true), sempre que ela aparece fora de Códigos Avivar já desbloqueado — na Home, em
+// Ao Vivo, ou nas colunas de Códigos Avivar antes do login.
+const CODIGOS_EXCLUSIVO_MSG = 'CONTEÚDO EXCLUSIVO DOS "CÓDIGOS AVIVAR" — PROFETAS DOS ÚLTIMOS TEMPOS. ASSINE.';
+function ExclusivoBadge({ className = "" }) {
+  return (
+    <span className={`inline-block text-[9px] font-mono font-semibold tracking-wide px-2 py-1 rounded-sm ${className}`} style={{ background: C.gold, color: "#241C00" }}>
+      {CODIGOS_EXCLUSIVO_MSG}
+    </span>
+  );
+}
+// Texto de prévia de uma reportagem em áreas públicas: se ela é exclusiva, mostra o
+// resumo (nunca o texto completo); senão, mostra um trecho normal do texto.
+function previaReportagem(n, tamanho = 90) {
+  if (n.exclusiva) return n.resumo || "Conteúdo exclusivo — assine os Códigos Avivar para ler.";
+  if (!n.texto) return "";
+  return n.texto.slice(0, tamanho) + (n.texto.length > tamanho ? "…" : "");
+}
+
 /* ---------------------------------------------------------------- */
 /* Carousel                                                           */
 /* ---------------------------------------------------------------- */
@@ -539,7 +573,10 @@ function NoticiasCarousel() {
   return (
     <div className="w-full border-b overflow-hidden py-3 mt-2" style={{ background: C.black, borderColor: "#00000033" }}>
       <div className="flex items-center gap-4 px-4">
-        <span className="text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
+        {/* Escondido no celular a pedido — a etiqueta dourada tomava espaço e dava a
+            impressão de "tapar" o carrossel de notícias na tela pequena. Continua
+            aparecendo normalmente a partir do tablet/desktop (sm:). */}
+        <span className="hidden sm:inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded shrink-0" style={{ background: C.gold, color: C.black }}>
           Notícias Avivar
         </span>
         <div className="flex-1 overflow-hidden">
@@ -576,12 +613,10 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   const topPillStyle = (active) => pillStyle(active);
   return (
     <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
-      {/* Admin + toggle mobile — fora do fluxo do grupo alinhado de pills, para não
-          empurrar o último pill do NAV para longe da borda direita */}
+      {/* Toggle mobile — fora do fluxo do grupo alinhado de pills, para não empurrar o
+          último pill do NAV para longe da borda direita. O acesso admin, antes um
+          ícone pequeno aqui, virou o botão vermelho "RESTRITO" logo abaixo da logo. */}
       <div className="absolute top-2 right-2 sm:right-3 flex items-center gap-2 z-10">
-        <button onClick={onAdminClick} className="hidden lg:inline-flex p-2 rounded-full focus:outline-none focus:ring-2" title={adminMode ? "Sair do modo admin" : "Entrar como admin"} style={{ background: adminMode ? C.gold : "transparent", color: adminMode ? C.black : C.gold }}>
-          {adminMode ? <ShieldCheck size={16} /> : <Lock size={16} />}
-        </button>
         <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
           {open ? <X /> : <Menu />}
         </button>
@@ -620,6 +655,20 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             ))}
           </nav>
         </div>
+      </div>
+
+      {/* Botão RESTRITO — vermelho, cadeado branco, bem visível, logo abaixo da logo e
+          acima da barra de submenu (substitui o ícone pequeno que ficava escondido no
+          canto). No celular, o acesso admin continua dentro do menu hambúrguer. */}
+      <div className="hidden lg:block max-w-6xl mx-auto px-4 sm:px-6">
+        <button
+          onClick={onAdminClick}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
+          style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
+        >
+          {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
+          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
+        </button>
       </div>
 
       {/* Barra de submenu — mesmo fundo roxo da fileira de cima, alinhada à direita
@@ -719,9 +768,16 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
           <Btn
             color={C.purple}
             onClick={() => {
-              const ok = code === MASTER_ADMIN_PASSWORD || operatorCodes.some((o) => o.codigo === code);
-              if (ok) onSuccess();
-              else setErr("Código inválido.");
+              if (code === MASTER_ADMIN_PASSWORD) {
+                onSuccess({ nome: "Administração", setores: ["todos"] });
+                return;
+              }
+              const match = operatorCodes.find((o) => o.codigo === code);
+              if (match) {
+                onSuccess({ nome: match.nome, setores: parseSetoresOperador(match.setores) });
+                return;
+              }
+              setErr("Código inválido.");
             }}
           >
             Entrar
@@ -745,9 +801,28 @@ function RestrictedNotice({ onUnlock }) {
   );
 }
 
+// Setores que um código de operador pode liberar individualmente — "todos" mantém o
+// comportamento antigo (acesso a tudo que não é admin geral). Um código sem "setores"
+// preenchido também vale como "todos", pra não quebrar códigos já cadastrados antes
+// dessa função existir.
+const SETORES_OPERADOR = [
+  { key: "todos", label: "Todos os setores" },
+  { key: "oracoes", label: "Oração nos Lares" },
+  { key: "avivarmusic", label: "Avivar Music (cadastro de músicos)" },
+  { key: "visitantes", label: "Visitantes" },
+  { key: "membros", label: "Membros" },
+  { key: "escala", label: "Escala de Obreiros" },
+  { key: "loja", label: "Loja (calcular frete)" },
+];
+function parseSetoresOperador(texto) {
+  const lista = String(texto || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return lista.length ? lista : ["todos"];
+}
+
 const OPERADOR_FIELDS = [
   { key: "nome", label: "Nome da pessoa ou função (ex: Portaria, RH — Maria)" },
   { key: "codigo", label: "Código de acesso" },
+  { key: "setores", label: "Setores liberados — separe por vírgula (deixe em branco ou 'todos' pra liberar tudo): oracoes, avivarmusic, visitantes, membros, escala, loja" },
 ];
 
 function OperadoresAdmin({ codes, save, adminMode }) {
@@ -755,35 +830,64 @@ function OperadoresAdmin({ codes, save, adminMode }) {
   const del = (id) => save(codes.filter((c) => c.id !== id));
   if (!adminMode) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
         <Lock size={28} className="mx-auto" color={C.stone} />
         <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
       </div>
     );
   }
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
       <SectionTitle>Códigos de Operador</SectionTitle>
       <p className="text-sm mb-4" style={{ color: C.stone }}>
-        Cada código dá acesso aos cadastros de Membros, Visitantes e à agenda de Orações nos Lares, sem liberar o resto da administração (Caixa, Bens, edição do site). Entregue um código diferente pra cada pessoa/função.
+        Cada código dá acesso apenas aos setores marcados no cadastro (ex: só Oração nos Lares, ou só Avivar Music), sem liberar o resto da administração (Caixa, Bens, edição do site). Deixe "setores" em branco pra liberar tudo. Entregue um código diferente pra cada pessoa/função.
       </p>
       <div className="space-y-2">
         {codes.length === 0 && <Empty text="Nenhum código cadastrado ainda." />}
-        {codes.map((c) => (
-          <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
-            <div>
-              <p className="font-medium">{c.nome}</p>
-              <p className="text-xs font-mono" style={{ color: C.stone }}>{c.codigo}</p>
+        {codes.map((c) => {
+          const setores = parseSetoresOperador(c.setores);
+          return (
+            <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+              <div>
+                <p className="font-medium">{c.nome}</p>
+                <p className="text-xs font-mono" style={{ color: C.stone }}>{c.codigo}</p>
+                <p className="text-[10px] mt-1 flex flex-wrap gap-1">
+                  {setores.map((s) => (
+                    <span key={s} className="px-1.5 py-0.5 rounded-full" style={{ background: C.parchment, color: C.ember }}>
+                      {(SETORES_OPERADOR.find((x) => x.key === s) || { label: s }).label}
+                    </span>
+                  ))}
+                </p>
+              </div>
+              <button onClick={() => del(c.id)}><Trash2 size={14} color={C.stone} /></button>
             </div>
-            <button onClick={() => del(c.id)}><Trash2 size={14} color={C.stone} /></button>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="mt-6">
         <DynamicForm fields={OPERADOR_FIELDS} onSubmit={(v) => v.nome && v.codigo && add(v)} submitLabel="Adicionar código" />
       </div>
     </div>
+  );
+}
+
+// Botão flutuante de WhatsApp — fica em todas as páginas, canto inferior direito, e
+// só aparece quando o admin cadastra o número do Ministério (Home · ADMIN · imagens de
+// fundo... e contato). Some sozinho se o campo estiver vazio.
+function BotaoFlutuanteWhatsapp({ numero }) {
+  if (!numero) return null;
+  return (
+    <a
+      href={waLink(numero, "Olá! Vim através do site do Ministério Avivar do Espírito.")}
+      target="_blank"
+      rel="noreferrer"
+      className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition"
+      style={{ background: "#25D366" }}
+      aria-label="Fale conosco no WhatsApp"
+    >
+      <MessageCircle size={26} color="#fff" />
+    </a>
   );
 }
 
@@ -935,10 +1039,13 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
     <button
       onClick={onClick}
       className={`relative block w-full aspect-[3/4] rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 overflow-hidden ${className}`}
-      style={{ background: bgImage ? C.black : bg, borderColor: bgImage ? C.line : border, color: "#fff" }}
+      style={{ background: bg, borderColor: bgImage ? C.line : border, color: "#fff" }}
     >
       {bgImage ? (
-        <img src={bgImage} alt={title} className="absolute inset-[0.5cm] object-cover rounded-lg" />
+        // object-contain (em vez de object-cover) pra nunca cortar a imagem — o fundo
+        // colorido do card (cor do "tone") aparece nas bordas quando a imagem não
+        // preenche a caixa toda, em vez de cortar pra preencher.
+        <img src={bgImage} alt={title} className="absolute inset-[0.3cm] w-[calc(100%-0.6cm)] h-[calc(100%-0.6cm)] object-contain rounded-lg" />
       ) : adminMode ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 border-2 border-dashed" style={{ borderColor: C.line, background: "#00000006", color: C.stone }}>
           <ImageIcon size={22} />
@@ -1079,7 +1186,8 @@ function HeroNewsColumn({ news, bgImage, onClick, onOpenNews }) {
             top.map((n) => (
               <button key={n.id} onClick={() => onOpenNews && onOpenNews(n.id)} className="pb-3 border-b w-full text-left hover:brightness-110 focus:outline-none focus:ring-1 rounded-md" style={{ borderColor: "#ffffff22" }}>
                 <p className="text-sm font-display font-semibold text-white leading-snug">{n.titulo}</p>
-                {n.texto && <p className="text-xs mt-1" style={{ color: "#ffffffaa" }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
+                <p className="text-xs mt-1" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 90)}</p>
+                {n.exclusiva && <ExclusivoBadge className="mt-1.5" />}
               </button>
             ))
           )}
@@ -1234,31 +1342,117 @@ function PedidoOracaoCard({ onClick, compact }) {
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
 
-  const m = manchete || DEFAULT_MANCHETE;
-  const abrir = () => {
-    if (!m.link) return;
-    if (/^https?:\/\//i.test(m.link)) window.open(m.link, "_blank", "noopener,noreferrer");
-    else window.location.hash = m.link;
-  };
+  const m = { ...DEFAULT_MANCHETE, ...(manchete || {}) };
+  const modo = m.modo || "auto";
+  const temOracaoHoje = !!(oracaoLocalDia && oracaoLocalDia.local);
 
-  if (!m.ativo && !adminMode) return null;
+  // Assim que uma escala de obreiros é registrada (não importa se já foi confirmada
+  // pelos escalados), este card vira a "Escala de Serviço" em 4 colunas, no lugar da
+  // manchete de texto — mostra sempre a próxima data com escala, ou a mais recente se
+  // não houver nenhuma futura.
+  const safeEscala = {
+    ...DEFAULT_ESCALA_OBREIROS,
+    ...(escala || {}),
+    escalasPorDia: (escala && escala.escalasPorDia) || {},
+  };
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const datasComEscala = Object.keys(safeEscala.escalasPorDia)
+    .filter((d) => (safeEscala.escalasPorDia[d].escalados || []).length > 0)
+    .sort();
+  const dataEscalaDestaque = datasComEscala.find((d) => d >= hojeStr) || datasComEscala[datasComEscala.length - 1] || null;
+  const diaEscalaDestaque = dataEscalaDestaque ? safeEscala.escalasPorDia[dataEscalaDestaque] : null;
+  const escaladosDestaque = diaEscalaDestaque ? diaEscalaDestaque.escalados || [] : [];
+
+  // Últimas manchetes internas (Avivar News), mais recente primeiro, pra rodízio.
+  const novidades = [...(avivarNews || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 6);
+
+  // Decide, a partir do modo escolhido pelo admin, se mostra o rodízio de novidades
+  // internas ou o local da oração de hoje (ou o texto manual fixo).
+  const modoEfetivo = modo === "auto" ? (temOracaoHoje ? "oracao" : "novidades") : modo;
+
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (modoEfetivo !== "novidades" || novidades.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % novidades.length), 6000);
+    return () => clearInterval(t);
+  }, [modoEfetivo, novidades.length]);
+  useEffect(() => setIdx(0), [modoEfetivo]);
+
+  let textoExibido, aoClicar, temAcao;
+  if (modoEfetivo === "oracao") {
+    textoExibido = `Oração de hoje: ${oracaoLocalDia.local}`;
+    aoClicar = () => setPage && setPage("oracoes");
+    temAcao = true;
+  } else if (modoEfetivo === "novidades") {
+    const atual = novidades[idx];
+    textoExibido = atual ? atual.titulo : "Acompanhe as novidades do Avivar aqui em breve.";
+    aoClicar = () => atual && onOpenNews && onOpenNews(atual.id);
+    temAcao = !!atual;
+  } else {
+    textoExibido = m.titulo;
+    aoClicar = () => {
+      if (!m.link) return;
+      if (/^https?:\/\//i.test(m.link)) window.open(m.link, "_blank", "noopener,noreferrer");
+      else window.location.hash = m.link;
+    };
+    temAcao = !!m.link;
+  }
+
+  if (!dataEscalaDestaque && !m.ativo && !adminMode) return null;
+
+  // Monta as 3 colunas de postos (3 funções cada) na ordem fixa de exibição, igual à
+  // tabela-resumo da Escala de Obreiros — função em CAIXA ALTA, nome como cadastrado.
+  const postosEscalaDestaque = dataEscalaDestaque
+    ? [
+        ...ORDEM_POSTOS_TABELA.filter((p) => safeEscala.postos.includes(p)),
+        ...safeEscala.postos.filter((p) => !ORDEM_POSTOS_TABELA.includes(p)),
+      ]
+    : [];
+  const linhasEscalaDestaque = postosEscalaDestaque.map((posto) => {
+    const nomes = escaladosDestaque.filter((e) => e.posto === posto).map((e) => e.obreiroNome);
+    return { posto, nomes: nomes.length ? nomes.join(", ") : "—" };
+  });
+  const gruposColunas = [linhasEscalaDestaque.slice(0, 3), linhasEscalaDestaque.slice(3, 6), linhasEscalaDestaque.slice(6)];
+  const diaSemanaDestaque = dataEscalaDestaque ? diaSemanaFromData(dataEscalaDestaque) : "";
+  const horarioDestaque = dataEscalaDestaque ? horarioDoDia(diaSemanaDestaque, safeEscala.horarios) : null;
+  const CORES_COLUNAS = [C.cream, "#E8DCC4", "#F3DCE0"]; // creme, bege, róseo suave
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-      {(m.ativo || adminMode) && (
-        <button
-          onClick={abrir}
-          className={`w-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${m.link ? "cursor-pointer" : "cursor-default"}`}
-          style={{ background: C.parchment, borderColor: C.gold, opacity: m.ativo ? 1 : 0.5 }}
-        >
-          <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.emberDeep }}>Manchete Avivar {!m.ativo && "(inativa)"}</span>
-          <p className="font-display font-bold text-base sm:text-lg mt-0.5" style={{ color: C.ink }}>{m.titulo}</p>
-        </button>
+      {dataEscalaDestaque ? (
+        <div className="w-full rounded-lg border-2 overflow-hidden grid grid-cols-2 sm:grid-cols-4" style={{ borderColor: C.gold }}>
+          <div className="p-3 flex flex-col justify-center col-span-2 sm:col-span-1" style={{ background: C.violet, color: "#fff" }}>
+            <span className="text-[9px] font-mono uppercase tracking-wider opacity-80">Escala de Serviço</span>
+            <p className="font-display font-bold text-sm sm:text-base leading-tight mt-0.5">{diaSemanaDestaque}</p>
+            <p className="text-xs opacity-90">{fmtDate(dataEscalaDestaque)}{horarioDestaque ? ` · ${horarioDestaque.inicio}` : ""}</p>
+          </div>
+          {gruposColunas.map((grupo, i) => (
+            <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
+              {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
+              {grupo.map((l) => (
+                <p key={l.posto} className="text-[10px] sm:text-[11px] leading-tight" style={{ color: C.ink }}>
+                  <span className="font-bold uppercase">{l.posto}:</span> {l.nomes}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        (m.ativo || adminMode) && (
+          <button
+            onClick={aoClicar}
+            className={`w-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${temAcao ? "cursor-pointer" : "cursor-default"}`}
+            style={{ background: C.parchment, borderColor: C.gold, opacity: m.ativo ? 1 : 0.5 }}
+          >
+            {!m.ativo && adminMode && <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.emberDeep }}>(inativa — só visível pra você, admin)</span>}
+            <p className="font-display font-bold text-base sm:text-lg mt-0.5" style={{ color: C.ink }}>{textoExibido}</p>
+          </button>
+        )
       )}
       {adminMode && (
         <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
@@ -1266,9 +1460,17 @@ function MancheteBar({ manchete, save, adminMode }) {
             <button onClick={() => setEditing(true)} className="underline" style={{ color: C.stone }}>ADMIN · editar manchete da home</button>
           ) : (
             <div className="grid sm:grid-cols-2 gap-2 mt-1">
-              <Field label="Título da manchete"><input className={inputCls} style={{ borderColor: C.line }} value={draft.titulo} onChange={(e) => setDraft((d) => ({ ...d, titulo: e.target.value }))} /></Field>
-              <Field label="Link (URL ou #id-da-secao)"><input className={inputCls} style={{ borderColor: C.line }} value={draft.link} onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))} /></Field>
+              <Field label="Modo de exibição">
+                <select className={inputCls} style={{ borderColor: C.line }} value={draft.modo || "auto"} onChange={(e) => setDraft((d) => ({ ...d, modo: e.target.value }))}>
+                  <option value="auto">Automático (novidades até cadastrar oração do dia; depois, oração do dia)</option>
+                  <option value="novidades">Sempre novidades / manchetes internas</option>
+                  <option value="oracao">Sempre oração do dia</option>
+                  <option value="manual">Manual (texto fixo abaixo)</option>
+                </select>
+              </Field>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!draft.ativo} onChange={(e) => setDraft((d) => ({ ...d, ativo: e.target.checked }))} /> Manchete ativa (visível no site)</label>
+              <Field label="Título da manchete (só usado no modo Manual)"><input className={inputCls} style={{ borderColor: C.line }} value={draft.titulo} onChange={(e) => setDraft((d) => ({ ...d, titulo: e.target.value }))} /></Field>
+              <Field label="Link (URL ou #id-da-secao) — só no modo Manual"><input className={inputCls} style={{ borderColor: C.line }} value={draft.link} onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))} /></Field>
               <div className="flex gap-2">
                 <Btn onClick={() => { save(draft); setEditing(false); }}>Salvar</Btn>
                 <button onClick={() => { setDraft(m); setEditing(false); }} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
@@ -1281,12 +1483,12 @@ function MancheteBar({ manchete, save, adminMode }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} />
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
         <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} onOpenNews={onOpenNews} />
 
@@ -1313,19 +1515,21 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
 
       {adminMode && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-3 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · imagens de fundo das 3 colunas do topo</p>
+          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · imagens de fundo das 3 colunas do topo e contato</p>
           <div className="grid sm:grid-cols-3 gap-3">
             <Field label="Fundo — coluna Notícias (esquerda)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroLeftBg || ""} onChange={(e) => saveSite({ ...site, heroLeftBg: e.target.value })} /></Field>
             <Field label="Fundo — coluna central"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroMiddleBg || ""} onChange={(e) => saveSite({ ...site, heroMiddleBg: e.target.value })} /></Field>
             <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
             <Field label="Foto — seção Sobre nós"><input className={inputCls} style={{ borderColor: C.line }} value={site.sobreNosImage || ""} onChange={(e) => saveSite({ ...site, sobreNosImage: e.target.value })} /></Field>
+            <Field label="WhatsApp do Ministério (com DDD, só números)"><input className={inputCls} style={{ borderColor: C.line }} value={site.whatsappMinisterio || ""} onChange={(e) => saveSite({ ...site, whatsappMinisterio: e.target.value })} /></Field>
           </div>
         </div>
       )}
 
       {/* Cards da home — sempre depois dos banners do topo (Hero), nunca sobrepostos;
-          grade de 3 colunas em telas grandes (classe GRID3 padrão do site). */}
-      <div className={`max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID3}`}>
+          grade própria (GRID_HOMECARDS) com mais colunas/espaçamento, cards menores
+          e sem cortar a imagem (object-contain no QuickCard). */}
+      <div className={`max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID_HOMECARDS}`}>
         {homeCards.map((c) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
@@ -1349,13 +1553,13 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-3 gap-5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
         <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
         <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
           <Eyebrow>Sobre nós</Eyebrow>
           <SectionTitle>Uma casa de fé aberta a todos</SectionTitle>
@@ -1397,8 +1601,7 @@ const CODIGOS_VITRINE_FIELDS = [
   { key: "linkCartao", label: "Link de compra — Cartão de crédito", type: "url" },
 ];
 
-function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage, onOpenNews }) {
-  const [unlocked, setUnlocked] = useState(false);
+function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage, onOpenNews, unlocked, setUnlocked }) {
   const [holderName, setHolderName] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [codeInput, setCodeInput] = useState("");
@@ -1408,9 +1611,11 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
   const [holderTier, setHolderTier] = useState("geral");
   const [livroInternoAberto, setLivroInternoAberto] = useState(null);
 
-  const reportagensDestaque = [...(avivarNews || [])]
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, 3);
+  const reportagensOrdenadas = [...(avivarNews || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const reportagensDestaque = reportagensOrdenadas.slice(0, 3);
+  // Mais reportagens (além das 3 já mostradas na coluna do meio) — preenche o espaço
+  // vazio da coluna 3, cada título clicável abrindo a matéria na hora.
+  const maisReportagens = reportagensOrdenadas.slice(3, 9);
 
   const vitrineItems = (loja || []).filter((p) => p.categoria === "Códigos Avivar");
   const addVitrineItem = (v) => {
@@ -1543,19 +1748,19 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                     style={{ background: "#ffffff0f" }}
                   >
                     <p className="font-display font-semibold text-white text-sm leading-snug">{n.titulo}</p>
-                    {n.texto && (
-                      <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>
-                        {n.texto.slice(0, 130)}{n.texto.length > 130 ? "…" : ""}
-                      </p>
+                    <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 130)}</p>
+                    {n.exclusiva ? (
+                      <ExclusivoBadge className="mt-2" />
+                    ) : (
+                      <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
                     )}
-                    <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Coluna 3 — vitrine de ebooks/livros */}
+          {/* Coluna 3 — vitrine de ebooks/livros + mais reportagens (pra não sobrar espaço vazio) */}
           <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
             <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
             <p className="text-xs mt-2" style={{ color: "#ffffffbb" }}>O Conhecimento Revelado pelo Espírito Santo</p>
@@ -1565,6 +1770,23 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[160px]" ph="Série Profetas dos Últimos Dias — em breve" />
               </div>
             </div>
+            {maisReportagens.length > 0 && (
+              <div className="mt-6">
+                <Eyebrow color={C.goldBright}><Radio size={11} className="inline mr-1" />Mais reportagens</Eyebrow>
+                <div className="mt-3 space-y-2.5">
+                  {maisReportagens.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => (onOpenNews ? onOpenNews(n.id) : (setPage && setPage("aovivo")))}
+                      className="flex items-center gap-1.5 text-left w-full text-sm underline decoration-dotted text-white/90 hover:text-white leading-snug"
+                    >
+                      {n.exclusiva && <Lock size={10} color={C.goldBright} className="shrink-0" />}
+                      {n.titulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1913,103 +2135,129 @@ const PASSADA_FIELDS = [
   { key: "videoUrl", label: "Link do vídeo (YouTube ou Vimeo)", type: "url" },
 ];
 
-function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode, newsAbrirId, onNewsAberta }) {
+// Modal global de reportagem — usado em TODO lugar do site que abre uma matéria do
+// Avivar News (Home, Códigos Avivar, Ao Vivo, Manchete...): abre na hora, por cima da
+// página atual, com a imagem, sem rolar a tela pra nenhum canto.
+function ReportagemModal({ news, adminMode, onClose, onDelete }) {
+  if (!news) return null;
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4" style={{ background: "#00000090" }} onClick={onClose}>
+      <div className="max-w-2xl mx-auto my-6 sm:my-10 rounded-xl overflow-hidden" style={{ background: C.cream }} onClick={(e) => e.stopPropagation()}>
+        {news.imageUrl && <ImgOrPlaceholder url={news.imageUrl} alt={news.titulo} className="w-full h-52 sm:h-72 object-cover" />}
+        <div className="p-5 sm:p-6">
+          <VoltarBtn onClick={onClose} className="mb-3" />
+          <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(news.timestamp)}</p>
+          <h2 className="font-display text-xl sm:text-2xl font-semibold mt-1">{news.titulo}</h2>
+          {news.autor && <p className="text-xs italic mt-0.5" style={{ color: C.stone }}>por {news.autor}</p>}
+          {news.videoUrl && (
+            <div className="aspect-video rounded-md overflow-hidden bg-black mt-4">
+              <iframe title={news.titulo} src={getEmbedUrl(news.videoUrl)} className="w-full h-full" allowFullScreen />
+            </div>
+          )}
+          {news.texto && <p className="text-sm mt-4 whitespace-pre-line" style={{ color: C.ink }}>{news.texto}</p>}
+          {adminMode && <button onClick={onDelete} className="text-xs underline mt-4" style={{ color: "#B03428" }}>excluir reportagem</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode, onOpenNews }) {
   const [mainPassadaId, setMainPassadaId] = useState(null);
-  const [selectedNews, setSelectedNews] = useState(null);
-  useEffect(() => {
-    if (newsAbrirId) {
-      const n = news.find((x) => x.id === newsAbrirId);
-      if (n) setSelectedNews(n);
-      onNewsAberta && onNewsAberta();
-    }
-  }, [newsAbrirId]);
 
   const addPassada = (v) => savePassadas([...passadas, { id: uid(), ...v }]);
   const delPassada = (id) => savePassadas(passadas.filter((p) => p.id !== id));
   const sortedPassadas = [...passadas].sort((a, b) => new Date(b.data) - new Date(a.data));
   const mainPassada = sortedPassadas.find((p) => p.id === mainPassadaId) || sortedPassadas[0] || null;
 
-  const addNews = (v) => saveNews([...news, { id: uid(), ...v, timestamp: nowISO() }]);
+  const addNews = (v) => saveNews([...news, { id: uid(), ...v, exclusiva: v.exclusiva === "Sim", timestamp: nowISO() }]);
   const delNews = (id) => saveNews(news.filter((n) => n.id !== id));
   const sortedNews = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full" style={{ background: data.isLive ? "#E14D3A" : C.stone, boxShadow: data.isLive ? "0 0 0 4px #E14D3A33" : "none" }} />
-        <Eyebrow color={data.isLive ? "#E14D3A" : C.stone}>{data.isLive ? "AO VIVO AGORA" : "Sem transmissão no momento"}</Eyebrow>
-      </div>
-      <SectionTitle>Ao Vivo</SectionTitle>
+      {/* Moldura da seção Ao Vivo inteira, a pedido — fundo creme, filete dourado */}
+      <div className="rounded-2xl border-2 p-4 sm:p-6" style={{ borderColor: C.gold, background: C.cream }}>
+        {data.isLive ? (
+          <span className="live-pulse inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide" style={{ background: "#E14D3A", color: "#fff" }}>
+            <Radio size={12} /> LIVE
+          </span>
+        ) : (
+          <Eyebrow color={C.stone}>Sem transmissão no momento</Eyebrow>
+        )}
+        <SectionTitle>Ao Vivo</SectionTitle>
 
-      <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mt-6 items-start">
-        {/* Player principal: transmissão atual, ou a última transmissão selecionada */}
-        <div>
-          {data.isLive && data.embedUrl ? (
-            <div className="aspect-video rounded-xl overflow-hidden bg-black">
-              <iframe title="ao-vivo" src={getEmbedUrl(data.embedUrl)} className="w-full h-full" allowFullScreen />
-            </div>
-          ) : mainPassada ? (
-            <div>
+        <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mt-6 items-start">
+          {/* Player principal: transmissão atual, ou a última transmissão selecionada —
+              filete azul indicando "área de exibição" */}
+          <div className="rounded-xl p-3 sm:p-4" style={{ background: "#fff", borderLeft: "4px solid #2E6FE1" }}>
+            {data.isLive && data.embedUrl ? (
               <div className="aspect-video rounded-xl overflow-hidden bg-black">
-                <iframe title={mainPassada.titulo} src={getEmbedUrl(mainPassada.videoUrl)} className="w-full h-full" allowFullScreen />
+                <iframe title="ao-vivo" src={getEmbedUrl(data.embedUrl)} className="w-full h-full" allowFullScreen />
               </div>
-              <p className="font-display font-semibold mt-3">{mainPassada.titulo}</p>
-              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(mainPassada.data)}</p>
-            </div>
-          ) : (
-            <Empty text={data.mensagem} />
-          )}
+            ) : mainPassada ? (
+              <div>
+                <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                  <iframe title={mainPassada.titulo} src={getEmbedUrl(mainPassada.videoUrl)} className="w-full h-full" allowFullScreen />
+                </div>
+                <p className="font-display font-semibold mt-3">{mainPassada.titulo}</p>
+                <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(mainPassada.data)}</p>
+              </div>
+            ) : (
+              <Empty text={data.mensagem} />
+            )}
 
-          <div className="grid sm:grid-cols-3 gap-3 mt-6">
-            {data.instagramUrl && <a href={data.instagramUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>Instagram</a>}
-            {data.xUrl && <a href={data.xUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>X</a>}
-            {data.youtubeUrl && <a href={data.youtubeUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>YouTube</a>}
+            <div className="grid sm:grid-cols-3 gap-3 mt-6">
+              {data.instagramUrl && <a href={data.instagramUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>Instagram</a>}
+              {data.xUrl && <a href={data.xUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>X</a>}
+              {data.youtubeUrl && <a href={data.youtubeUrl} target="_blank" rel="noreferrer" className="p-3 rounded-lg border text-sm text-center" style={{ borderColor: C.line }}>YouTube</a>}
+            </div>
+
+            {adminMode && (
+              <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+                <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar transmissão</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <input type="checkbox" checked={data.isLive} onChange={(e) => save({ ...data, isLive: e.target.checked })} /> Estamos ao vivo agora
+                  </label>
+                  <Field label="URL de embed (YouTube/Vimeo)"><input className={inputCls} style={{ borderColor: C.line }} value={data.embedUrl} onChange={(e) => save({ ...data, embedUrl: e.target.value })} /></Field>
+                  <Field label="Mensagem quando offline"><input className={inputCls} style={{ borderColor: C.line }} value={data.mensagem} onChange={(e) => save({ ...data, mensagem: e.target.value })} /></Field>
+                  <Field label="Link Instagram"><input className={inputCls} style={{ borderColor: C.line }} value={data.instagramUrl} onChange={(e) => save({ ...data, instagramUrl: e.target.value })} /></Field>
+                  <Field label="Link X"><input className={inputCls} style={{ borderColor: C.line }} value={data.xUrl} onChange={(e) => save({ ...data, xUrl: e.target.value })} /></Field>
+                  <Field label="Link YouTube"><input className={inputCls} style={{ borderColor: C.line }} value={data.youtubeUrl} onChange={(e) => save({ ...data, youtubeUrl: e.target.value })} /></Field>
+                </div>
+              </div>
+            )}
+
+            {adminMode && (
+              <div className="mt-6">
+                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · adicionar transmissão anterior</p>
+                <DynamicForm fields={PASSADA_FIELDS} onSubmit={(v) => v.titulo && addPassada(v)} submitLabel="Adicionar transmissão" />
+              </div>
+            )}
           </div>
 
-          {adminMode && (
-            <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-              <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · configurar transmissão</p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input type="checkbox" checked={data.isLive} onChange={(e) => save({ ...data, isLive: e.target.checked })} /> Estamos ao vivo agora
-                </label>
-                <Field label="URL de embed (YouTube/Vimeo)"><input className={inputCls} style={{ borderColor: C.line }} value={data.embedUrl} onChange={(e) => save({ ...data, embedUrl: e.target.value })} /></Field>
-                <Field label="Mensagem quando offline"><input className={inputCls} style={{ borderColor: C.line }} value={data.mensagem} onChange={(e) => save({ ...data, mensagem: e.target.value })} /></Field>
-                <Field label="Link Instagram"><input className={inputCls} style={{ borderColor: C.line }} value={data.instagramUrl} onChange={(e) => save({ ...data, instagramUrl: e.target.value })} /></Field>
-                <Field label="Link X"><input className={inputCls} style={{ borderColor: C.line }} value={data.xUrl} onChange={(e) => save({ ...data, xUrl: e.target.value })} /></Field>
-                <Field label="Link YouTube"><input className={inputCls} style={{ borderColor: C.line }} value={data.youtubeUrl} onChange={(e) => save({ ...data, youtubeUrl: e.target.value })} /></Field>
-              </div>
+          {/* Coluna lateral: transmissões anteriores, estilo YouTube — mesmo filete azul */}
+          <div className="rounded-xl p-3 sm:p-4" style={{ background: "#fff", borderLeft: "4px solid #2E6FE1" }}>
+            <Eyebrow>Já se passou</Eyebrow>
+            <h3 className="font-display text-lg font-semibold mb-3" style={{ color: C.ink }}>Transmissões Anteriores</h3>
+            {sortedPassadas.length === 0 && <Empty text="Nenhuma transmissão anterior cadastrada ainda." />}
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {sortedPassadas.map((p) => (
+                <div key={p.id} className="flex gap-2 items-start p-1.5 rounded-lg" style={{ background: mainPassada?.id === p.id ? C.parchment : "transparent" }}>
+                  <button onClick={() => setMainPassadaId(p.id)} className="flex gap-2 flex-1 text-left focus:outline-none focus:ring-2 rounded-md">
+                    <div className="w-28 aspect-video rounded-md overflow-hidden shrink-0 flex items-center justify-center" style={{ background: C.black }}>
+                      <Video size={18} color={C.gold} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium leading-snug line-clamp-2">{p.titulo}</p>
+                      <p className="text-[10px] font-mono mt-0.5" style={{ color: C.stone }}>{fmtDate(p.data)}</p>
+                    </div>
+                  </button>
+                  {adminMode && <button onClick={() => delPassada(p.id)} className="shrink-0 mt-1"><Trash2 size={12} color={C.stone} /></button>}
+                </div>
+              ))}
             </div>
-          )}
-
-          {adminMode && (
-            <div className="mt-6">
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · adicionar transmissão anterior</p>
-              <DynamicForm fields={PASSADA_FIELDS} onSubmit={(v) => v.titulo && addPassada(v)} submitLabel="Adicionar transmissão" />
-            </div>
-          )}
-        </div>
-
-        {/* Coluna lateral: transmissões anteriores, estilo YouTube */}
-        <div>
-          <Eyebrow>Já se passou</Eyebrow>
-          <h3 className="font-display text-lg font-semibold mb-3" style={{ color: C.ink }}>Transmissões Anteriores</h3>
-          {sortedPassadas.length === 0 && <Empty text="Nenhuma transmissão anterior cadastrada ainda." />}
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-            {sortedPassadas.map((p) => (
-              <div key={p.id} className="flex gap-2 items-start p-1.5 rounded-lg" style={{ background: mainPassada?.id === p.id ? C.parchment : "transparent" }}>
-                <button onClick={() => setMainPassadaId(p.id)} className="flex gap-2 flex-1 text-left focus:outline-none focus:ring-2 rounded-md">
-                  <div className="w-28 aspect-video rounded-md overflow-hidden shrink-0 flex items-center justify-center" style={{ background: C.black }}>
-                    <Video size={18} color={C.gold} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium leading-snug line-clamp-2">{p.titulo}</p>
-                    <p className="text-[10px] font-mono mt-0.5" style={{ color: C.stone }}>{fmtDate(p.data)}</p>
-                  </div>
-                </button>
-                {adminMode && <button onClick={() => delPassada(p.id)} className="shrink-0 mt-1"><Trash2 size={12} color={C.stone} /></button>}
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -2021,35 +2269,21 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
         {sortedNews.length === 0 && <div className="mt-4"><Empty text="Nenhuma reportagem publicada ainda." /></div>}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 items-start">
           {sortedNews.map((n) => (
-            <button key={n.id} onClick={() => setSelectedNews(n)} className="text-left rounded-xl border overflow-hidden focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
-              {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-36 object-cover" />}
-              <div className="p-4">
-                <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
-                <p className="font-display font-semibold text-sm mt-1">{n.titulo}</p>
-                {n.autor && <p className="text-[10px] italic mt-0.5" style={{ color: C.stone }}>por {n.autor}</p>}
-                {n.texto && <p className="text-xs mt-2" style={{ color: C.stone }}>{n.texto.slice(0, 90)}{n.texto.length > 90 ? "…" : ""}</p>}
-              </div>
-            </button>
+            <div key={n.id} className="text-left rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+              <button onClick={() => onOpenNews && onOpenNews(n.id)} className="block w-full text-left focus:outline-none focus:ring-2">
+                {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-36 object-cover" />}
+                <div className="p-4">
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
+                  <p className="font-display font-semibold text-sm mt-1">{n.titulo}</p>
+                  {n.autor && <p className="text-[10px] italic mt-0.5" style={{ color: C.stone }}>por {n.autor}</p>}
+                  <p className="text-xs mt-2" style={{ color: C.stone }}>{previaReportagem(n, 90)}</p>
+                  {n.exclusiva && <ExclusivoBadge className="mt-2" />}
+                </div>
+              </button>
+              {adminMode && <button onClick={() => delNews(n.id)} className="text-xs underline block px-4 pb-3" style={{ color: "#B03428" }}>excluir</button>}
+            </div>
           ))}
         </div>
-        {selectedNews && (
-          <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-            {selectedNews.imageUrl && <ImgOrPlaceholder url={selectedNews.imageUrl} alt={selectedNews.titulo} className="w-full h-48 object-cover" />}
-            <div className="p-5">
-              <VoltarBtn onClick={() => setSelectedNews(null)} className="mb-2" />
-              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(selectedNews.timestamp)}</p>
-              <h4 className="font-display font-semibold text-lg mt-1">{selectedNews.titulo}</h4>
-              {selectedNews.autor && <p className="text-xs italic mt-0.5" style={{ color: C.stone }}>por {selectedNews.autor}</p>}
-              {selectedNews.videoUrl && (
-                <div className="aspect-video rounded-md overflow-hidden bg-black mt-3">
-                  <iframe title={selectedNews.titulo} src={getEmbedUrl(selectedNews.videoUrl)} className="w-full h-full" allowFullScreen />
-                </div>
-              )}
-              {selectedNews.texto && <p className="text-sm mt-3 whitespace-pre-line" style={{ color: C.ink }}>{selectedNews.texto}</p>}
-              {adminMode && <button onClick={() => { delNews(selectedNews.id); setSelectedNews(null); }} className="text-xs underline mt-3" style={{ color: "#B03428" }}>excluir</button>}
-            </div>
-          </div>
-        )}
         {adminMode && (
           <div className="mt-8">
             <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova reportagem</p>
@@ -2293,7 +2527,7 @@ function Loja({ items, save, adminMode, operatorMode, onRequestOperator, doacoes
 
   return (
     <div>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><ShoppingBag size={12} className="inline mr-1" />Livros, roupas e utensílios cristãos</Eyebrow>
         <SectionTitle>Loja Avivar</SectionTitle>
         {verificandoPagamento && <p className="text-sm mt-3 italic" style={{ color: C.stone }}>Verificando pagamento…</p>}
@@ -2570,7 +2804,7 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
           <div key={b.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
             <button onClick={() => setSelected(b)} className="block w-full text-left focus:outline-none focus:ring-2">
               <div className="relative">
-                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-24 sm:h-28 object-cover" ph={b.titulo} />
+                <ImgOrPlaceholder url={b.capaUrl} alt={b.titulo} className="w-full h-16 sm:h-20 object-cover" ph={b.titulo} />
                 {b.linkLoja && (
                   <span className="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded-full text-white" style={{ background: C.emberDeep }}>à venda</span>
                 )}
@@ -2705,7 +2939,7 @@ function InfoCard({ texto, save, adminMode }) {
 
 function Doacoes({ data, save, adminMode }) {
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Semeando com generosidade</Eyebrow>
       <SectionTitle>Dízimos e Ofertas</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Sua contribuição sustenta a obra do Ministério Avivar do Espírito.</p>
@@ -2778,7 +3012,7 @@ function Caixa({ items, save, adminMode }) {
 
   if (!adminMode) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
         <Lock size={28} className="mx-auto" color={C.stone} />
         <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
       </div>
@@ -2786,7 +3020,7 @@ function Caixa({ items, save, adminMode }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
       <SectionTitle>Caixa</SectionTitle>
 
@@ -2861,7 +3095,7 @@ function Bens({ items, save, adminMode }) {
 
   if (!adminMode) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
         <Lock size={28} className="mx-auto" color={C.stone} />
         <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
       </div>
@@ -2869,7 +3103,7 @@ function Bens({ items, save, adminMode }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
       <SectionTitle>Bens</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Valor total do patrimônio: <strong>{fmtR(totalValor)}</strong></p>
@@ -2913,7 +3147,7 @@ const IGREJA_FIELDS = [
   { key: "fotoUrl", label: "URL de foto", type: "url" },
 ];
 
-function IgrejaCard({ igreja, save, all, adminMode }) {
+function IgrejaCard({ igreja, save, all, adminMode, onOpen }) {
   const [gateOpen, setGateOpen] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -2925,19 +3159,27 @@ function IgrejaCard({ igreja, save, all, adminMode }) {
   const del = () => save(all.filter((i) => i.id !== igreja.id));
 
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-      <ImgOrPlaceholder url={igreja.fotoUrl} alt={igreja.nome} className="w-full h-40 object-cover" />
-      <div className="p-4">
-        <h3 className="font-display font-semibold text-lg">{igreja.nome}</h3>
-        <p className="text-xs font-mono mt-1" style={{ color: C.stone }}>{igreja.cidade}</p>
-        <p className="text-sm mt-2" style={{ color: C.ink }}>{igreja.endereco}</p>
-        <p className="text-sm" style={{ color: C.ink }}>Pastor(a): {igreja.pastor}</p>
+    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", borderLeft: `4px solid ${C.violet}` }}>
+      {/* Área clicável — leva para a página própria da unidade (galeria, eventos, escala, doações etc.) */}
+      <button onClick={() => onOpen && onOpen(igreja.id)} className="block w-full text-left focus:outline-none focus:ring-2" title="Ver página desta unidade">
+        <ImgOrPlaceholder url={igreja.fotoUrl} alt={igreja.nome} className="w-full h-40 object-cover" />
+        <div className="p-4 pb-0">
+          <h3 className="font-display font-semibold text-lg underline decoration-dotted" style={{ color: C.ink }}>{igreja.nome}</h3>
+          <p className="text-xs font-mono mt-1" style={{ color: C.stone }}>{igreja.cidade}</p>
+          <p className="text-sm mt-2" style={{ color: C.ink }}>{igreja.endereco}</p>
+          <p className="text-sm" style={{ color: C.ink }}>Pastor(a): {igreja.pastor}</p>
+          {descricao && <p className="text-sm mt-2" style={{ color: C.stone }}>{descricao}</p>}
+        </div>
+      </button>
+      <div className="p-4 pt-2">
         {igreja.telefone && (
           <a href={waLink(igreja.telefone, `Olá! Vim através do site do Ministério Avivar do Espírito.`)} target="_blank" rel="noreferrer" className="text-xs mt-2 inline-flex items-center gap-1" style={{ color: C.ember }}>
             <Phone size={12} /> {igreja.telefone}
           </a>
         )}
-        {descricao && <p className="text-sm mt-2" style={{ color: C.stone }}>{descricao}</p>}
+        <button onClick={() => onOpen && onOpen(igreja.id)} className="text-xs underline mt-2 block" style={{ color: C.violet }}>
+          Acessar página da unidade →
+        </button>
 
         {!unlocked ? (
           <button onClick={() => setGateOpen((v) => !v)} className="text-xs underline mt-3" style={{ color: C.violet }}>Acesso da unidade</button>
@@ -2980,24 +3222,211 @@ function IgrejaCard({ igreja, save, all, adminMode }) {
   );
 }
 
-function Igrejas({ igrejas, save, adminMode }) {
+function Igrejas({ igrejas, save, adminMode, onOpenIgreja }) {
   const addIgreja = (v) => save([...igrejas, { id: uid(), adminCode: "UNI-" + Math.random().toString(36).slice(2, 7).toUpperCase(), adminCodeActive: true, ...v }]);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Uma família, várias casas</Eyebrow>
       <SectionTitle>Unidades do Ministério</SectionTitle>
-      {igrejas.length === 0 && <div className="mt-6"><Empty text="Nenhuma unidade cadastrada ainda." /></div>}
-      <div className={`${GRID3} mt-6`}>
-        {igrejas.map((i) => (
-          <IgrejaCard key={i.id} igreja={i} save={save} all={igrejas} adminMode={adminMode} />
-        ))}
+      {/* Moldura da seção Unidades, igual à do Ao Vivo — só muda a cor do filete (roxo) */}
+      <div className="rounded-2xl border-2 p-4 sm:p-6 mt-6" style={{ borderColor: C.gold, background: C.cream }}>
+        {igrejas.length === 0 && <Empty text="Nenhuma unidade cadastrada ainda." />}
+        <div className={GRID3}>
+          {igrejas.map((i) => (
+            <IgrejaCard key={i.id} igreja={i} save={save} all={igrejas} adminMode={adminMode} onOpen={onOpenIgreja} />
+          ))}
+        </div>
+        {adminMode && (
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova unidade</p>
+            <DynamicForm fields={IGREJA_FIELDS} onSubmit={addIgreja} submitLabel="Cadastrar unidade" />
+          </div>
+        )}
       </div>
-      {adminMode && (
-        <div className="mt-8">
-          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova unidade</p>
-          <DynamicForm fields={IGREJA_FIELDS} onSubmit={addIgreja} submitLabel="Cadastrar unidade" />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Página própria de cada Unidade Avivar — "o mesmo site do Ministério,        */
+/* com algumas diferenças": reaproveita os mesmos componentes genéricos       */
+/* (galeria/eventos, orações nos lares, escala, doações, visitantes,          */
+/* carrossel de notícias) só que com os dados da própria unidade, guardados   */
+/* dentro do próprio objeto da igreja em vez do estado global do site.        */
+/* Não tem Códigos Avivar nem Avivar Music, como pedido.                       */
+/* ---------------------------------------------------------------- */
+const PAGINA_IGREJA_NEWS_FIELDS = [
+  { key: "titulo", label: "Título da notícia" },
+  { key: "texto", label: "Texto", type: "textarea" },
+  { key: "imageUrl", label: "URL da imagem", type: "url" },
+  { key: "videoUrl", label: "URL do vídeo (opcional)", type: "url" },
+];
+
+function PaginaIgreja({ igreja, all, save, adminMode, onVoltar }) {
+  const [gateOpen, setGateOpen] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const [newsAbrirId, setNewsAbrirId] = useState(null);
+  // Admin da unidade (código próprio) ou admin geral do site podem editar tudo aqui.
+  const canManage = adminMode || unlocked;
+
+  const patch = (fields) => save(all.map((i) => (i.id === igreja.id ? { ...i, ...fields } : i)));
+
+  const noticias = igreja.noticias || [];
+  const addNoticia = (v) => patch({ noticias: [...noticias, { id: uid(), ...v, timestamp: nowISO() }] });
+  const delNoticia = (id) => patch({ noticias: noticias.filter((n) => n.id !== id) });
+  const noticiaAberta = noticias.find((n) => n.id === newsAbrirId) || null;
+  const noticiasOrdenadas = [...noticias].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const excluirUnidade = () => {
+    save(all.filter((i) => i.id !== igreja.id));
+    onVoltar();
+  };
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
+      {/* Cabeçalho simplificado da unidade, com espaço para o logotipo próprio */}
+      <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+          <button onClick={onVoltar} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: C.goldBright }}>
+            <ArrowLeft size={16} /> Voltar ao site do Ministério
+          </button>
+          <div className="flex items-center gap-2">
+            <img src={igreja.logoUrl || LOGO_ICON} alt={igreja.nome} className="h-9 w-auto rounded" />
+            <span className="font-display font-semibold text-sm hidden sm:inline" style={{ color: "#fff" }}>{igreja.nome}</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero da unidade — mesmo espírito do Hero principal do site, com a foto da unidade */}
+      <div className="relative">
+        <ImgOrPlaceholder url={igreja.fotoUrl} alt={igreja.nome} className="w-full h-56 sm:h-72 object-cover" ph="Foto de destaque da unidade — adicionar depois" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #000000cc, #00000010)" }} />
+        <div className="absolute bottom-0 left-0 right-0 max-w-6xl mx-auto px-4 sm:px-6 pb-5">
+          <p className="text-xs font-mono uppercase tracking-wider" style={{ color: C.goldBright }}>Unidade Avivar · {igreja.cidade}</p>
+          <h1 className="font-display text-2xl sm:text-4xl font-bold" style={{ color: "#fff" }}>{igreja.nome}</h1>
+          <p className="text-sm mt-1" style={{ color: "#fff" }}>Pastor(a): {igreja.pastor}</p>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-wrap items-center gap-3">
+        {igreja.telefone && (
+          <a href={waLink(igreja.telefone, `Olá! Vim através da página da unidade ${igreja.nome}, do Ministério Avivar do Espírito.`)} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 px-3 py-2 rounded-md" style={{ background: "#25D36622", color: "#1B8A55" }}>
+            <Phone size={13} /> {igreja.telefone}
+          </a>
+        )}
+        {igreja.endereco && (
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(igreja.endereco)}`} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 px-3 py-2 rounded-md border" style={{ borderColor: C.line, color: C.ink }}>
+            <MapPin size={13} /> Como chegar
+          </a>
+        )}
+        <a href={BIBLIA_URL} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 px-3 py-2 rounded-md border" style={{ borderColor: C.gold, color: C.goldDeep }}>
+          <BookOpen size={13} /> Bíblia Avivar
+        </a>
+
+        {!canManage ? (
+          <button onClick={() => setGateOpen((v) => !v)} className="text-xs underline ml-auto" style={{ color: C.violet }}>Acesso da unidade</button>
+        ) : (
+          <span className="text-xs ml-auto" style={{ color: "#2E7D4F" }}>Editando como admin da unidade</span>
+        )}
+      </div>
+      {gateOpen && !canManage && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-4 pb-4 flex gap-2">
+          <input placeholder="Código da unidade" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className={`${inputCls} max-w-xs text-xs`} style={{ borderColor: C.line }} />
+          <Btn variant="ghost" color={C.violet} onClick={() => { if (igreja.adminCodeActive && codeInput.trim().toUpperCase() === igreja.adminCode) setUnlocked(true); }}>Entrar</Btn>
         </div>
       )}
+
+      {/* Mesmo carrossel de notícias (Google News) do site principal */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <NoticiasCarousel />
+      </div>
+
+      {/* Sobre a unidade */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {canManage ? (
+          <div className="space-y-2 max-w-xl">
+            <p className="text-xs font-mono" style={{ color: C.stone }}>Descrição da unidade</p>
+            <textarea rows={3} placeholder="Descrição da unidade" defaultValue={igreja.descricao || ""} onBlur={(e) => patch({ descricao: e.target.value })} className={inputCls} style={{ borderColor: C.line }} />
+            <p className="text-[11px] italic" style={{ color: C.stone }}>Salvo ao sair do campo.</p>
+          </div>
+        ) : (
+          igreja.descricao && <p className="text-sm max-w-xl" style={{ color: C.stone }}>{igreja.descricao}</p>
+        )}
+      </div>
+
+      {/* Notícias da própria unidade */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <Eyebrow>Fique por dentro</Eyebrow>
+        <SectionTitle>Notícias da Unidade</SectionTitle>
+        {noticiasOrdenadas.length === 0 && <div className="mt-4"><Empty text="Nenhuma notícia publicada ainda por esta unidade." /></div>}
+        <div className={`${GRID3} mt-4`}>
+          {noticiasOrdenadas.map((n) => (
+            <div key={n.id} className="rounded-xl overflow-hidden border" style={{ borderColor: C.line }}>
+              <button onClick={() => setNewsAbrirId(n.id)} className="block w-full text-left focus:outline-none focus:ring-2">
+                {n.imageUrl && <ImgOrPlaceholder url={n.imageUrl} alt={n.titulo} className="w-full h-32 object-cover" />}
+                <div className="p-3">
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(n.timestamp)}</p>
+                  <p className="font-display font-semibold text-sm mt-1">{n.titulo}</p>
+                </div>
+              </button>
+              {canManage && <button onClick={() => delNoticia(n.id)} className="text-[10px] underline mx-3 mb-2" style={{ color: "#B03428" }}>excluir</button>}
+            </div>
+          ))}
+        </div>
+        {canManage && (
+          <div className="mt-6">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN DA UNIDADE · nova notícia</p>
+            <DynamicForm fields={PAGINA_IGREJA_NEWS_FIELDS} onSubmit={(v) => v.titulo && addNoticia(v)} submitLabel="Publicar notícia" />
+          </div>
+        )}
+      </div>
+      <ReportagemModal news={noticiaAberta} adminMode={canManage} onClose={() => setNewsAbrirId(null)} onDelete={() => { delNoticia(newsAbrirId); setNewsAbrirId(null); }} />
+
+      {/* Eventos & Galeria da unidade */}
+      <EventosGaleria eventos={igreja.eventos || []} saveEventos={(v) => patch({ eventos: v })} galeria={igreja.galeria || []} saveGaleria={(v) => patch({ galeria: v })} adminMode={canManage} />
+
+      {/* Orações nos Lares da unidade */}
+      <OracoesLares
+        items={igreja.oracoes || []}
+        save={(v) => patch({ oracoes: v })}
+        encontros={igreja.oracaoEncontros || []}
+        saveEncontros={(v) => patch({ oracaoEncontros: v })}
+        adminMode={canManage}
+        operatorMode={false}
+        onRequestOperator={() => setGateOpen(true)}
+        localDia={igreja.oracaoLocalDia || { fotoUrl: "", local: "" }}
+        saveLocalDia={(v) => patch({ oracaoLocalDia: v })}
+      />
+
+      {/* Escala de Obreiros da unidade — mesmos links de confirmação via WhatsApp */}
+      <EscalaObreiros
+        data={igreja.escala || DEFAULT_ESCALA_OBREIROS}
+        save={(v) => patch({ escala: v })}
+        adminMode={canManage}
+        operatorMode={false}
+        onRequestOperator={() => setGateOpen(true)}
+      />
+
+      {/* Dízimos e Ofertas da unidade */}
+      <Doacoes data={igreja.doacoes || DEFAULT_DOACOES} save={(v) => patch({ doacoes: v })} adminMode={canManage} />
+
+      {/* Cadastro de Visitantes da unidade — já vem em moldura própria */}
+      <Visitantes items={igreja.visitantes || []} save={(v) => patch({ visitantes: v })} adminMode={canManage} operatorMode={false} onRequestOperator={() => setGateOpen(true)} />
+
+      {canManage && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 border-t" style={{ borderColor: C.line }}>
+          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN DA UNIDADE · logotipo próprio</p>
+          <DynamicForm fields={[{ key: "logoUrl", label: "URL do logotipo da unidade", type: "url" }]} onSubmit={(v) => v.logoUrl && patch({ logoUrl: v.logoUrl })} submitLabel="Salvar logotipo" />
+          {adminMode && (
+            <button onClick={excluirUnidade} className="text-xs underline mt-4 block" style={{ color: "#B03428" }}>excluir esta unidade (admin geral)</button>
+          )}
+        </div>
+      )}
+
+      <div className="py-10 text-center">
+        <button onClick={onVoltar} className="text-sm underline" style={{ color: C.violet }}>← Voltar ao site do Ministério Avivar do Espírito</button>
+      </div>
     </div>
   );
 }
@@ -3065,7 +3494,7 @@ const HORARIOS_PADRAO = [
   { dia: "Sexta-feira", inicio: "19:20", fim: "21:00" },
   { dia: "Domingo", inicio: "18:30", fim: "20:00" },
 ];
-const DEFAULT_ESCALA_OBREIROS = { obreiros: OBREIROS_PADRAO, postos: POSTOS_PADRAO, horarios: HORARIOS_PADRAO, escalasPorDia: {} };
+const DEFAULT_ESCALA_OBREIROS = { obreiros: OBREIROS_PADRAO, postos: POSTOS_PADRAO, horarios: HORARIOS_PADRAO, escalasPorDia: {}, telefonesObreiros: {} };
 
 function diaSemanaFromData(dataStr) {
   if (!dataStr) return "";
@@ -3084,13 +3513,107 @@ function fmtHM(iso) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+// Página pública de confirmação de escala — aberta pelo link enviado no WhatsApp
+// (?escalaId=...), sem precisar de senha nem de navegar o site. O obreiro cai direto
+// aqui, vê pra qual posto/horário foi escalado, e confirma Disponível/Indisponível
+// com um toque — a mesma escala fica visível pra administração em tempo real.
+function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
+  const safeData = {
+    ...DEFAULT_ESCALA_OBREIROS,
+    ...(escala || {}),
+    escalasPorDia: (escala && escala.escalasPorDia) || {},
+  };
+  const [editando, setEditando] = useState(false);
+
+  let dataEncontrada = null, diaEncontrado = null, escaladoEncontrado = null;
+  for (const [dataStr, dia] of Object.entries(safeData.escalasPorDia)) {
+    const achado = (dia.escalados || []).find((e) => e.id === escalaId);
+    if (achado) {
+      dataEncontrada = dataStr;
+      diaEncontrado = dia;
+      escaladoEncontrado = achado;
+      break;
+    }
+  }
+
+  if (!escaladoEncontrado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: C.cream }}>
+        <div className="max-w-sm text-center">
+          <ClipboardList size={28} className="mx-auto" color={C.stone} />
+          <p className="font-display text-lg font-semibold mt-3">Link não encontrado</p>
+          <p className="text-sm mt-1" style={{ color: C.stone }}>
+            Esse link de confirmação não existe mais (talvez você já tenha sido removido da escala, ou o link esteja incompleto). Fale com a administração.
+          </p>
+          <button onClick={onVoltar} className="text-sm underline mt-4" style={{ color: C.violet }}>Ver o site completo</button>
+        </div>
+      </div>
+    );
+  }
+
+  const fechado = !!diaEncontrado.conferidoEm;
+  const diaSemana = diaSemanaFromData(dataEncontrada);
+  const horario = horarioDoDia(diaSemana, safeData.horarios);
+  const statusAtual = escaladoEncontrado.status;
+  const jaTravado = escaladoEncontrado.travado;
+
+  const marcar = (status) => {
+    const novosEscalados = diaEncontrado.escalados.map((e) =>
+      e.id === escalaId ? { ...e, status, horarioConfirmacao: nowISO() } : e
+    );
+    save({ ...safeData, escalasPorDia: { ...safeData.escalasPorDia, [dataEncontrada]: { ...diaEncontrado, escalados: novosEscalados } } });
+    setEditando(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: C.cream }}>
+      <div className="max-w-sm w-full rounded-2xl border p-6 text-center" style={{ borderColor: C.gold, background: "#fff" }}>
+        <ClipboardList size={28} className="mx-auto" color={C.ember} />
+        <p className="text-xs font-mono uppercase mt-3" style={{ color: C.stone }}>Confirmação de Escala</p>
+        <p className="font-display text-xl font-semibold mt-1">{escaladoEncontrado.obreiroNome}</p>
+        <p className="text-sm mt-2" style={{ color: C.ink }}>Posto: <b>{escaladoEncontrado.posto}</b></p>
+        <p className="text-sm" style={{ color: C.ink }}>{diaSemana}, {fmtDate(dataEncontrada)}{horario ? ` · ${horario.inicio}–${horario.fim}` : ""}</p>
+
+        {fechado ? (
+          <p className="text-sm mt-5 italic" style={{ color: C.stone }}>
+            Essa escala já foi conferida pela administração. Se precisar mudar algo, fale diretamente com a liderança.
+          </p>
+        ) : jaTravado ? (
+          <p className="text-sm mt-5" style={{ color: statusAtual === "disponivel" ? "#2E7D4F" : C.liveRed }}>
+            Você já confirmou: <b>{statusAtual === "disponivel" ? "Disponível" : "Indisponível"}</b>
+          </p>
+        ) : statusAtual !== "aguardando" && !editando ? (
+          <>
+            <p className="text-sm mt-5 font-semibold" style={{ color: statusAtual === "disponivel" ? "#2E7D4F" : C.liveRed }}>
+              Confirmado: {statusAtual === "disponivel" ? "Disponível" : "Indisponível"}
+            </p>
+            <button onClick={() => setEditando(true)} className="text-xs underline mt-2" style={{ color: C.stone }}>mudei de ideia</button>
+          </>
+        ) : (
+          <div className="mt-5 flex flex-col gap-2">
+            <Btn color="#2E7D4F" className="w-full justify-center" onClick={() => marcar("disponivel")}>Estou disponível</Btn>
+            <Btn variant="ghost" color={C.liveRed} className="w-full justify-center" onClick={() => marcar("indisponivel")}>Não vou poder</Btn>
+          </div>
+        )}
+
+        <button onClick={onVoltar} className="text-xs underline mt-6 block mx-auto" style={{ color: C.stone }}>ver o site completo</button>
+      </div>
+    </div>
+  );
+}
+
 // Escala de Obreiros — fluxo por posto: cada posto tem uma caixa de obreiros
 // disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
 // naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
 // com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
 function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator }) {
   const canManage = adminMode || operatorMode;
-  const safeData = { ...DEFAULT_ESCALA_OBREIROS, ...(data || {}), escalasPorDia: (data && data.escalasPorDia) || {} };
+  const safeData = {
+    ...DEFAULT_ESCALA_OBREIROS,
+    ...(data || {}),
+    escalasPorDia: (data && data.escalasPorDia) || {},
+    telefonesObreiros: (data && data.telefonesObreiros) || {},
+  };
   const [dataCulto, setDataCulto] = useState(() => new Date().toISOString().slice(0, 10));
   const [novoObreiro, setNovoObreiro] = useState("");
   const [novoPosto, setNovoPosto] = useState("");
@@ -3184,6 +3707,46 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
   };
   const addHorario = () => save({ ...safeData, horarios: [...safeData.horarios, novoHorario] });
   const delHorario = (idx) => save({ ...safeData, horarios: safeData.horarios.filter((_, i) => i !== idx) });
+  const setTelefoneObreiro = (nome, tel) =>
+    save({ ...safeData, telefonesObreiros: { ...safeData.telefonesObreiros, [nome]: tel } });
+
+  // Link público de confirmação — abre a própria página de "Confirmar Escala" (sem
+  // precisar de login/senha), identificando o escalado pelo id. É esse link que vai
+  // dentro da mensagem de WhatsApp pro obreiro confirmar disponibilidade sozinho.
+  const linkConfirmacaoEscala = (escaladoId) =>
+    `${window.location.origin}${window.location.pathname}?escalaId=${escaladoId}`;
+  const mensagemWhatsappEscala = (e) => {
+    const dia = diaSemanaFromData(dataCulto);
+    const h = horarioDoDia(dia, safeData.horarios);
+    const primeiroNome = (e.obreiroNome || "").split(" ")[0] || e.obreiroNome;
+    return (
+      `Olá, ${primeiroNome}! Você foi escalado(a) para o posto *${e.posto}* no culto de ${dia}, ${fmtDate(dataCulto)}` +
+      `${h ? ` às ${h.inicio}` : ""}.\n\nPor favor, confirme sua disponibilidade clicando no link abaixo:\n${linkConfirmacaoEscala(e.id)}`
+    );
+  };
+  const enviarWhatsappEscala = (e) => {
+    const tel = safeData.telefonesObreiros[e.obreiroNome];
+    const msg = mensagemWhatsappEscala(e);
+    const link = tel && digitsOnly(tel) ? waLink(tel, msg) : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(link, "_blank", "noopener,noreferrer");
+  };
+  // Mensagem única com a escala inteira do dia, cada nome com o SEU PRÓPRIO link de
+  // confirmação — pensada pra postar de uma vez só num grupo (ex: grupo da igreja no
+  // WhatsApp) em vez de mandar um link de cada vez. Cada obreiro só deve clicar no
+  // link com o próprio nome; quem clicar no link de outra pessoa confirma em nome dela,
+  // já que o link não sabe quem está clicando, só qual escalado ele representa.
+  const mensagemEscalaCompletaWhatsapp = () => {
+    const dia = diaSemanaFromData(dataCulto);
+    const h = horarioDoDia(dia, safeData.horarios);
+    const linhas = escalados.map((e) => `• ${e.obreiroNome} (${e.posto}): ${linkConfirmacaoEscala(e.id)}`).join("\n");
+    return (
+      `📋 *Escala de Serviços Ministeriais* — ${dia}, ${fmtDate(dataCulto)}${h ? ` · ${h.inicio}–${h.fim}` : ""}\n\n` +
+      `Cada um, confirme clicando SÓ no seu próprio link (Disponível/Indisponível):\n\n${linhas}`
+    );
+  };
+  const enviarEscalaCompletaWhatsapp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensagemEscalaCompletaWhatsapp())}`, "_blank", "noopener,noreferrer");
+  };
 
   const StatusObreiro = ({ e }) => {
     if (e.travado) {
@@ -3319,7 +3882,8 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
                   <th className="pb-2 pr-3 font-semibold">Ministério</th>
                   <th className="pb-2 pr-3 font-semibold">Nome</th>
                   <th className="pb-2 pr-3 font-semibold">Disponibilidade</th>
-                  <th className="pb-2 font-semibold">Observações</th>
+                  <th className="pb-2 pr-3 font-semibold">Observações</th>
+                  {canManage && <th className="pb-2 font-semibold">Confirmação</th>}
                 </tr>
               </thead>
               <tbody>
@@ -3331,7 +3895,8 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
                         <td className="py-1.5 pr-3 font-medium" style={{ color: C.ink }}>{posto}</td>
                         <td className="py-1.5 pr-3 italic" style={{ color: C.stone }}>—</td>
                         <td className="py-1.5 pr-3 italic" style={{ color: C.stone }}>—</td>
-                        <td className="py-1.5 italic" style={{ color: C.stone }}>—</td>
+                        <td className="py-1.5 pr-3 italic" style={{ color: C.stone }}>—</td>
+                        {canManage && <td className="py-1.5 italic" style={{ color: C.stone }}>—</td>}
                       </tr>
                     );
                   }
@@ -3340,13 +3905,39 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
                       <td className="py-1.5 pr-3 font-medium" style={{ color: C.ink }}>{posto}</td>
                       <td className="py-1.5 pr-3" style={{ color: C.ink }}>{e.obreiroNome}</td>
                       <td className="py-1.5 pr-3"><StatusObreiro e={e} /></td>
-                      <td className="py-1.5"><ObsCell e={e} /></td>
+                      <td className="py-1.5 pr-3"><ObsCell e={e} /></td>
+                      {canManage && (
+                        <td className="py-1.5">
+                          <button
+                            onClick={() => enviarWhatsappEscala(e)}
+                            className="text-xs flex items-center gap-1 px-2 py-1 rounded-md whitespace-nowrap"
+                            style={{ background: "#25D36622", color: "#1B8A55" }}
+                          >
+                            <MessageCircle size={12} /> Enviar WhatsApp
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ));
                 })}
               </tbody>
             </table>
           </div>
+
+          {canManage && escalados.length > 0 && (
+            <div className="mt-4 pt-3 border-t" style={{ borderColor: C.line }}>
+              <button
+                onClick={enviarEscalaCompletaWhatsapp}
+                className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-md"
+                style={{ background: "#25D36622", color: "#1B8A55" }}
+              >
+                <MessageCircle size={13} /> Compartilhar escala do dia no grupo do WhatsApp
+              </button>
+              <p className="text-[10px] mt-1.5" style={{ color: C.stone }}>
+                Manda uma única mensagem com o nome de todo mundo e o link de confirmação de cada um. Avise a todos: cada pessoa deve clicar SÓ no link com o próprio nome — quem clicar no link de outra pessoa confirma em nome dela, não da sua conta.
+              </p>
+            </div>
+          )}
 
           {adminMode && !fechado && (
             <div className="mt-4 pt-3 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: C.line }}>
@@ -3445,6 +4036,25 @@ function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator
               <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Nome do(a) novo(a) obreiro(a)" value={novoObreiro} onChange={(e) => setNovoObreiro(e.target.value)} />
               <Btn onClick={addObreiro}><Plus size={14} /> Adicionar</Btn>
             </div>
+            <details className="mt-4">
+              <summary className="text-xs font-mono cursor-pointer" style={{ color: C.stone }}>
+                WhatsApp de cada obreiro (opcional — permite enviar a confirmação direto pra pessoa; sem número, o botão "Enviar WhatsApp" abre o WhatsApp pra você escolher o contato manualmente)
+              </summary>
+              <div className="mt-2 space-y-1.5 max-w-sm">
+                {safeData.obreiros.map((o) => (
+                  <div key={o} className="flex items-center gap-2">
+                    <span className="text-xs w-40 truncate flex-shrink-0" style={{ color: C.stone }}>{o}</span>
+                    <input
+                      placeholder="Ex: (61) 99999-9999"
+                      value={safeData.telefonesObreiros[o] || ""}
+                      onChange={(e) => setTelefoneObreiro(o, e.target.value)}
+                      className="text-xs rounded-md border px-2 py-1 flex-1"
+                      style={{ borderColor: C.line }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
           <div>
             <p className="font-display font-semibold mb-2">Postos / funções</p>
@@ -3553,6 +4163,8 @@ const AVIVARNEWS_FIELDS = [
   { key: "imageUrl", label: "URL da imagem de capa (opcional)", type: "url" },
   { key: "videoUrl", label: "URL do vídeo (YouTube ou Vimeo, opcional)", type: "url" },
   { key: "texto", label: "Texto da reportagem", type: "textarea" },
+  { key: "exclusiva", label: "Conteúdo exclusivo de Códigos Avivar (só quem assina/entra com código lê o texto completo)", type: "select", options: ["Não", "Sim"] },
+  { key: "resumo", label: "Resumo curto (aparece na parte geral do site quando for exclusiva)", type: "textarea" },
 ];
 
 /* ---------------------------------------------------------------- */
@@ -3598,7 +4210,7 @@ function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOp
 
   if (!canAccess) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
         <SectionTitle>Cadastro de Visitantes</SectionTitle>
         <RestrictedNotice onUnlock={onRequestOperator} />
@@ -3607,51 +4219,54 @@ function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOp
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
       <SectionTitle>Cadastro de Visitantes</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Registre a visita e, se desejar, envie uma mensagem de agradecimento no WhatsApp.</p>
 
-      <div className="mt-6">
-        <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
-      </div>
+      {/* Moldura da seção Visitantes inteira, a pedido — fundo creme, filete dourado */}
+      <div className="rounded-2xl border-2 p-4 sm:p-6 mt-6" style={{ borderColor: C.gold, background: C.cream }}>
+        <div>
+          <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
+        </div>
 
-      <Btn variant="ghost" className="mt-4" onClick={() => setModoProjecao(true)}>
-        <Video size={14} /> Abrir tela de projeção (culto de hoje)
-      </Btn>
+        <Btn variant="ghost" className="mt-4" onClick={() => setModoProjecao(true)}>
+          <Video size={14} /> Abrir tela de projeção (culto de hoje)
+        </Btn>
 
-      <div className="mt-10 space-y-6">
-        {Object.keys(grouped).length === 0 && <Empty text="Nenhuma visita registrada ainda." />}
-        {Object.entries(grouped).map(([day, list]) => (
-          <div key={day}>
-            <p className="text-xs font-mono font-semibold mb-2" style={{ color: C.stone }}>{day}</p>
-            <div className="space-y-2">
-              {list.map((v) => (
-                <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border" style={{ borderColor: C.line }}>
-                  <div>
-                    <p className="text-sm font-medium">{v.nome} {v.cargoEclesiastico && <span className="text-xs font-normal" style={{ color: C.stone }}>· {v.cargoEclesiastico}</span>}</p>
-                    <p className="text-xs" style={{ color: C.stone }}>{v.igreja} {v.local && `· ${v.local}`} · {fmtDateTime(v.timestamp)}</p>
+        <div className="mt-10 space-y-6">
+          {Object.keys(grouped).length === 0 && <Empty text="Nenhuma visita registrada ainda." />}
+          {Object.entries(grouped).map(([day, list]) => (
+            <div key={day}>
+              <p className="text-xs font-mono font-semibold mb-2" style={{ color: C.stone }}>{day}</p>
+              <div className="space-y-2">
+                {list.map((v) => (
+                  <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border" style={{ borderColor: C.line, background: "#fff" }}>
+                    <div>
+                      <p className="text-sm font-medium">{v.nome} {v.cargoEclesiastico && <span className="text-xs font-normal" style={{ color: C.stone }}>· {v.cargoEclesiastico}</span>}</p>
+                      <p className="text-xs" style={{ color: C.stone }}>{v.igreja} {v.local && `· ${v.local}`} · {fmtDateTime(v.timestamp)}</p>
+                    </div>
+                    {v.telefone && (
+                      <a
+                        href={waLink(v.telefone, `Olá ${v.nome.split(" ")[0]}! Que alegria receber sua visita em nome de Jesus Cristo, no Ministério Avivar do Espírito. Esperamos vê-lo(a) novamente em breve!`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-md"
+                        style={{ background: "#25D36622", color: "#1B8A55" }}
+                      >
+                        <MessageCircle size={13} /> agradecer no WhatsApp
+                      </a>
+                    )}
                   </div>
-                  {v.telefone && (
-                    <a
-                      href={waLink(v.telefone, `Olá ${v.nome.split(" ")[0]}! Que alegria receber sua visita em nome de Jesus Cristo, no Ministério Avivar do Espírito. Esperamos vê-lo(a) novamente em breve!`)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-md"
-                      style={{ background: "#25D36622", color: "#1B8A55" }}
-                    >
-                      <MessageCircle size={13} /> agradecer no WhatsApp
-                    </a>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <p className="text-xs mt-6 italic" style={{ color: C.stone }}>
+          Neste protótipo, a mensagem de agradecimento é enviada com um toque (via WhatsApp Web/App). Envio 100% automático, sem toque, requer integração com a API oficial do WhatsApp Business em um backend real.
+        </p>
       </div>
-      <p className="text-xs mt-6 italic" style={{ color: C.stone }}>
-        Neste protótipo, a mensagem de agradecimento é enviada com um toque (via WhatsApp Web/App). Envio 100% automático, sem toque, requer integração com a API oficial do WhatsApp Business em um backend real.
-      </p>
 
       {modoProjecao && (
         <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.black }}>
@@ -3728,7 +4343,7 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
       <SectionTitle>Orações nos Lares</SectionTitle>
 
@@ -3891,7 +4506,7 @@ function PedidoOracao({ items, save, adminMode }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Estamos com você</Eyebrow>
       <SectionTitle>Pedido de Oração</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Conte pra nós o que está pesando no seu coração — nossa equipe de intercessão vai orar por você.</p>
@@ -4015,7 +4630,7 @@ function Membros({ items, save, adminMode, operatorMode, onRequestOperator }) {
 
   if (!canAccess) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <Eyebrow>Faça parte</Eyebrow>
         <SectionTitle>Cadastro de Membros</SectionTitle>
         <RestrictedNotice onUnlock={onRequestOperator} />
@@ -4024,7 +4639,7 @@ function Membros({ items, save, adminMode, operatorMode, onRequestOperator }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Faça parte</Eyebrow>
       <SectionTitle>Cadastro de Membros</SectionTitle>
       <p className="text-sm mt-2" style={{ color: C.stone }}>Preencha os dados para integrar o cadastro oficial de membros do ministério.</p>
@@ -4066,6 +4681,7 @@ function Membros({ items, save, adminMode, operatorMode, onRequestOperator }) {
 /* ---------------------------------------------------------------- */
 const MUSICO_FIELDS = [
   { key: "nome", label: "Nome do músico" },
+  { key: "fotoUrl", label: "Foto (pequena, tipo 3x4) — URL da imagem", type: "url" },
   { key: "instrumento", label: "Instrumento / habilidade" },
   { key: "cantor", label: "É cantor(a)?", type: "select", options: ["Não", "Sim"] },
   { key: "disponibilidade", label: "Disponibilidade" },
@@ -4091,14 +4707,21 @@ const ALBUM_FIELDS = [
   { key: "videoUrl", label: "Link do vídeo/YouTube", type: "url" },
 ];
 
-function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode }) {
-  const [tab, setTab] = useState("albuns");
+function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator }) {
+  const canManage = adminMode || operatorMode;
+  const [tab, setTab] = useState("musicos");
   const [openAlbum, setOpenAlbum] = useState(null);
 
   const addCulto = (v) => saveRepertorio([...repertorio, { id: uid(), musicas: [], ...v }]);
   const delCulto = (id) => saveRepertorio(repertorio.filter((c) => c.id !== id));
   const addMusica = (cultoId, v) =>
-    saveRepertorio(repertorio.map((c) => (c.id === cultoId ? { ...c, musicas: [...c.musicas, { id: uid(), ...v }] } : c)));
+    saveRepertorio(repertorio.map((c) => {
+      if (c.id !== cultoId) return c;
+      // Evita cadastrar de novo uma música já existente no mesmo culto (mesmo título).
+      const jaExiste = (c.musicas || []).some((m) => (m.titulo || "").trim().toLowerCase() === (v.titulo || "").trim().toLowerCase());
+      if (jaExiste) return c;
+      return { ...c, musicas: [...c.musicas, { id: uid(), ...v }] };
+    }));
   const delMusica = (cultoId, musicaId) =>
     saveRepertorio(repertorio.map((c) => (c.id === cultoId ? { ...c, musicas: c.musicas.filter((m) => m.id !== musicaId) } : c)));
 
@@ -4116,7 +4739,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
       <SectionTitle>Avivar Music</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
-        {["albuns", "repertorio", "musicos"].map((t) => (
+        {["musicos", "albuns", "repertorio"].map((t) => (
           <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
             {t === "albuns" ? "Álbuns" : t === "repertorio" ? "Repertório" : "Músicos"}
           </button>
@@ -4222,8 +4845,11 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
           <div className={GRID3}>
             {musicos.length === 0 && <Empty text="Nenhum músico cadastrado ainda." />}
             {musicos.map((m) => (
-              <div key={m.id} className="p-4 rounded-lg border" style={{ borderColor: C.line }}>
-                <div className="flex justify-between items-start">
+              <div key={m.id} className="p-4 rounded-lg border flex gap-3" style={{ borderColor: C.line }}>
+                {m.fotoUrl && (
+                  <img src={m.fotoUrl} alt={m.nome} className="rounded-md object-cover flex-shrink-0" style={{ width: "3cm", height: "4cm" }} />
+                )}
+                <div className="flex justify-between items-start flex-1">
                   <div>
                     <p className="font-display font-semibold">{m.nome}</p>
                     <p className="text-xs" style={{ color: C.ember }}>{m.instrumento}</p>
@@ -4236,8 +4862,14 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
             ))}
           </div>
           <div className="mt-8">
-            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Cadastro de músico</p>
-            <DynamicForm fields={MUSICO_FIELDS} onSubmit={(v) => v.nome && addMusico(v)} submitLabel="Cadastrar" />
+            {canManage ? (
+              <>
+                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · Cadastro de músico</p>
+                <DynamicForm fields={MUSICO_FIELDS} onSubmit={(v) => v.nome && addMusico(v)} submitLabel="Cadastrar" />
+              </>
+            ) : (
+              <RestrictedNotice onUnlock={onRequestOperator} />
+            )}
           </div>
         </div>
       )}
@@ -4257,7 +4889,7 @@ const CONTATO_FIELDS = [
 function Contato({ items, save, adminMode }) {
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO() }]);
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Fale conosco</Eyebrow>
       <SectionTitle>Contato</SectionTitle>
       <div className="mt-6"><DynamicForm fields={CONTATO_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Enviar mensagem" /></div>
@@ -4289,22 +4921,38 @@ export default function App() {
       if (el) el.scrollIntoView({ behavior: "smooth" });
     });
   };
-  // Abre uma reportagem específica do Avivar News a partir de outra seção (Home ou
-  // Códigos Avivar) — marca a reportagem como "recém-aberta" (atualiza timestamp, pra
-  // reordenar pro topo) e navega até a seção Ao Vivo, que lê newsAbrirId pra selecioná-la.
+  // Abre uma reportagem específica do Avivar News a partir de QUALQUER seção do site
+  // (Home, Códigos Avivar, Ao Vivo, Manchete...) — abre na hora, num modal por cima da
+  // página atual, com a imagem; nunca rola a tela pra nenhum canto. Exceção: reportagem
+  // marcada como "exclusiva" — só abre de verdade pra quem já está com Códigos Avivar
+  // desbloqueado (ou é admin); qualquer outra pessoa é mandada pra tela de credenciais.
   const abrirReportagem = (id) => {
-    const n = (avivarNews || []).find((x) => x.id === id);
-    if (n) {
-      const atualizada = avivarNews.map((x) => (x.id === id ? { ...x, timestamp: nowISO() } : x));
-      persist.avivarNews(atualizada);
+    const item = (avivarNews || []).find((n) => n.id === id);
+    if (item && item.exclusiva && !adminMode && !codigosUnlocked) {
+      scrollToSection("codigos");
+      return;
     }
     setNewsAbrirId(id);
-    scrollToSection("aovivo");
   };
   const [loading, setLoading] = useState(true);
+  // Lido uma vez do link de WhatsApp (?escalaId=...) — se presente, a tela de confirmação
+  // de escala assume a página inteira em vez do site normal (ver mais abaixo).
+  const [escalaConfirmId, setEscalaConfirmId] = useState(() => new URLSearchParams(window.location.search).get("escalaId"));
+  // Página própria de uma Unidade Avivar (Igrejas) — quando setado, mostra essa página
+  // no lugar do site inteiro; "voltar" limpa e retorna ao site principal.
+  const [paginaIgrejaId, setPaginaIgrejaId] = useState(null);
+  // Se a pessoa já entrou em Códigos Avivar (nome + código válidos) — levantado pra cá
+  // (em vez de ficar só dentro de CodigosAvivar) pra que abrirReportagem saiba, de
+  // qualquer lugar do site, se pode abrir uma reportagem "exclusiva" direto ou se deve
+  // mandar a pessoa pra tela de login de Códigos Avivar.
+  const [codigosUnlocked, setCodigosUnlocked] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
-  const [operatorMode, setOperatorMode] = useState(false);
+  // operatorAuth guarda quem autenticou (nome + setores liberados). podeSetor() decide,
+  // setor a setor, se admin ou o operador logado pode mexer naquela área — permite dar
+  // código de acesso restrito a só um setor (ex: só Oração nos Lares, só Avivar Music).
+  const [operatorAuth, setOperatorAuth] = useState(null);
+  const podeSetor = (setor) => adminMode || (!!operatorAuth && (operatorAuth.setores.includes("todos") || operatorAuth.setores.includes(setor)));
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
   const [operatorCodes, setOperatorCodes] = useState([]);
   const [oracaoEncontros, setOracaoEncontros] = useState([]);
@@ -4434,6 +5082,8 @@ export default function App() {
             seedId: "codigos-portais",
             titulo: "Portais espirituais na Bíblia: quando o céu se abre sobre a Terra",
             texto: "Em vários momentos das Escrituras, o véu entre o céu e a terra parece se afinar. Jacó, fugindo de Esaú, dorme numa pedra em Betel e sonha com uma escada que liga a terra ao céu — ao acordar, declara: \"Este é o portal do céu\" (Gênesis 28:10-17). No batismo de Jesus, os céus se abrem e o Espírito desce como pomba (Mateus 3:16). Estêvão, prestes a ser apedrejado, vê o céu aberto e a glória de Deus (Atos 7:55-56). E João, em Patmos, escreve: \"Depois destas coisas olhei, e eis uma porta aberta no céu\" (Apocalipse 4:1). São lugares e momentos em que o Reino invisível toca visivelmente a vida de quem busca a Deus — não fórmulas, mas encontros que Deus mesmo escolhe abrir.",
+            exclusiva: true,
+            resumo: "Momentos em que o véu entre o céu e a terra se abre — de Jacó em Betel ao apóstolo João em Patmos.",
             imageUrl: CODIGOS_ARTIGO_PORTAIS_ESPIRITUAIS,
             timestamp: nowISO(),
           },
@@ -4442,6 +5092,9 @@ export default function App() {
             seedId: "codigos-horas",
             titulo: "Horas dimensionais na Bíblia: os tempos em que o Espírito se move",
             texto: "A Bíblia marca horas específicas como momentos de virada espiritual. Na hora nona (por volta das 15h), Pedro e João sobem ao templo para orar e um coxo é curado (Atos 3:1-8) — na mesma hora nona, Cornélio recebe a visita de um anjo (Atos 10:3). À meia-noite, Paulo e Silas, presos e feridos, cantam louvores, e a prisão treme (Atos 16:25-26). Na crucificação, das seis às nove horas, trevas cobrem a terra antes da ressurreição vindoura (Mateus 27:45). E no Pentecostes, é \"a hora terceira do dia\" quando o Espírito é derramado sobre os discípulos (Atos 2:15). Não são horários mágicos, mas registros de que Deus age em tempos determinados — e nos convida a velar e orar em todo tempo.",
+            exclusiva: true,
+            resumo: "Por que a Bíblia marca horas específicas como pontos de virada espiritual, da hora nona ao Pentecostes.",
+            imageUrl: CODIGOS_ARTIGO_HORAS_DIMENSIONAIS,
             timestamp: nowISO(),
           },
           {
@@ -4449,6 +5102,9 @@ export default function App() {
             seedId: "codigos-quantica",
             titulo: "Energia quântica e espiritualidade: quando a ciência aponta para o mistério",
             texto: "A física quântica descreve um universo onde partículas separadas por enormes distâncias permanecem conectadas (o chamado emaranhamento quântico), e onde o simples ato de observar altera o que é observado. Cientistas ainda debatem o que isso realmente significa — não é prova de nada espiritual —, mas é difícil não pensar em como as Escrituras já descreviam um universo profundamente interligado, sustentado por uma Palavra que tudo criou e tudo mantém unido: \"Nele subsistem todas as coisas\" (Colossenses 1:17). Ciência e fé caminham por métodos diferentes, mas ambas, à sua maneira, apontam para um mistério maior do que conseguimos medir — e a fé cristã crê que esse mistério tem nome: Jesus Cristo.",
+            exclusiva: true,
+            resumo: "O que o emaranhamento quântico e a física moderna têm a nos ensinar sobre um universo sustentado por Deus.",
+            imageUrl: CODIGOS_ARTIGO_ENERGIA_QUANTICA,
             timestamp: nowISO(),
           },
         ];
@@ -4490,6 +5146,8 @@ Assinar esses códigos significa romper com a mornidão espiritual e posicionar-
 Elevando a nossa consciência espiritual, compreendemos que cada obstáculo atual é, na verdade, um degrau para um nível mais alto de autoridade em Cristo. Esteja pronto para sintonizar a sua vida na frequência que transforma eras e prepare-se para caminhar com ousadia nos desígnios que o Céu preparou para os dias finais.
 
 Qual área da sua vida espiritual você sente que precisa sintonizar mais profundamente com os Códigos Avivar hoje?`,
+            exclusiva: true,
+            resumo: "Como a renovação da mente e os Códigos Avivar preparam o crente para operar na frequência da revelação nos últimos dias.",
             imageUrl: CODIGOS_ARTIGO_ARQUITETURA_CONSCIENCIA,
             timestamp: nowISO(),
           },
@@ -4510,6 +5168,8 @@ O verdadeiro profeta dos últimos dias opera na interseção entre a revelação
 • Autoridade Ministerial: Assim como os apóstolos no passado, esta geração recebe o revestimento de poder para curar enfermos, expulsar trevas e anunciar o Reino com intrepidez inegociável.
 
 Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto na muralha. É tempo de alinhar o seu espírito, abandonar o temor e permitir que o fogo pentecostal incendeie a sua trajetória, tornando-o um farol de esperança e poder nos dias finais.`,
+            exclusiva: true,
+            resumo: "Por que esta geração é chamada a operar com autoridade profética em meio ao caos dos últimos tempos.",
             imageUrl: CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER,
             timestamp: nowISO(),
           },
@@ -4519,6 +5179,125 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         saveKey("avivar:avivarnews", merged);
       }
       todo.reportagensCodigos2 = true;
+    }
+    // Reportagem interna de Códigos Avivar — "A Física da Fé e o Campo de Poder:
+    // O Mistério das Mãos de Moisés em Refidim" (Êxodo 17:8-16).
+    if (!seeds.reportagensCodigos3) {
+      const jaTem3 = avivarNews.some((n) => n.seedId === "artigo-refidim-maos-moises");
+      if (!jaTem3) {
+        const nova3 = {
+          id: uid(),
+          seedId: "artigo-refidim-maos-moises",
+          titulo: "A Física da Fé e o Campo de Poder: O Mistério das Mãos de Moisés em Refidim",
+          autor: "Marcos Fagner",
+          texto: `Em Refidim, Israel enfrentou Amaleque numa batalha que, à primeira vista, parecia se decidir apenas pela espada de Josué no vale. Mas o texto de Êxodo 17:8-16 revela algo mais profundo: enquanto Moisés mantinha as mãos erguidas no alto do monte, Israel prevalecia; quando as mãos descaíam pelo cansaço da carne, Amaleque prevalecia. O verdadeiro campo de batalha não estava apenas na planície — estava no alto do monte, num ponto de contato entre o céu e a terra.
+
+Podemos compreender esse relato como a descrição de um verdadeiro campo de poder espiritual. Assim como campos eletromagnéticos invisíveis regem fenômenos físicos que nossos olhos não alcançam, existe uma dimensão espiritual que rege, por trás do véu, os resultados visíveis das batalhas da fé. As mãos erguidas de Moisés não eram um gesto vazio de cansaço; eram uma antena viva, sintonizada, mantendo um canal aberto para a dynamis — a palavra grega que descreve o poder de Deus operando com força e autoridade sobrenaturais.
+
+Quando as mãos de Moisés pesavam e começavam a ceder, o texto não diz que Deus se afastou; diz que o próprio Moisés, homem de carne e osso, precisou de sustento. Arão e Hur o colocaram sobre uma pedra e sustentaram suas mãos, um de cada lado, até o pôr do sol. Eis um princípio poderoso: mesmo o maior dos intercessores precisa de quem sustente sua conexão quando o corpo fraqueja. A intercessão sustentada é o que mantém o campo de força ativo — é o que preserva a ressonância entre o pedido do homem e a resposta do Céu.
+
+Esse "peso" que sustinha o campo aberto sobre o monte nos remete ao conceito hebraico de Kavod — a glória de Deus, literalmente "aquilo que tem peso", que tem substância. Quando Moisés erguia as mãos, ele não estava apenas orando; ele estava, de certa forma, posicionando-se sob o peso da glória, permitindo que a frequência do Céu se manifestasse em resultado concreto na terra, vale abaixo, na vida de todo o exército de Israel.
+
+Há aqui uma espécie de enlaçamento quântico espiritual: dois pontos aparentemente distantes — o topo do monte e o vale da batalha — estavam interligados de tal forma que o que acontecia em um alterava instantaneamente o outro. Não havia demora, não havia intervalo: enquanto a intercessão permanecia firme no alto, a vitória se manifestava embaixo, em tempo real. É assim que o Reino de Deus opera: a fé sintonizada no secreto produz efeito imediato e visível no campo de batalha da vida.
+
+Ao final do relato, o Senhor ordena que Moisés escreva o que aconteceu para memória, e edifica um altar chamado "Jeová-Nissi" — o Senhor é minha bandeira. Não foi a espada de Josué, isoladamente, que garantiu a vitória; foi a permanência do povo sintonizado na frequência do Deus Todo-Poderoso, o verdadeiro Arquiteto de todas as energias do universo, que sustentou o resultado do dia.
+
+A pergunta que fica para nós, filhos de Deus, chamados a viver os Códigos Avivar nestes últimos dias, é: quem está sustentando as suas mãos quando elas pesam? E, mais que isso: você tem permanecido erguido, sintonizado, mesmo quando o cansaço da carne pede para que você abaixe os braços?`,
+          exclusiva: true,
+          resumo: "O que as mãos erguidas de Moisés em Refidim revelam sobre intercessão sustentada e vitória espiritual.",
+          imageUrl: CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES,
+          timestamp: nowISO(),
+        };
+        const merged3 = [...avivarNews, nova3];
+        setAvivarNews(merged3);
+        saveKey("avivar:avivarnews", merged3);
+      }
+      todo.reportagensCodigos3 = true;
+    }
+    // Duas reportagens novas de Códigos Avivar, ilustradas pelas imagens enviadas pelo
+    // Marcos junto com o banner da série e a arte do Bom Samaritano.
+    if (!seeds.reportagensCodigos4) {
+      const jaTem4 = avivarNews.some((n) => n.seedId === "artigo-dom-discernimento" || n.seedId === "artigo-bom-samaritano");
+      if (!jaTem4) {
+        const novas4 = [
+          {
+            id: uid(),
+            seedId: "artigo-dom-discernimento",
+            titulo: "O Dom do Discernimento: Enxergando Além do Véu com os Olhos do Espírito",
+            autor: "Marcos Fagner",
+            texto: `Vivemos numa época em que os sinais se multiplicam e as vozes se cruzam — algumas do Espírito de Deus, outras do espírito do mundo, e outras ainda de um reino de trevas que se disfarça de luz (2 Coríntios 11:14). Nesse cenário, um dos dons mais necessários para a Igreja nestes últimos dias não é o mais visível, mas talvez o mais decisivo: o dom de discernimento de espíritos, listado por Paulo entre as manifestações do Espírito Santo (1 Coríntios 12:10).
+
+Discernir não é desconfiar de tudo, nem é o dom da suspeita. É a capacidade, dada pelo Espírito, de perceber a origem espiritual por trás de uma palavra, de uma atitude, de um movimento — se aquilo nasce do Espírito de Deus, da carne, ou de uma influência das trevas. É como enxergar, por um instante, o campo que sustenta o que está diante de nós, além da superfície visível.
+
+A Escritura registra esse dom em ação: Pedro discerne o coração de Ananias e Safira antes mesmo de qualquer prova visível (Atos 5:1-10). Paulo discerne, num único olhar, o espírito de adivinhação por trás da jovem escrava de Filipos, que gritava verdades sobre ele e Silas, mas vindo de uma fonte errada (Atos 16:16-18). João adverte a igreja: "Amados, não creiais em todo espírito, mas provai se os espíritos são de Deus, porque muitos falsos profetas têm saído pelo mundo" (1 João 4:1).
+
+Assim como campos magnéticos invisíveis orientam a agulha de uma bússola sem que ninguém os veja, existe uma orientação espiritual disponível a quem caminha sintonizado com o Espírito Santo — não uma intuição humana treinada, mas um dom concedido, uma bússola que aponta para a verdade em meio à confusão dos últimos dias.
+
+Quem exercita esse dom com maturidade não se torna arrogante nem julgador; torna-se, antes, mais cuidadoso, mais dependente de Deus e mais capaz de proteger o rebanho das armadilhas que se apresentam disfarçadas de bênção. Peça a Deus esse dom, Igreja. Nos dias em que vivemos, discernir não é luxo — é sobrevivência espiritual.`,
+            exclusiva: true,
+            resumo: "Como reconhecer, à luz da Palavra, a origem espiritual por trás de vozes, atitudes e movimentos nestes últimos dias.",
+            imageUrl: CODIGOS_ARTIGO_DOM_DISCERNIMENTO,
+            timestamp: nowISO(),
+          },
+          {
+            id: uid(),
+            seedId: "artigo-bom-samaritano",
+            titulo: "O Bom Samaritano: a Compaixão que Atravessa as Barreiras",
+            autor: "Marcos Fagner",
+            texto: `Um homem descia de Jerusalém a Jericó quando caiu nas mãos de assaltantes, que o despojaram, o espancaram e se foram, deixando-o quase morto à beira do caminho (Lucas 10:30). Um sacerdote passou e desviou; um levita, servo do templo, fez o mesmo. Foi um samaritano — povo desprezado pelos judeus da época — quem parou, teve compaixão, cuidou das feridas com azeite e vinho, e pagou do próprio bolso pela recuperação de um estranho.
+
+Jesus conta essa parábola em resposta a uma pergunta teológica — "e quem é o meu próximo?" — mas responde com uma demonstração prática. O verdadeiro amor ao próximo não pergunta primeiro quem merece; ele se aproxima primeiro, e só depois pensa no custo.
+
+Há algo profundo nesse gesto do samaritano: ele rompe uma barreira social, religiosa e histórica de inimizade só para restaurar a vida de alguém que, em outra circunstância, talvez nem lhe dirigisse a palavra. É como se, naquele instante, uma frequência maior que o preconceito humano tivesse tomado conta da cena — uma compaixão capaz de atravessar qualquer distância entre duas pessoas, por mais diferentes ou distantes que sejam.
+
+O sacerdote e o levita não eram maus; tinham responsabilidades religiosas para cumprir, motivos plausíveis para seguir adiante. Mas a compaixão de Deus não se contenta com motivos plausíveis: ela para, se abaixa, cuida, investe tempo e recurso. É a mesma compaixão de Cristo, que "vendo as multidões, teve compaixão delas, porque andavam desgarradas e cansadas, como ovelhas que não têm pastor" (Mateus 9:36) e desceu até nós, feridos à beira do caminho, para nos socorrer com o próprio sangue.
+
+Jesus termina a parábola devolvendo a pergunta: "Qual, pois, destes três te parece que foi o próximo daquele que caiu nas mãos dos salteadores?" E ordena: "Vai, e faze da mesma maneira" (Lucas 10:36-37). O Ministério Avivar do Espírito crê que ser Igreja nestes últimos dias é isso: parar diante da dor de quem sofre, mesmo quando não é conveniente, e deixar que o amor de Deus alcance quem está à beira do caminho.
+
+Quem é, hoje, o seu próximo que espera à beira da estrada?`,
+            exclusiva: true,
+            resumo: "A parábola que Jesus contou para redefinir quem é o nosso próximo — e o custo real de amar de verdade.",
+            imageUrl: CODIGOS_ARTIGO_BOM_SAMARITANO,
+            timestamp: nowISO(),
+          },
+        ];
+        const merged4 = [...avivarNews, ...novas4];
+        setAvivarNews(merged4);
+        saveKey("avivar:avivarnews", merged4);
+      }
+      todo.reportagensCodigos4 = true;
+    }
+    // Reportagem sobre fé, oração e comunhão com Deus (a partir do tema trazido por
+    // Marcos: fé como confiança no caráter de Deus, não como técnica de manipulação
+    // da realidade) — também exclusiva de Códigos Avivar.
+    if (!seeds.reportagensCodigos5) {
+      const jaTem5 = avivarNews.some((n) => n.seedId === "artigo-fe-comunhao-nao-manipulacao");
+      if (!jaTem5) {
+        const nova5 = {
+          id: uid(),
+          seedId: "artigo-fe-comunhao-nao-manipulacao",
+          titulo: "A Fé que Move Montanhas: Comunhão, Não Manipulação",
+          autor: "Marcos Fagner",
+          exclusiva: true,
+          resumo: "Fé bíblica não é uma técnica para dobrar a realidade à sua vontade — é confiança no caráter de um Deus que já conhece o que você precisa.",
+          texto: `Boa parte do que se ensina sobre fé hoje soa como uma fórmula: diga a palavra certa, visualize o resultado certo, repita a técnica certa, e a realidade se dobra à sua vontade. Mas a fé descrita nas Escrituras é outra coisa, bem mais simples e bem mais profunda: não é uma técnica de manipulação da realidade, é uma confiança absoluta na bondade e na autoridade de um Deus que já conhece o que precisamos antes de pedirmos (Mateus 6:8).
+
+Hebreus 11 define fé como "a certeza de coisas que se esperam, a convicção de fatos que se não veem" (Hebreus 11:1) — e o capítulo inteiro é uma galeria de pessoas que creram não porque dominaram uma técnica, mas porque confiaram na palavra e no caráter de Deus, muitas vezes sem ver o cumprimento em vida (Hebreus 11:13).
+
+Quando Jesus fala da fé do tamanho de um grão de mostarda que move montanhas (Mateus 17:20), ou promete que "tudo o que pedirdes em oração, crendo, o recebereis" (Marcos 11:24), Ele não está ensinando uma fórmula mágica de manifestação — está convidando os discípulos a uma dependência radical do Pai, a mesma dependência que Ele mesmo vivia. A fé bíblica floresce dentro de um relacionamento, não de uma técnica isolada dele.
+
+É por isso que Jesus também ensina: "O Reino de Deus está dentro de vós" (Lucas 17:21) — o ponto de partida da fé não é o mundo lá fora que queremos dobrar à nossa vontade, mas o Reino que já habita dentro de quem nasceu de novo, sujeito ao Rei, e não o contrário.
+
+Tiago é ainda mais direto sobre o risco de inverter essa ordem: "Pedis, e não recebeis, porque pedis mal, para o gastardes em vossos deleites" (Tiago 4:3). A oração centrada em nós mesmos — em conquistar, controlar, manipular circunstâncias para satisfação própria — não é fé bíblica, por mais versículos que se cite ao seu redor. A fé verdadeira sempre aponta para fora de si mesma, para a vontade e a glória de Deus, mesmo quando essa vontade custa caro a quem ora.
+
+Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por sinais e milagres (Atos 4:29-31). O que separa a fé bíblica de qualquer prática de manipulação da realidade é a direção do coração: uma pede "seja feita a Tua vontade" (Mateus 6:10); a outra pede "seja feita a minha vontade, através de Ti." Nos Códigos Avivar, aprendemos a orar como quem confia, não como quem barganha — e é exatamente essa confiança que Deus responde.`,
+          timestamp: nowISO(),
+        };
+        const merged5 = [...avivarNews, nova5];
+        setAvivarNews(merged5);
+        saveKey("avivar:avivarnews", merged5);
+      }
+      todo.reportagensCodigos5 = true;
     }
     if (!seeds.eventos3) {
       const jaTem = eventos.some((e) => e.seedId && e.seedId.startsWith("evt-"));
@@ -5095,6 +5874,29 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       saveKey("avivar:escalaObreiros", novaEscala);
       todo.escalaHorariosCorretos1 = true;
     }
+    if (!seeds.corrigeTelefonePrMarcos1) {
+      // Correção: o WhatsApp 85992071505 tinha sido cadastrado por engano como telefone
+      // pessoal do Pr. Marcos na Escala de Obreiros — na verdade é o WhatsApp oficial do
+      // Ministério (ver seed whatsappMinisterio1 abaixo). Remove essa entrada errada,
+      // sem mexer em nenhum outro telefone que já tenha sido cadastrado manualmente.
+      const escalaAtual = escala || DEFAULT_ESCALA_OBREIROS;
+      if (escalaAtual.telefonesObreiros && escalaAtual.telefonesObreiros["Pr. Marcos"] === "85992071505") {
+        const { "Pr. Marcos": _remove, ...resto } = escalaAtual.telefonesObreiros;
+        const novaEscala = { ...escalaAtual, telefonesObreiros: resto };
+        setEscala(novaEscala);
+        saveKey("avivar:escalaObreiros", novaEscala);
+      }
+      todo.corrigeTelefonePrMarcos1 = true;
+    }
+    if (!seeds.whatsappMinisterio1) {
+      // WhatsApp oficial do Ministério — usado no botão flutuante do site inteiro.
+      if (!site.whatsappMinisterio) {
+        const novoSite = { ...(site || DEFAULT_SITE), whatsappMinisterio: "85992071505" };
+        setSite(novoSite);
+        saveKey("avivar:site", novoSite);
+      }
+      todo.whatsappMinisterio1 = true;
+    }
     if (!seeds.colaboradoresNovos1) {
       const jaTemColab = (colaboradores || []).some((c) => c.seedId && c.seedId.startsWith("colab-novo-"));
       if (!jaTemColab) {
@@ -5131,6 +5933,37 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         saveKey("avivar:avivarnews", newsCorrigida);
       }
       todo.reportagemPortaisImg1 = true;
+    }
+    // Remove músicas duplicadas dentro de cada culto do repertório (mesmo título, sem
+    // diferenciar maiúsculas/espaços nas pontas) — mantém só a primeira ocorrência.
+    if (!seeds.dedupeRepertorio1) {
+      const chaveMusica = (m) => (m.titulo || "").trim().toLowerCase();
+      const tinhaDuplicada = (repertorio || []).some((c) => {
+        const vistos = new Set();
+        return (c.musicas || []).some((m) => {
+          const k = chaveMusica(m);
+          if (!k) return false;
+          if (vistos.has(k)) return true;
+          vistos.add(k);
+          return false;
+        });
+      });
+      if (tinhaDuplicada) {
+        const repertorioSemDuplicadas = (repertorio || []).map((c) => {
+          const vistos = new Set();
+          const musicasUnicas = (c.musicas || []).filter((m) => {
+            const k = chaveMusica(m);
+            if (!k) return true;
+            if (vistos.has(k)) return false;
+            vistos.add(k);
+            return true;
+          });
+          return { ...c, musicas: musicasUnicas };
+        });
+        setRepertorio(repertorioSemDuplicadas);
+        saveKey("avivar:repertorio", repertorioSemDuplicadas);
+      }
+      todo.dedupeRepertorio1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
@@ -5181,6 +6014,57 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
     );
   }
 
+  // Link de confirmação de escala vindo do WhatsApp (?escalaId=...) — mostra só a
+  // telinha de confirmação, sem o site inteiro em volta, pra ser rápido no celular.
+  if (escalaConfirmId) {
+    const achaEmPrincipal = Object.values((escala && escala.escalasPorDia) || {}).some((d) =>
+      (d.escalados || []).some((e) => e.id === escalaConfirmId)
+    );
+    const igrejaDona = !achaEmPrincipal
+      ? (igrejas || []).find((ig) =>
+          Object.values((ig.escala && ig.escala.escalasPorDia) || {}).some((d) =>
+            (d.escalados || []).some((e) => e.id === escalaConfirmId)
+          )
+        )
+      : null;
+    const escalaAlvo = igrejaDona ? igrejaDona.escala : escala;
+    const saveAlvo = igrejaDona
+      ? (v) => persist.igrejas(igrejas.map((ig) => (ig.id === igrejaDona.id ? { ...ig, escala: v } : ig)))
+      : persist.escala;
+    return (
+      <ConfirmarEscalaObreiro
+        escala={escalaAlvo}
+        save={saveAlvo}
+        escalaId={escalaConfirmId}
+        onVoltar={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("escalaId");
+          window.history.replaceState({}, "", url.toString());
+          setEscalaConfirmId(null);
+        }}
+      />
+    );
+  }
+
+  // Página própria de uma Unidade Avivar — assume a tela inteira, no lugar do site
+  // principal, enquanto uma unidade estiver selecionada (ver Igrejas → IgrejaCard).
+  if (paginaIgrejaId) {
+    const igrejaSelecionada = (igrejas || []).find((ig) => ig.id === paginaIgrejaId);
+    if (igrejaSelecionada) {
+      return (
+        <PaginaIgreja
+          igreja={igrejaSelecionada}
+          all={igrejas}
+          save={persist.igrejas}
+          adminMode={adminMode}
+          onVoltar={() => setPaginaIgrejaId(null)}
+        />
+      );
+    }
+    // Unidade não encontrada (ex: excluída enquanto a página estava aberta) — cai
+    // de volta pro site normal, sem forçar atualização de estado durante o render.
+  }
+
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
@@ -5201,6 +6085,9 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         .purple-light-pulse { animation: purpleLightPulse 2.2s ease-in-out infinite; }
         .purple-light-pulse:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) { .purple-light-pulse { animation: none; } }
+        @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(225,77,58,0.6); } 50% { box-shadow: 0 0 0 8px rgba(225,77,58,0); } }
+        .live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
         .font-display { font-family: 'Playfair Display', serif; }
         .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
@@ -5220,22 +6107,22 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main className="lg:ml-[200px] lg:mr-[280px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} /></section>
-        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} /></section>
+        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} /></section>
+        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
-        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} newsAbrirId={newsAbrirId} onNewsAberta={() => setNewsAbrirId(null)} /></section>
-        <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} /></section>
+        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} onOpenNews={abrirReportagem} /></section>
+        <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
         <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
-        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
-        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
+        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
-        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} /></section>
+        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
         <section id="operadores" className="scroll-mt-24"><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
@@ -5243,6 +6130,17 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
       </main>
 
       <Footer churchName={site.churchName} />
+      <BotaoFlutuanteWhatsapp numero={site.whatsappMinisterio} />
+
+      <ReportagemModal
+        news={(avivarNews || []).find((n) => n.id === newsAbrirId) || null}
+        adminMode={adminMode}
+        onClose={() => setNewsAbrirId(null)}
+        onDelete={() => {
+          persist.avivarNews(avivarNews.filter((n) => n.id !== newsAbrirId));
+          setNewsAbrirId(null);
+        }}
+      />
 
       {gateOpen && (
         <AdminGateModal
@@ -5257,8 +6155,8 @@ Assinar os Códigos Avivar é um chamado irrevogável para assumir o seu posto n
         <OperatorGateModal
           operatorCodes={operatorCodes}
           onClose={() => setOperatorGateOpen(false)}
-          onSuccess={() => {
-            setOperatorMode(true);
+          onSuccess={(auth) => {
+            setOperatorAuth(auth);
             setOperatorGateOpen(false);
           }}
         />
