@@ -5,7 +5,7 @@ import {
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
-  Truck, Pencil, Save, ArrowLeft
+  Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -40,10 +40,11 @@ const C = {
 // Grid reaproveitável de 3 colunas responsivo — usado em todas as seções de cards
 // (Estudos Bíblicos, Avivar Music, vitrines, etc.) para manter o padrão visual do site.
 const GRID3 = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5";
-// Grid só dos cards-menu da Home (Loja, Igrejas, Códigos, Orações, etc.) — mais colunas
-// e mais espaçamento que o GRID3 padrão, pra caber em menos linhas com cards menores
-// (cada card ~1/3 menor que antes, já que agora tem mais colunas dividindo a mesma largura).
-const GRID_HOMECARDS = "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6";
+// Grid dos cards-menu da Home — reorganizado (set/2026) em exatamente 3 linhas x 3
+// colunas, cada célula com o card (imagem) + um pequeno resumo ao lado (HomeCardBlurb).
+const GRID_HOMECARDS = "grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6";
+// Fundos claros, alternados por coluna, atrás do resumo de cada card da Home.
+const CORES_HOMECARDS = ["#FBF1DE" /* creme */, "#E7F0FB" /* azul claro */, "#FBE9F0" /* rosé claro */, "#F3ECDF" /* bege */];
 
 const CAUSAS_ORACAO = ["Financeiras", "Saúde", "Libertação", "Intercessão", "Causas jurídicas", "Oportunidade de emprego", "Outros"];
 
@@ -159,18 +160,23 @@ const CARD_ICONS = {
   visitantes: HandHeart,
   loja: ShoppingBag,
   colaboradores: Users,
+  cursos: GraduationCap,
 };
 
+// Reorganização pedida pelo Marcos (set/2026): exatamente 3 linhas x 3 colunas,
+// cada card com um pequeno resumo ao lado (renderizado pelo componente HomeCardBlurb
+// em Home). "Igrejas Avivar" saiu dessa grade — continua acessível pelo menu superior
+// (NAV) — porque a lista de 9 cards pedida não a incluiu.
 const DEFAULT_HOMECARDS = [
-  { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", imageUrl: LOJA_BANNER, tone: "gold" },
-  { key: "igrejas", titulo: "Igrejas Avivar", desc: "Conheça nossas unidades.", imageUrl: IGREJAS_BANNER, tone: "violet" },
-  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", imageUrl: CODIGOS_BANNER, tone: "violet" },
-  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", imageUrl: ORACOES_BANNER, tone: "violet" },
-  { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
-  { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", imageUrl: VISITANTES_BANNER, tone: "gold" },
-  { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
-  { key: "doacoes", titulo: "Doações", desc: "Dízimos e ofertas.", imageUrl: DOACOES_BANNER, tone: "gold" },
-  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
+  { key: "oracoes", titulo: "Orações nos Lares", desc: "Peça oração ou visita de intercessão.", resumo: "Agende um encontro com Jesus na sua casa. Iremos com o maior prazer.", imageUrl: ORACOES_BANNER, tone: "violet" },
+  { key: "estudos", titulo: "Estudos Bíblicos", desc: "Palavra e vida.", resumo: "Aprofunde-se na Palavra com estudos que edificam a fé e transformam vidas.", imageUrl: ESTUDOS_BANNER, tone: "violet" },
+  { key: "biblia", titulo: "Bíblia Avivar", desc: "Leia e ouça as Escrituras.", resumo: "Leia, ouça e medite na Palavra onde você estiver, a qualquer hora do dia.", imageUrl: BIBLIA_DESTAQUE_BANNER, tone: "gold", externalUrl: BIBLIA_URL },
+  { key: "colaboradores", titulo: "Colaboradores", desc: "Quem serve conosco.", resumo: "Conheça quem serve com amor em cada área do ministério.", imageUrl: COLABORADORES_BANNER, tone: "violet" },
+  { key: "visitantes", titulo: "Visitantes", desc: "Registre sua visita.", resumo: "Sua primeira vez conosco? Cadastre-se e seja bem-vindo à família.", imageUrl: VISITANTES_BANNER, tone: "gold" },
+  { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", resumo: "Confira a agenda de cultos, encontros especiais e os melhores momentos em fotos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
+  { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", resumo: "Profecia, ciência e espiritualidade — revelações para os últimos tempos.", imageUrl: CODIGOS_BANNER, tone: "violet" },
+  { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", resumo: "Livros, roupas e utensílios cristãos para fortalecer sua caminhada.", imageUrl: LOJA_BANNER, tone: "gold" },
+  { key: "doacoes", titulo: "Dízimos e Ofertas", desc: "Contribua com o Reino.", resumo: "Semeie com um coração generoso e seja parte do que Deus está fazendo.", imageUrl: DOACOES_BANNER, tone: "gold" },
 ];
 
 const DEFAULT_SITE = {
@@ -194,7 +200,13 @@ const DEFAULT_CODIGOS = {
   courses: [],
 };
 
-const DEFAULT_AOVIVO = { isLive: false, instagramUrl: "", xUrl: "", youtubeUrl: "", embedUrl: "", mensagem: "Nenhuma transmissão no momento. Volte em breve." };
+const DEFAULT_AOVIVO = { isLive: false, instagramUrl: "", xUrl: "", youtubeUrl: "", embedUrl: "", mensagem: "Nenhuma transmissão no momento. Volte em breve.", programacao: [] };
+const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const PROGRAMA_FIELDS = [
+  { key: "dia", label: "Dia da semana", type: "select", options: DIAS_SEMANA },
+  { key: "horario", label: "Horário (ex: 19h30)" },
+  { key: "titulo", label: "Nome do programa/culto" },
+];
 const DEFAULT_DOACOES = { pixKey: "codigosavivar2026@gmail.com", mercadoPagoUrl: "", nomeRecebedor: "Ministerio Avivar do Espirito", cidade: "Brasilia", infoTexto: "" };
 
 const DEFAULT_MANCHETE = {
@@ -402,6 +414,19 @@ function SectionTitle({ children }) {
   );
 }
 
+// Botão "Voltar" — aparece no topo de toda seção do site (menos a Home), logo ao
+// chegar nela pelo menu, pedido do Marcos. Volta pra seção de onde a pessoa veio
+// (ver "voltar"/"previousPage" em App), ou pro início se não houver uma anterior.
+function VoltarBar({ onVoltar }) {
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      <button onClick={onVoltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}>
+        <ArrowLeft size={15} /> Voltar
+      </button>
+    </div>
+  );
+}
+
 // Selo usado em toda reportagem marcada como "exclusiva" (avivarNews com exclusiva:
 // true), sempre que ela aparece fora de Códigos Avivar já desbloqueado — na Home, em
 // Ao Vivo, ou nas colunas de Códigos Avivar antes do login.
@@ -497,7 +522,7 @@ const NAV = [
   { key: "codigos", label: "Códigos Avivar", icon: KeyRound },
   { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
   { key: "eventos", label: "Eventos/Galeria", icon: Calendar },
-  { key: "aovivo", label: "Ao Vivo", icon: Radio },
+  { key: "aovivo", label: "Avivar News TV", icon: Tv },
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
   { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
   { key: "contato", label: "Contato", icon: Mail },
@@ -534,7 +559,10 @@ function NoticiasCarousel() {
   const [noticias, setNoticias] = useState(NOTICIAS_FALLBACK);
 
   useEffect(() => {
-    const feedUrl = "https://news.google.com/rss/search?q=evangelho+igreja+avivamento&hl=pt-BR&gl=BR&ceid=BR:pt-419";
+    // Notícias gerais do Brasil e do mundo (qualquer assunto) — não mais restrito a
+    // temas de igreja/evangelho, a pedido do Marcos ("as informações da igreja não
+    // precisam"). Usa o feed de principais notícias do Google Notícias no Brasil.
+    const feedUrl = "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419";
     const proxied = "https://api.allorigins.win/raw?url=" + encodeURIComponent(feedUrl);
     fetch(proxied)
       .then((r) => (r.ok ? r.text() : Promise.reject()))
@@ -641,21 +669,21 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <ShoppingBag size={28} />
           </button>
         </div>
-
-        <div className="flex items-end gap-2 flex-wrap justify-end">
-          {/* Fileira de cima — pills sobre fundo roxo, alinhada pela base com a logo.
-              Pills com largura mínima igual à do submenu (mesmo nº de itens) e sem
-              padding horizontal extra no <nav>, para o grupo ficar colado à borda
-              direita do container — alinhando o 1º e o último pill com o submenu. */}
-          <nav className="hidden lg:flex items-end gap-1 flex-wrap rounded-md py-1.5" style={{ background: C.violetDeep }}>
-            {NAV.map((n) => (
-              <button key={n.key} onClick={() => go(n.key)} className="nav-pulse min-w-[100px] inline-flex items-center justify-center text-center px-2 py-1 text-xs font-semibold rounded-md transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
-                {n.label}
-              </button>
-            ))}
-          </nav>
-        </div>
       </div>
+
+      {/* Fileira de cima (NAV) — numa barra própria, de ponta a ponta do container
+          (mesma classe/largura da barra do submenu logo abaixo), com justify-between:
+          assim o 1º botão de cada fileira fica sempre alinhado com o 1º da outra, e o
+          último com o último, não importa quantos itens cada fileira tenha. Pills sem
+          largura mínima fixa (cada um do tamanho do próprio texto) e mais compactos,
+          pra caber todo mundo numa linha só, sem quebrar pro celular. */}
+      <nav className="hidden lg:flex items-center justify-between gap-1 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+        {NAV.map((n) => (
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-1 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
+            {n.label}
+          </button>
+        ))}
+      </nav>
 
       {/* Botão RESTRITO — vermelho, cadeado branco, bem visível, logo abaixo da logo e
           acima da barra de submenu (substitui o ícone pequeno que ficava escondido no
@@ -674,7 +702,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
       {/* Barra de submenu — mesmo fundo roxo da fileira de cima, alinhada à direita
           (mesma borda direita do container da fileira de cima); sempre visível no
           desktop, sem esconder num dropdown */}
-      <div className="hidden lg:flex items-center justify-end gap-1 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+      <div className="hidden lg:flex items-center justify-between gap-1 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
           return (
@@ -698,13 +726,17 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
       </div>
 
       {open && (
-        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1.5" style={{ borderColor: C.gold + "33", background: C.black }}>
-          {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
-            <button key={n.key} onClick={() => go(n.key)} className="text-left px-3 py-2 text-sm rounded-full flex items-center gap-2" style={pillStyle(page === n.key)}>
-              {n.icon && <n.icon size={15} />} {n.label}
-            </button>
-          ))}
-          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2" style={{ color: C.goldBright }}>
+        <div className="lg:hidden border-t px-3 py-3" style={{ borderColor: C.gold + "33", background: C.black }}>
+          {/* No celular, botões menores e em 2 colunas — cabe mais menu na tela sem
+              precisar rolar tanto pra achar o item que se quer. */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
+              <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-1.5 text-[11px] rounded-full flex items-center gap-1.5 truncate" style={pillStyle(page === n.key)}>
+                {n.icon && <n.icon size={13} className="shrink-0" />} <span className="truncate">{n.label}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2 mt-2" style={{ color: C.goldBright }}>
             {adminMode ? <ShieldCheck size={15} /> : <Lock size={15} />} {adminMode ? "Sair do modo admin" : "Entrar como admin"}
           </button>
         </div>
@@ -1056,6 +1088,24 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
   );
 }
 
+// Par "card + resumo" da grade da Home — o card (imagem) fica com largura fixa
+// à esquerda, e ao lado um pequeno texto explicando o que é aquele menu, sobre um
+// fundo claro (cor varia por coluna, ver CORES_HOMECARDS). O texto fica esticado
+// (items-stretch) pra ficar alinhado do topo à base da imagem do card, como pedido.
+function HomeCardBlurb({ card, icon, onClick, adminMode, corFundo }) {
+  return (
+    <div className="flex items-stretch gap-3">
+      <div className="w-24 sm:w-28 shrink-0">
+        <QuickCard icon={icon} title={card.titulo} desc={card.desc} onClick={onClick} tone={card.tone} bgImage={card.imageUrl} adminMode={adminMode} />
+      </div>
+      <button onClick={onClick} className="flex-1 rounded-xl border text-left p-3 flex flex-col justify-center focus:outline-none focus:ring-2" style={{ borderColor: C.line, background: corFundo }}>
+        <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{card.titulo}</p>
+        <p className="text-xs mt-1 leading-snug" style={{ color: C.stone }}>{card.resumo || card.desc}</p>
+      </button>
+    </div>
+  );
+}
+
 function HomeCardsAdmin({ cards, onSave }) {
   const [vals, setVals] = useState(cards);
   useEffect(() => setVals(cards), [cards]);
@@ -1119,7 +1169,7 @@ function LiveHomeCard({ aoVivo, onClick }) {
         )}
       </div>
       <button onClick={onClick} className="w-full text-left p-3 focus:outline-none">
-        <p className="font-display font-semibold text-sm" style={{ color: C.goldBright }}>{aoVivo.isLive ? "Estamos ao vivo agora" : "Ao Vivo & Avivar News"}</p>
+        <p className="font-display font-semibold text-sm" style={{ color: C.goldBright }}>{aoVivo.isLive ? "Estamos ao vivo agora" : "Avivar News TV"}</p>
         <p className="text-xs mt-0.5" style={{ color: "#ffffffaa" }}>Toque para ver transmissões anteriores e notícias.</p>
       </button>
     </div>
@@ -1154,14 +1204,19 @@ function VisitantesCard({ recentVisitors }) {
   );
 }
 
-function FeaturedBibliaCard({ onClick }) {
+// Substituiu o antigo FeaturedBibliaCard (Bíblia Avivar foi pra grade de 9 cards —
+// ver DEFAULT_HOMECARDS). Card de destaque pro futuro espaço de Cursos dos Códigos
+// Avivar (cursos, PDFs e vídeos — ainda "em breve"; abre a PaginaCursos ao clicar).
+function CursosDestaqueCard({ onClick }) {
   return (
     <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left relative focus:outline-none focus:ring-2" style={{ borderColor: C.gold }}>
-      <ImgOrPlaceholder url={BIBLIA_DESTAQUE_BANNER} alt="Bíblia Avivar" className="w-full aspect-video object-cover" ph="Banner Bíblia Avivar — adicionar depois" />
+      <div className="w-full aspect-video flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.violetDeep}, ${C.purple})` }}>
+        <GraduationCap size={40} color={C.goldBright} />
+      </div>
       <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, transparent 40%, #000000cc)" }} />
       <div className="absolute bottom-0 left-0 right-0 p-3">
-        <p className="font-display font-semibold text-sm text-white">Bíblia Avivar</p>
-        <p className="text-xs text-white/80">A Palavra que transforma vidas — acessar agora</p>
+        <p className="font-display font-semibold text-sm text-white">Cursos dos Códigos Avivar</p>
+        <p className="text-xs text-white/80">Cursos, PDFs e vídeos exclusivos — em breve</p>
       </div>
     </button>
   );
@@ -1483,7 +1538,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
@@ -1527,21 +1582,20 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
       )}
 
       {/* Cards da home — sempre depois dos banners do topo (Hero), nunca sobrepostos;
-          grade própria (GRID_HOMECARDS) com mais colunas/espaçamento, cards menores
-          e sem cortar a imagem (object-contain no QuickCard). */}
+          reorganizados (set/2026) em 3 linhas x 3 colunas, cada um com um pequeno
+          resumo ao lado sobre fundo claro (HomeCardBlurb), sem cortar a imagem
+          (object-contain no QuickCard). */}
       <div className={`max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 ${GRID_HOMECARDS}`}>
-        {homeCards.map((c) => {
+        {homeCards.map((c, idx) => {
           const Icon = CARD_ICONS[c.key] || Sparkles;
           return (
-            <QuickCard
+            <HomeCardBlurb
               key={c.key}
+              card={c}
               icon={Icon}
-              title={c.titulo}
-              desc={c.desc}
               onClick={() => (c.externalUrl ? window.open(c.externalUrl, "_blank", "noopener,noreferrer") : setPage(c.key))}
-              tone={c.tone}
-              bgImage={c.imageUrl}
               adminMode={adminMode}
+              corFundo={CORES_HOMECARDS[idx % CORES_HOMECARDS.length]}
             />
           );
         })}
@@ -1555,7 +1609,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-3 gap-5">
         <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
-        <FeaturedBibliaCard onClick={() => window.open(BIBLIA_URL, "_blank", "noopener,noreferrer")} />
+        <CursosDestaqueCard onClick={onOpenCursos} />
         <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
@@ -2174,6 +2228,12 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
   const delNews = (id) => saveNews(news.filter((n) => n.id !== id));
   const sortedNews = [...news].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
+  // Programação da Avivar News TV — estrutura pronta pra virar uma "grade de TV"
+  // completa depois; por enquanto, cada dia sem programa cadastrado mostra "EM BREVE".
+  const programacao = data.programacao || [];
+  const addPrograma = (v) => save({ ...data, programacao: [...programacao, { id: uid(), ...v }] });
+  const delPrograma = (id) => save({ ...data, programacao: programacao.filter((p) => p.id !== id) });
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       {/* Moldura da seção Ao Vivo inteira, a pedido — fundo creme, filete dourado */}
@@ -2185,7 +2245,7 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
         ) : (
           <Eyebrow color={C.stone}>Sem transmissão no momento</Eyebrow>
         )}
-        <SectionTitle>Ao Vivo</SectionTitle>
+        <SectionTitle>Avivar News TV</SectionTitle>
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mt-6 items-start">
           {/* Player principal: transmissão atual, ou a última transmissão selecionada —
@@ -2259,6 +2319,44 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Programação da Avivar News TV — estrutura pronta pra virar a grade completa da
+            TV; cada dia sem programa cadastrado mostra "EM BREVE". */}
+        <div className="mt-8 pt-6 border-t" style={{ borderColor: C.line }}>
+          <Eyebrow>Grade semanal</Eyebrow>
+          <h3 className="font-display text-lg font-semibold mb-3" style={{ color: C.ink }}>Programação da Avivar News TV</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {DIAS_SEMANA.map((dia) => {
+              const doDia = programacao.filter((p) => p.dia === dia);
+              return (
+                <div key={dia} className="rounded-lg border p-2.5 min-h-[92px]" style={{ borderColor: C.line, background: "#fff" }}>
+                  <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.stone }}>{dia}</p>
+                  {doDia.length === 0 ? (
+                    <span className="mt-2 inline-block text-[9px] font-mono font-semibold tracking-wider px-2 py-1 rounded-full" style={{ background: C.gold, color: "#241C00" }}>EM BREVE</span>
+                  ) : (
+                    <div className="mt-1.5 space-y-1.5">
+                      {doDia.map((p) => (
+                        <div key={p.id} className="flex items-start justify-between gap-1">
+                          <div>
+                            <p className="text-[11px] font-semibold leading-snug">{p.titulo}</p>
+                            <p className="text-[10px]" style={{ color: C.stone }}>{p.horario}</p>
+                          </div>
+                          {adminMode && <button onClick={() => delPrograma(p.id)}><Trash2 size={10} color={C.stone} /></button>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {adminMode && (
+            <div className="mt-5">
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · adicionar programa à grade</p>
+              <DynamicForm fields={PROGRAMA_FIELDS} onSubmit={(v) => v.dia && v.titulo && addPrograma(v)} submitLabel="Adicionar à programação" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -3432,6 +3530,63 @@ function PaginaIgreja({ igreja, all, save, adminMode, onVoltar }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Cursos dos Códigos Avivar (página própria — "em breve")             */
+/* ---------------------------------------------------------------- */
+// Página cheia (sem rolar a home), no mesmo padrão de PaginaIgreja: assume a tela
+// inteira, com botão "voltar" no cabeçalho. Por enquanto é só a estrutura pronta
+// pra receber cursos, PDFs e vídeos depois — três colunas, cada uma com sua frase
+// "EM BREVE"; quando o conteúdo real chegar, cada coluna vira uma lista de itens.
+const CURSOS_COLUNAS = [
+  { titulo: "Cursos", icone: GraduationCap, frase: "Em breve, cursos completos para aprofundar sua caminhada nos Códigos Avivar." },
+  { titulo: "PDFs", icone: FileText, frase: "Em breve, materiais em PDF para estudo, consulta e impressão." },
+  { titulo: "Vídeos", icone: PlayCircle, frase: "Em breve, videoaulas e conteúdos exclusivos em vídeo." },
+];
+const CORES_CURSOS = ["#FBF1DE", "#E7F0FB", "#FBE9F0"];
+
+function PaginaCursos({ onVoltar }) {
+  return (
+    <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
+      <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+          <button onClick={onVoltar} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: C.goldBright }}>
+            <ArrowLeft size={16} /> Voltar ao site do Ministério
+          </button>
+          <div className="flex items-center gap-2">
+            <GraduationCap size={20} color={C.goldBright} />
+            <span className="font-display font-semibold text-sm" style={{ color: "#fff" }}>Cursos dos Códigos Avivar</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-14">
+        <Eyebrow><KeyRound size={12} className="inline mr-1" />Códigos Avivar</Eyebrow>
+        <SectionTitle>Cursos, PDFs e Vídeos</SectionTitle>
+        <p className="text-sm mt-2 max-w-2xl" style={{ color: C.stone }}>
+          Um espaço dedicado ao ensino mais profundo dos Códigos Avivar. Em breve, você encontrará aqui cursos completos,
+          materiais para baixar e vídeos exclusivos — organizados nas colunas abaixo.
+        </p>
+
+        <div className="grid sm:grid-cols-3 gap-5 mt-8">
+          {CURSOS_COLUNAS.map((c, idx) => {
+            const Icon = c.icone;
+            return (
+              <div key={c.titulo} className="rounded-2xl border-2 p-5 flex flex-col items-center text-center gap-3" style={{ borderColor: C.gold, background: CORES_CURSOS[idx % CORES_CURSOS.length] }}>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: C.violetDeep }}>
+                  <Icon size={26} color={C.goldBright} />
+                </div>
+                <h3 className="font-display font-semibold text-base" style={{ color: C.ink }}>{c.titulo}</h3>
+                <p className="text-xs" style={{ color: C.stone }}>{c.frase}</p>
+                <span className="mt-2 inline-block text-[10px] font-mono font-semibold tracking-wider px-3 py-1 rounded-full" style={{ background: C.gold, color: "#241C00" }}>EM BREVE</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Colaboradores                                                       */
 /* ---------------------------------------------------------------- */
 const COLAB_FIELDS = [
@@ -4314,6 +4469,10 @@ const ENCONTRO_FIELDS = [
   { key: "contato", label: "Contato" },
 ];
 
+// Fundos claros, um por coluna, da grade de "Próximos encontros" (ver comentário
+// no JSX abaixo de onde é usado).
+const CORES_COLUNAS_ORACAO = ["#FBF1DE" /* creme */, "#E7F0FB" /* azul claro */, "#FBE9F0" /* rosé claro */];
+
 function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operatorMode, onRequestOperator, localDia, saveLocalDia }) {
   const canManageAgenda = adminMode || operatorMode;
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO(), status: "pendente" }]);
@@ -4377,13 +4536,21 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operat
         )
       )}
 
-      {/* Agenda de encontros — pública pra ver, restrita pra cadastrar */}
+      {/* Agenda de encontros — pública pra ver, restrita pra cadastrar. Pedido do Marcos:
+          o mais novo cadastrado entra na 1ª coluna; ao cadastrar outro, o anterior "anda"
+          pra coluna da direita, e assim por diante até formar novas linhas — sempre tudo
+          visível (nunca esconde nem pagina). Como cada encontro novo é sempre adicionado
+          ao FIM do array (ver addEncontro), basta exibir em ordem invertida (mais novo
+          primeiro) numa grade de 3 colunas: o mais novo cai na coluna 1, o antigo "1º
+          mais novo" empurra pra coluna 2, o próximo pra coluna 3, e o seguinte já forma
+          a linha de baixo — exatamente o efeito descrito. Cada coluna tem um fundo claro
+          diferente (CORES_COLUNAS_ORACAO) pra ficar fácil de acompanhar visualmente. */}
       <div className="mt-4">
         <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Próximos encontros</p>
         {encontros.length === 0 && <p className="text-sm italic" style={{ color: C.stone }}>Nenhum encontro cadastrado ainda.</p>}
-        <div className="grid sm:grid-cols-2 gap-4">
-          {encontros.map((e) => (
-            <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[...encontros].reverse().map((e, idx) => (
+            <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: CORES_COLUNAS_ORACAO[idx % CORES_COLUNAS_ORACAO.length] }}>
               <div className="p-4">
                 <div className="flex justify-between items-start">
                   <p className="font-display font-semibold text-sm">{e.anfitriao}</p>
@@ -4914,13 +5081,21 @@ function Contato({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 export default function App() {
   const [page, setPage] = useState("home");
+  // Guarda de onde a pessoa veio, pra o botão "Voltar" de cada seção saber pra onde
+  // voltar (pedido do Marcos: todas as seções do site precisam desse botão). Só
+  // atualiza quando o destino é realmente diferente da seção atual.
+  const [previousPage, setPreviousPage] = useState("home");
   const scrollToSection = (key) => {
+    if (key !== page) setPreviousPage(page);
     setPage(key);
     requestAnimationFrame(() => {
       const el = document.getElementById(key);
       if (el) el.scrollIntoView({ behavior: "smooth" });
     });
   };
+  // Ação do botão "Voltar" de cada seção — volta pra seção de onde a pessoa veio
+  // (ou pro início, se não houver uma anterior registrada).
+  const voltar = () => scrollToSection(previousPage || "home");
   // Abre uma reportagem específica do Avivar News a partir de QUALQUER seção do site
   // (Home, Códigos Avivar, Ao Vivo, Manchete...) — abre na hora, num modal por cima da
   // página atual, com a imagem; nunca rola a tela pra nenhum canto. Exceção: reportagem
@@ -4941,6 +5116,9 @@ export default function App() {
   // Página própria de uma Unidade Avivar (Igrejas) — quando setado, mostra essa página
   // no lugar do site inteiro; "voltar" limpa e retorna ao site principal.
   const [paginaIgrejaId, setPaginaIgrejaId] = useState(null);
+  // Página "Cursos dos Códigos Avivar" (cursos, PDFs, vídeos — em breve) — mesmo
+  // padrão de página cheia sem rolagem que a de Unidade Avivar, acima.
+  const [paginaCursosOpen, setPaginaCursosOpen] = useState(false);
   // Se a pessoa já entrou em Códigos Avivar (nome + código válidos) — levantado pra cá
   // (em vez de ficar só dentro de CodigosAvivar) pra que abrirReportagem saiba, de
   // qualquer lugar do site, se pode abrir uma reportagem "exclusiva" direto ou se deve
@@ -5965,6 +6143,25 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.dedupeRepertorio1 = true;
     }
+    // Reorganização dos cards da Home pedida pelo Marcos (set/2026): nova ordem em
+    // 3x3, card "Bíblia Avivar" entrando na grade (saiu do card grande em destaque),
+    // "Igrejas Avivar" saindo da grade (continua no menu superior) e resumo em cada
+    // card. Roda uma vez só; preserva a imagem já cadastrada de cada card que já
+    // existia (caso o admin tenha trocado alguma banner antes desta atualização).
+    if (!seeds.homeCardsReorg1) {
+      const hcAtual = site.homeCards || DEFAULT_HOMECARDS;
+      const porChave = {};
+      hcAtual.forEach((c) => { porChave[c.key] = c; });
+      const hcNovo = DEFAULT_HOMECARDS.map((c) => {
+        const antigo = porChave[c.key];
+        return antigo && antigo.imageUrl ? { ...c, imageUrl: antigo.imageUrl } : c;
+      });
+      const siteAtual = site || DEFAULT_SITE;
+      const novoSite = { ...siteAtual, homeCards: hcNovo };
+      setSite(novoSite);
+      saveKey("avivar:site", novoSite);
+      todo.homeCardsReorg1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -6065,6 +6262,11 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     // de volta pro site normal, sem forçar atualização de estado durante o render.
   }
 
+  // Página "Cursos dos Códigos Avivar" — abre em tela cheia, sem rolar a home.
+  if (paginaCursosOpen) {
+    return <PaginaCursos onVoltar={() => setPaginaCursosOpen(false)} />;
+  }
+
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
@@ -6107,26 +6309,26 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <Forum posts={forumPosts} addPost={(p) => persist.forum([...forumPosts, p])} />
 
       <main className="lg:ml-[200px] lg:mr-[280px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} /></section>
-        <section id="codigos" className="scroll-mt-24"><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} /></section>
-        <section id="loja" className="scroll-mt-24"><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
-        <section id="eventos" className="scroll-mt-24"><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
-        <section id="aovivo" className="scroll-mt-24"><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} onOpenNews={abrirReportagem} /></section>
-        <section id="igrejas" className="scroll-mt-24"><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
-        <section id="colaboradores" className="scroll-mt-24"><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
-        <section id="escala" className="scroll-mt-24"><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="estudos" className="scroll-mt-24"><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
-        <section id="biblioteca" className="scroll-mt-24"><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="doacoes" className="scroll-mt-24"><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
-        <section id="visitantes" className="scroll-mt-24"><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="oracoes" className="scroll-mt-24"><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
-        <section id="pedidooracao" className="scroll-mt-24"><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
-        <section id="membros" className="scroll-mt-24"><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="avivarmusic" className="scroll-mt-24"><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="caixa" className="scroll-mt-24"><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
-        <section id="operadores" className="scroll-mt-24"><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
-        <section id="bens" className="scroll-mt-24"><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
-        <section id="contato" className="scroll-mt-24"><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} /></section>
+        <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} /></section>
+        <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
+        <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
+        <section id="aovivo" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} onOpenNews={abrirReportagem} /></section>
+        <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
+        <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
+        <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
+        <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
+        <section id="doacoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
+        <section id="visitantes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
+        <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
+        <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="avivarmusic" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
+        <section id="operadores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
+        <section id="bens" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
+        <section id="contato" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>
       </main>
 
       <Footer churchName={site.churchName} />
