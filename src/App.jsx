@@ -5251,6 +5251,7 @@ export default function App() {
     let lojaW = loja || [];
     let bibliotecaW = biblioteca || [];
     let galeriaW = galeria || [];
+    let colaboradoresW = colaboradores || [];
     if (!seeds.reportagensCodigos) {
       const jaTem = avivarNews.some((n) => n.seedId && n.seedId.startsWith("codigos-"));
       if (!jaTem) {
@@ -5840,10 +5841,11 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           data: "2026-09-26",
           videos: [],
           fotos: [
-            "/32-galeria-comunidade.jpg", "/33-galeria-comunidade.jpg", "/34-galeria-comunidade.jpg",
-            "/35-galeria-comunidade.jpg", "/36-galeria-comunidade.jpg", "/37-galeria-comunidade.jpg",
-            "/38-galeria-comunidade.jpg", "/39-galeria-comunidade.jpg", "/40-galeria-comunidade.jpg",
-            "/41-galeria-comunidade.jpg", "/42-galeria-comunidade.jpg",
+            "/77-galeria-comunidade.jpg", "/78-galeria-comunidade.jpg", "/79-galeria-comunidade.jpg",
+            "/80-galeria-comunidade.jpg", "/81-galeria-comunidade.jpg", "/82-galeria-comunidade.jpg",
+            "/83-galeria-comunidade.jpg", "/84-galeria-comunidade.jpg", "/85-galeria-comunidade.jpg",
+            "/86-galeria-comunidade.jpg", "/87-galeria-comunidade.jpg", "/88-galeria-comunidade.jpg",
+            "/89-galeria-comunidade.jpg", "/90-galeria-comunidade.jpg",
           ],
         },
         {
@@ -5944,17 +5946,20 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           data: "2026-09-26",
           videos: [],
           fotos: [
-            "/32-galeria-comunidade.jpg",
-            "/33-galeria-comunidade.jpg",
-            "/34-galeria-comunidade.jpg",
-            "/35-galeria-comunidade.jpg",
-            "/36-galeria-comunidade.jpg",
-            "/37-galeria-comunidade.jpg",
-            "/38-galeria-comunidade.jpg",
-            "/39-galeria-comunidade.jpg",
-            "/40-galeria-comunidade.jpg",
-            "/41-galeria-comunidade.jpg",
-            "/42-galeria-comunidade.jpg",
+            "/77-galeria-comunidade.jpg",
+            "/78-galeria-comunidade.jpg",
+            "/79-galeria-comunidade.jpg",
+            "/80-galeria-comunidade.jpg",
+            "/81-galeria-comunidade.jpg",
+            "/82-galeria-comunidade.jpg",
+            "/83-galeria-comunidade.jpg",
+            "/84-galeria-comunidade.jpg",
+            "/85-galeria-comunidade.jpg",
+            "/86-galeria-comunidade.jpg",
+            "/87-galeria-comunidade.jpg",
+            "/88-galeria-comunidade.jpg",
+            "/89-galeria-comunidade.jpg",
+            "/90-galeria-comunidade.jpg",
           ],
         };
         galeriaW = [...galeriaW, novaSessao];
@@ -6076,18 +6081,27 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       todo.whatsappMinisterio1 = true;
     }
     if (!seeds.colaboradoresNovos1) {
-      const jaTemColab = (colaboradores || []).some((c) => c.seedId && c.seedId.startsWith("colab-novo-"));
+      const jaTemColab = colaboradoresW.some((c) => c.seedId && c.seedId.startsWith("colab-novo-"));
       if (!jaTemColab) {
         const novosColab = [
           { id: uid(), seedId: "colab-novo-elias", nome: "Elias", cargo: "Irmão", fotoUrl: "/66-colaborador-elias.jpg" },
           { id: uid(), seedId: "colab-novo-bene", nome: "Bené", cargo: "Diaconisa", fotoUrl: "/67-colaboradora-bene.jpg" },
           { id: uid(), seedId: "colab-novo-livia", nome: "Lívia", cargo: "Irmã", fotoUrl: "/68-colaboradora-livia.jpg" },
         ];
-        const mergedColab = [...colaboradores, ...novosColab];
-        setColaboradores(mergedColab);
-        saveKey("avivar:colaboradores", mergedColab);
+        colaboradoresW = [...colaboradoresW, ...novosColab];
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
       }
       todo.colaboradoresNovos1 = true;
+    }
+    if (!seeds.colaboradoresNovos2) {
+      const jaTemNardo = colaboradoresW.some((c) => c.seedId === "colab-novo-nardo");
+      if (!jaTemNardo) {
+        colaboradoresW = [...colaboradoresW, { id: uid(), seedId: "colab-novo-nardo", nome: "Nardo", cargo: "Irmão", fotoUrl: "/91-colaborador-nardo.jpg" }];
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
+      }
+      todo.colaboradoresNovos2 = true;
     }
     if (!seeds.homeCardsOracaoImg1) {
       const hc = site.homeCards || DEFAULT_HOMECARDS;
@@ -6161,6 +6175,23 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       setSite(novoSite);
       saveKey("avivar:site", novoSite);
       todo.homeCardsReorg1 = true;
+    }
+    // Marcos perdeu as 11 fotos originais da galeria "Vida em Comunidade" (nunca
+    // chegou a colar os arquivos /32 a /42-galeria-comunidade.jpg no GitHub) e mandou
+    // 14 fotos novas pra substituir. Sobrescreve o array de fotos dessa sessão — que
+    // os seeds anteriores (galeriaComunidade1 / repairGaleria1) já tinham criado com
+    // os nomes antigos — com os nomes definitivos /77 a /90-galeria-comunidade.jpg.
+    // Roda uma vez só; se a sessão ainda não existir por algum motivo, cria ela já
+    // com os nomes certos.
+    if (!seeds.galeriaComunidadeFotosNovas1) {
+      const fotosNovas = Array.from({ length: 14 }, (_, i) => `/${77 + i}-galeria-comunidade.jpg`);
+      const temSessao = galeriaW.some((g) => g.seedId === "galeria-comunidade-1");
+      galeriaW = temSessao
+        ? galeriaW.map((g) => (g.seedId === "galeria-comunidade-1" ? { ...g, fotos: fotosNovas } : g))
+        : [...galeriaW, { id: uid(), seedId: "galeria-comunidade-1", titulo: "Vida em Comunidade", data: "2026-09-28", videos: [], fotos: fotosNovas }];
+      setGaleria(galeriaW);
+      saveKey("avivar:galeria", galeriaW);
+      todo.galeriaComunidadeFotosNovas1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
