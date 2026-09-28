@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Menu, X, ChevronLeft, ChevronRight, Lock, Unlock, Plus, Trash2,
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
@@ -671,38 +671,32 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </div>
       </div>
 
-      {/* Fileira de cima (NAV) — numa barra própria, de ponta a ponta do container
-          (mesma classe/largura da barra do submenu logo abaixo), com justify-between:
-          assim o 1º botão de cada fileira fica sempre alinhado com o 1º da outra, e o
-          último com o último, não importa quantos itens cada fileira tenha. Pills sem
-          largura mínima fixa (cada um do tamanho do próprio texto) e mais compactos,
-          pra caber todo mundo numa linha só, sem quebrar pro celular. */}
-      <nav className="hidden lg:flex items-center justify-between gap-1 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
-        {NAV.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-1 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
-            {n.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Botão RESTRITO — vermelho, cadeado branco, bem visível, logo abaixo da logo e
-          acima da barra de submenu (substitui o ícone pequeno que ficava escondido no
-          canto). No celular, o acesso admin continua dentro do menu hambúrguer. */}
-      <div className="hidden lg:block max-w-6xl mx-auto px-4 sm:px-6">
+      {/* Fileira de cima: o botão RESTRITO agora mora nesta MESMA linha, coladinho à
+          esquerda, na mesma margem da logo/ícone da loja lá em cima. Os pills do NAV
+          vêm logo depois dele (afastados à direita, com um respiro no meio), e ficam
+          unidos entre si (gap curto), em vez de espalhados pela largura toda. */}
+      <div className="hidden lg:flex items-center gap-4 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
         <button
           onClick={onAdminClick}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
           style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
         >
           {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
           {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
         </button>
+        <nav className="flex items-center gap-1">
+          {NAV.map((n) => (
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-1 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2" style={topPillStyle(page === n.key)}>
+              {n.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Barra de submenu — mesmo fundo roxo da fileira de cima, alinhada à direita
-          (mesma borda direita do container da fileira de cima); sempre visível no
-          desktop, sem esconder num dropdown */}
-      <div className="hidden lg:flex items-center justify-between gap-1 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (agora unidas),
+          mesma margem esquerda da fileira de cima; sempre visível no desktop, sem
+          esconder num dropdown */}
+      <div className="hidden lg:flex items-center gap-1 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
           return (
@@ -907,6 +901,9 @@ function OperadoresAdmin({ codes, save, adminMode }) {
 // Botão flutuante de WhatsApp — fica em todas as páginas, canto inferior direito, e
 // só aparece quando o admin cadastra o número do Ministério (Home · ADMIN · imagens de
 // fundo... e contato). Some sozinho se o campo estiver vazio.
+// No celular, mesmo tamanho do botão do Fórum (p-3 + ícone 20) e posicionado ACIMA
+// dele (bottom-20, mesmo right-4), pra não ficar um por cima do outro. No desktop
+// mantém o tamanho/posição originais (56px, bottom-5/right-5).
 function BotaoFlutuanteWhatsapp({ numero }) {
   if (!numero) return null;
   return (
@@ -914,11 +911,12 @@ function BotaoFlutuanteWhatsapp({ numero }) {
       href={waLink(numero, "Olá! Vim através do site do Ministério Avivar do Espírito.")}
       target="_blank"
       rel="noreferrer"
-      className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition"
+      className="fixed z-40 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition p-3 right-4 bottom-20 lg:p-0 lg:w-14 lg:h-14 lg:right-5 lg:bottom-5"
       style={{ background: "#25D366" }}
       aria-label="Fale conosco no WhatsApp"
     >
-      <MessageCircle size={26} color="#fff" />
+      <MessageCircle size={20} color="#fff" className="lg:hidden" />
+      <MessageCircle size={26} color="#fff" className="hidden lg:block" />
     </a>
   );
 }
@@ -1545,9 +1543,13 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
     <div>
       <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
-        <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} onOpenNews={onOpenNews} />
+        {/* Só no celular (grid de 1 coluna): banner do Ministério vem antes das Notícias.
+            A partir do lg (3 colunas lado a lado) volta pra ordem original. */}
+        <div className="order-2 lg:order-1">
+          <HeroNewsColumn news={avivarNews || []} bgImage={site.heroLeftBg} onClick={() => setPage("aovivo")} onOpenNews={onOpenNews} />
+        </div>
 
-        <div className="relative rounded-2xl overflow-hidden h-full min-h-[280px] sm:min-h-[360px]" style={{ background: C.black }}>
+        <div className="order-1 lg:order-2 relative rounded-2xl overflow-hidden h-full min-h-[280px] sm:min-h-[360px]" style={{ background: C.black }}>
           <img src={site.heroMiddleBg || HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(1px) brightness(0.5)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000066, #1F1B2ECC)" }} />
           <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
@@ -1558,7 +1560,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, oracaoEn
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 h-full">
+        <div className="order-3 lg:order-3 flex flex-col gap-3 h-full">
           <div className="flex-[7] min-h-0">
             <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
           </div>
@@ -5081,21 +5083,33 @@ function Contato({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 export default function App() {
   const [page, setPage] = useState("home");
-  // Guarda de onde a pessoa veio, pra o botão "Voltar" de cada seção saber pra onde
-  // voltar (pedido do Marcos: todas as seções do site precisam desse botão). Só
-  // atualiza quando o destino é realmente diferente da seção atual.
-  const [previousPage, setPreviousPage] = useState("home");
+  // Histórico de navegação (pilha) — cada vez que `page` muda, empilha o novo valor.
+  // O botão "Voltar" de cada seção desempilha e volta pra seção de onde a pessoa
+  // REALMENTE veio. Diferente da versão anterior (uma única variável "previousPage"
+  // atualizada só dentro de scrollToSection), este histórico observa `page` direto
+  // num efeito — funciona não importa de onde a navegação partiu (NAV, card da Home,
+  // abrirReportagem, etc.), corrigindo o bug em que todo "Voltar" caía sempre em
+  // "Avivar News TV".
+  const historicoPaginaRef = useRef(["home"]);
+  useEffect(() => {
+    const h = historicoPaginaRef.current;
+    if (h[h.length - 1] !== page) h.push(page);
+  }, [page]);
   const scrollToSection = (key) => {
-    if (key !== page) setPreviousPage(page);
     setPage(key);
     requestAnimationFrame(() => {
       const el = document.getElementById(key);
       if (el) el.scrollIntoView({ behavior: "smooth" });
     });
   };
-  // Ação do botão "Voltar" de cada seção — volta pra seção de onde a pessoa veio
-  // (ou pro início, se não houver uma anterior registrada).
-  const voltar = () => scrollToSection(previousPage || "home");
+  // Ação do botão "Voltar" de cada seção — desempilha a seção atual do topo do
+  // histórico e volta pra que estava logo antes dela (ou pro início, se não houver).
+  const voltar = () => {
+    const h = historicoPaginaRef.current;
+    if (h.length > 1 && h[h.length - 1] === page) h.pop();
+    const anterior = h.length > 0 ? h.pop() : "home";
+    scrollToSection(anterior || "home");
+  };
   // Abre uma reportagem específica do Avivar News a partir de QUALQUER seção do site
   // (Home, Códigos Avivar, Ao Vivo, Manchete...) — abre na hora, num modal por cima da
   // página atual, com a imagem; nunca rola a tela pra nenhum canto. Exceção: reportagem
