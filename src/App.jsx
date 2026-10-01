@@ -6599,6 +6599,26 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.livrosAnjosEMilagres1 = true;
     }
+    if (!seeds.resumosLivrosCodigos1) {
+      // Resumos revisados dos 3 livros da Série Códigos Avivar, escritos com base
+      // na arte de cada capa. Nenhum título está disponível ainda em PDF nem em
+      // versão física impressa — deixado explícito no texto para o visitante.
+      const resumos = {
+        "codigos-cura-da-alma":
+          "Cura da Alma — Ciência e Fé Unidas Para Curar. Pr. Marcos Fagner une o conhecimento médico-científico à base bíblica da tricotomia humana — corpo, alma e espírito (Hebreus 13:20-21) — para tratar o sofrimento psíquico sem negar nem a ciência, nem a fé. Esquizofrenia, síndrome do pânico, transtornos de ansiedade e depressão são abordados com acolhimento, fundamentação e esperança, mostrando que a cura plena acontece quando Medicina e Espírito Santo caminham lado a lado. Ainda não disponível — nem em PDF, nem em versão física impressa.",
+        "codigos-anjos-trono-terra":
+          "Anjos: Entre o Trono e a Terra — Série Códigos Avivar, Volume IX. \"Ele faz dos ventos os seus mensageiros, e do fogo labareda, os seus ministros\" (Salmos 104:4). Pr. Marcos Fagner mergulha no mundo invisível dos mensageiros celestiais — origem, hierarquia, funções e atuação entre o trono de Deus e a vida humana. Guerreiros, guardiões, portadores de revelação: este volume revela como os anjos continuam agindo hoje, protegendo, guiando e executando os propósitos do Altíssimo na terra. Ainda não disponível — nem em PDF, nem em versão física impressa.",
+        "codigos-milagres-jesus":
+          "Os Milagres de Jesus Cristo — Série Códigos Avivar, Volume VIII. Cegos que voltaram a ver, enfermos curados, mortos que ressuscitaram: Pr. Marcos Fagner revisita os milagres de Jesus à luz da fé e da ciência, explorando a energia divina por trás de cada manifestação de poder. Uma obra que mostra que o mesmo poder que atuou na Galileia continua disponível à Igreja nos dias de hoje. Ainda não disponível — nem em PDF, nem em versão física impressa.",
+      };
+      const precisaAtualizarResumo = lojaW.some((p) => resumos[p.seedId] && p.descricao !== resumos[p.seedId]);
+      if (precisaAtualizarResumo) {
+        lojaW = lojaW.map((p) => (resumos[p.seedId] ? { ...p, descricao: resumos[p.seedId] } : p));
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.resumosLivrosCodigos1 = true;
+    }
     if (!seeds.homeCardsOracaoImg1) {
       const hc = site.homeCards || DEFAULT_HOMECARDS;
       const precisaCorrigir = hc.some((c) => c.key === "oracoes" && !c.imageUrl);
