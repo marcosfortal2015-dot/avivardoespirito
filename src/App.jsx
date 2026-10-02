@@ -5,7 +5,8 @@ import {
   BookOpen, Radio, MessageCircle, Home as HomeIcon, Mail, ShieldCheck,
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
-  Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv, Feather, Gem, Crown, CheckCircle2
+  Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv, Feather, Gem, Crown, CheckCircle2,
+  Play, Pause, Maximize, Minus, Settings2, Layers, History
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -235,6 +236,70 @@ const DEFAULT_CODIGOS = {
   // de Códigos Avivar existir.
   leads: [],
 };
+
+/* ---------------------------------------------------------------- */
+/* Células Avivar                                                      */
+/* ---------------------------------------------------------------- */
+// Três células fixas (Alfa/Beta/Gama) — não é uma lista que o admin cresce
+// livremente, é a estrutura pedida pelo Marcos. Cada uma guarda seu próprio
+// logotipo (a enviar), anfitrião, lista de participantes (texto, um nome por
+// linha) e um pequeno histórico de encontros — mesmo padrão de "encontros"
+// já usado em Orações nos Lares (data + anfitrião + local + fotos).
+const CELULA_KEYS = ["alfa", "beta", "gama"];
+const CELULA_LABELS = { alfa: "Célula Alfa", beta: "Célula Beta", gama: "Célula Gama" };
+const CELULA_CORES = { alfa: "#CBA135", beta: "#4A3B6B", gama: "#C4622D" };
+const CELULA_VAZIA = (chave) => ({
+  nome: CELULA_LABELS[chave],
+  logoUrl: "",
+  anfitriao: "",
+  participantes: "",
+  historia: "",
+  encontros: [],
+});
+const DEFAULT_CELULAS = {
+  // Diácono Gilvan coordena o projeto Células Avivar como um todo (as 3 células).
+  // liderCode é o código único que o admin gera/revoga e entrega ao Diácono Gilvan
+  // (Líder de Células) para que ele edite as 3 páginas sem precisar do login de admin.
+  coordenador: "Diácono Gilvan",
+  liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase(),
+  liderCodeActive: true,
+  alfa: {
+    ...CELULA_VAZIA("alfa"),
+    logoUrl: "/103-celula-alfa-logo.png",
+    anfitriao: "Irmão Renato",
+    historia:
+      "A Célula Alfa foi a primeira célula formada pelo Ministério Avivar do Espírito, em 01/10/2026 — o início do projeto Células Avivar. Tem o Irmão Renato como anfitrião.",
+    encontros: [
+      { id: "seed-celula-alfa-01", data: "2026-10-01", anfitriao: "Irmão Renato", local: "", fotos: ["/95-celula-alfa-primeiro-encontro.jpg"] },
+    ],
+  },
+  beta: { ...CELULA_VAZIA("beta"), logoUrl: "/102-celula-beta-logo.png" },
+  gama: { ...CELULA_VAZIA("gama"), logoUrl: "/104-celula-gama-logo.png" },
+};
+const CELULA_ENCONTRO_FIELDS = [
+  { key: "data", label: "Data", type: "date" },
+  { key: "anfitriao", label: "Anfitrião(ã)" },
+  { key: "local", label: "Local / endereço" },
+  { key: "relato", label: "Relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.)", type: "textarea" },
+];
+
+/* ---------------------------------------------------------------- */
+/* História do Ministério                                              */
+/* ---------------------------------------------------------------- */
+// Página aberta ao clicar no nome/logo do Ministério no Hero da Home — guarda
+// o texto que antes vivia na seção "Sobre nós" (agora substituída por Células
+// Avivar na Home), além de fotos antigas e a diretoria/liderança.
+const DEFAULT_HISTORIA = {
+  texto:
+    "O Ministério Avivar do Espírito é uma igreja interdenominacional, fundamentada na doutrina cristã, dedicada ao ensino da Palavra, à comunhão entre irmãos e ao cuidado com quem chega pela primeira vez.\n\nMesmo sendo interdenominacionais, buscamos constantemente o poder do Senhor Espírito Santo, ativando os dons espirituais de cura, milagres, maravilhas, revelação, profecia e tudo quanto o Senhor determinar — estamos dispostos a fazer. Mesmo sem alardes nem grandes holofotes, milagres, curas, revelações e profecias são constantes neste ministério.\n\nOs fiéis de Jesus Cristo são tratados sem distinção hierárquica, porque consideramos todos filhos amados de Jesus Cristo. Cremos no batismo nas águas, no Espírito Santo de Deus como nosso Consolador, no Santo Cristo Jesus como Redentor, e no Deus Todo-Poderoso como um só Deus, que nos sustenta.",
+  fotosAntigas: [],
+  diretoria: [],
+};
+const DIRETORIA_FIELDS = [
+  { key: "nome", label: "Nome completo" },
+  { key: "cargo", label: "Cargo na diretoria" },
+  { key: "fotoUrl", label: "URL da foto", type: "url" },
+];
 
 const DEFAULT_AOVIVO = {
   isLive: false,
@@ -1661,26 +1726,28 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
       <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
-        {/* Coluna 1 — Ministério: nome, logo e um breve histórico (o texto completo
-            continua na seção "Sobre nós"; esse aqui é só a apresentação rápida). Só
-            no celular ela vem depois da coluna central; do lg pra cima, vem primeiro. */}
+        {/* Coluna 1 — Ministério: nome, logo e um breve histórico. O nome/logo é
+            clicável e leva para a página "Nossa História" (histórico completo,
+            fotos antigas e diretoria). Só no celular ela vem depois da coluna
+            central; do lg pra cima, vem primeiro. */}
         <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden h-full min-h-[280px] sm:min-h-[360px]" style={{ background: C.black }}>
           <img src={site.heroMiddleBg || HERO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(1px) brightness(0.5)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #00000066, #1F1B2ECC)" }} />
-          <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
+          <button onClick={onOpenHistoria} className="relative h-full w-full flex flex-col items-center justify-center text-center px-4 focus:outline-none focus:ring-2" title="Conheça a história do Ministério">
             <img src={LOGO_ICON} alt={site.churchName} className="h-14 w-auto mb-3" />
             <h1 className="font-script text-3xl sm:text-5xl" style={{ color: C.goldBright }}>{site.churchName}</h1>
             <p className="mt-3 text-xs sm:text-sm max-w-xl" style={{ color: "#ffffffdd" }}>
               {site.heroHistoricoBreve || DEFAULT_SITE.heroHistoricoBreve}
             </p>
-          </div>
+            <span className="mt-2 text-[11px] font-mono underline" style={{ color: C.goldBright }}>Conheça nossa história →</span>
+          </button>
         </div>
 
         {/* Coluna central — dividida ao meio, mantendo a largura: em cima, a
@@ -1713,7 +1780,6 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
             <Field label="Fundo — Notícias (metade de baixo da coluna central)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroLeftBg || ""} onChange={(e) => saveSite({ ...site, heroLeftBg: e.target.value })} /></Field>
             <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
             <Field label="Histórico breve — coluna 1 (Ministério)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={site.heroHistoricoBreve || ""} onChange={(e) => saveSite({ ...site, heroHistoricoBreve: e.target.value })} /></Field>
-            <Field label="Foto — seção Sobre nós"><input className={inputCls} style={{ borderColor: C.line }} value={site.sobreNosImage || ""} onChange={(e) => saveSite({ ...site, sobreNosImage: e.target.value })} /></Field>
             <Field label="WhatsApp do Ministério (com DDD, só números)"><input className={inputCls} style={{ borderColor: C.line }} value={site.whatsappMinisterio || ""} onChange={(e) => saveSite({ ...site, whatsappMinisterio: e.target.value })} /></Field>
           </div>
         </div>
@@ -1751,30 +1817,314 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
         <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-[1.4fr_1fr] gap-8 items-start">
-        <div>
-          <Eyebrow>Sobre nós</Eyebrow>
-          <SectionTitle>Uma casa de fé aberta a todos</SectionTitle>
-          <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
-            O {site.churchName} é uma igreja interdenominacional, fundamentada na doutrina cristã, dedicada ao ensino da
-            Palavra, à comunhão entre irmãos e ao cuidado com quem chega pela primeira vez.
-          </p>
-          <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
-            Mesmo sendo interdenominacionais, buscamos constantemente o poder do Senhor Espírito Santo, ativando os dons
-            espirituais de cura, milagres, maravilhas, revelação, profecia e tudo quanto o Senhor determinar — estamos
-            dispostos a fazer. Mesmo sem alardes nem grandes holofotes, milagres, curas, revelações e profecias são
-            constantes neste ministério.
-          </p>
-          <p className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>
-            Os fiéis de Jesus Cristo são tratados sem distinção hierárquica, porque consideramos todos filhos amados de
-            Jesus Cristo. Cremos no batismo nas águas, no Espírito Santo de Deus como nosso Consolador, no Santo Cristo
-            Jesus como Redentor, e no Deus Todo-Poderoso como um só Deus, que nos sustenta.
-          </p>
-        </div>
-        <div className="rounded-xl border overflow-hidden shadow-md" style={{ borderColor: C.line }}>
-          <ImgOrPlaceholder url={site.sobreNosImage} alt="Ministério Avivar do Espírito" className="w-full h-full min-h-[280px] object-cover" ph="Foto do Ministério — adicionar depois" />
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16">
+        <Eyebrow><Layers size={12} className="inline mr-1" />Comunhão em pequenos grupos</Eyebrow>
+        <SectionTitle>Células Avivar</SectionTitle>
+        {celulas && celulas.coordenador && (
+          <p className="text-sm mb-5" style={{ color: C.stone }}>Coordenador das Células Avivar: <strong style={{ color: C.ink }}>{celulas.coordenador}</strong></p>
+        )}
+        <div className={GRID3}>
+          {CELULA_KEYS.map((chave) => (
+            <CelulaCard key={chave} chave={chave} celula={(celulas && celulas[chave]) || CELULA_VAZIA(chave)} onOpen={() => onOpenCelula(chave)} />
+          ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Células Avivar — card (Home) + página própria de cada célula        */
+/* ---------------------------------------------------------------- */
+function CelulaCard({ chave, celula, onOpen }) {
+  const cor = CELULA_CORES[chave] || C.gold;
+  const nParticipantes = (celula.participantes || "").split("\n").map((s) => s.trim()).filter(Boolean).length;
+  const ultimoEncontro = [...(celula.encontros || [])].sort((a, b) => new Date(b.data) - new Date(a.data))[0];
+  return (
+    <button onClick={onOpen} className="text-left rounded-2xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 hover:opacity-95" style={{ borderColor: cor, background: "#fff" }}>
+      <div className="h-28 flex items-center justify-center" style={{ background: cor + "1a" }}>
+        <ImgOrPlaceholder url={celula.logoUrl} alt={celula.nome} className="h-full w-full object-contain p-3" ph="Logo — a enviar" />
+      </div>
+      <div className="p-4">
+        <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>{celula.nome}</h3>
+        {celula.anfitriao && <p className="text-xs mt-1" style={{ color: C.stone }}>Anfitrião(ã): {celula.anfitriao}</p>}
+        {nParticipantes > 0 && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{nParticipantes} participante{nParticipantes > 1 ? "s" : ""}</p>}
+        {ultimoEncontro && (
+          <p className="text-xs mt-1" style={{ color: cor }}>
+            <Calendar size={11} className="inline mr-1" />{fmtDate(ultimoEncontro.data)}{ultimoEncontro.local ? ` · ${ultimoEncontro.local}` : ""}
+          </p>
+        )}
+        <span className="text-xs underline mt-3 inline-block" style={{ color: C.violet }}>Ver célula →</span>
+      </div>
+    </button>
+  );
+}
+
+function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, adminMode, onSave, onPatchTop, onVoltar }) {
+  const cor = CELULA_CORES[chave] || C.gold;
+  // Acesso do Líder de Células (Diácono Gilvan, coordenador das 3 células) — mesmo
+  // padrão de código/gate já usado nas Unidades Avivar (IgrejaCard/PaginaIgreja):
+  // um único código, gerado e revogável pelo admin, dá direito de editar as 3 células.
+  const [gateOpen, setGateOpen] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const canManage = adminMode || unlocked;
+
+  const participantesLista = (celula.participantes || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const [editandoDados, setEditandoDados] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(celula.logoUrl || "");
+  const [anfitriao, setAnfitriao] = useState(celula.anfitriao || "");
+  const [participantesTexto, setParticipantesTexto] = useState(celula.participantes || "");
+  const [historiaTexto, setHistoriaTexto] = useState(celula.historia || "");
+
+  const salvarDados = () => {
+    onSave({ ...celula, logoUrl, anfitriao, participantes: participantesTexto, historia: historiaTexto });
+    setEditandoDados(false);
+  };
+
+  const encontros = celula.encontros || [];
+  const addEncontro = (v) => onSave({ ...celula, encontros: [...encontros, { id: uid(), ...v, fotos: [] }] });
+  const delEncontro = (id) => onSave({ ...celula, encontros: encontros.filter((e) => e.id !== id) });
+  const addFoto = (id, url) => {
+    if (!url.trim()) return;
+    onSave({ ...celula, encontros: encontros.map((e) => (e.id === id ? { ...e, fotos: [...(e.fotos || []), url.trim()] } : e)) });
+  };
+  const delFoto = (id, idx) => {
+    onSave({ ...celula, encontros: encontros.map((e) => (e.id === id ? { ...e, fotos: e.fotos.filter((_, i) => i !== idx) } : e)) });
+  };
+  const encontrosOrdenados = [...encontros].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  const regenCodigo = () => onPatchTop({ liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase() });
+  const toggleCodigo = () => onPatchTop({ liderCodeActive: !liderCodeActive });
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
+      <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: cor + "55" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+          <button onClick={onVoltar} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: cor }}>
+            <ArrowLeft size={16} /> Voltar ao site
+          </button>
+          <div className="flex items-center gap-2">
+            <img src={celula.logoUrl || LOGO_ICON} alt={celula.nome} className="h-9 w-auto rounded" />
+            <span className="font-display font-semibold text-sm hidden sm:inline" style={{ color: "#fff" }}>{celula.nome}</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <Eyebrow color={cor}><Layers size={12} className="inline mr-1" />Células Avivar{coordenador ? ` · Coordenador: ${coordenador}` : ""}</Eyebrow>
+        <SectionTitle>{celula.nome}</SectionTitle>
+        {celula.anfitriao && <p className="text-sm" style={{ color: C.stone }}>Anfitrião(ã): <strong style={{ color: C.ink }}>{celula.anfitriao}</strong></p>}
+
+        {celula.historia && <p className="text-sm mt-4 max-w-2xl leading-relaxed" style={{ color: C.stone }}>{celula.historia}</p>}
+
+        <a href={BIBLIA_URL} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 px-3 py-2 rounded-md border mt-3" style={{ borderColor: C.gold, color: C.goldDeep }}>
+          <BookOpen size={13} /> Bíblia Avivar
+        </a>
+
+        <div className="mt-3">
+          {!canManage ? (
+            <button onClick={() => setGateOpen((v) => !v)} className="text-xs underline" style={{ color: C.violet }}>Sou o Líder de Células</button>
+          ) : (
+            <span className="text-xs" style={{ color: "#2E7D4F" }}>Editando como {adminMode ? "admin" : "Líder de Células"}</span>
+          )}
+          {gateOpen && !canManage && (
+            <div className="flex gap-2 mt-2">
+              <input placeholder="Código do Líder de Células" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className={`${inputCls} max-w-xs text-xs`} style={{ borderColor: C.line }} />
+              <Btn variant="ghost" color={cor} onClick={() => { if (liderCodeActive && codeInput.trim().toUpperCase() === liderCode) setUnlocked(true); }}>Entrar</Btn>
+            </div>
+          )}
+        </div>
+
+        {canManage && (
+          editandoDados ? (
+            <div className="mt-5 p-4 rounded-lg border grid sm:grid-cols-2 gap-3" style={{ borderColor: C.line, background: "#00000006" }}>
+              <Field label="URL do logotipo da célula"><input className={inputCls} style={{ borderColor: C.line }} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} /></Field>
+              <Field label="Anfitrião(ã)"><input className={inputCls} style={{ borderColor: C.line }} value={anfitriao} onChange={(e) => setAnfitriao(e.target.value)} /></Field>
+              <div className="sm:col-span-2"><Field label="Histórico da célula"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={historiaTexto} onChange={(e) => setHistoriaTexto(e.target.value)} /></Field></div>
+              <div className="sm:col-span-2"><Field label="Participantes (um nome por linha — editável pelo admin ou pelo Líder de Células)"><textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={participantesTexto} onChange={(e) => setParticipantesTexto(e.target.value)} /></Field></div>
+              <div className="flex gap-2 sm:col-span-2">
+                <Btn color={cor} onClick={salvarDados}><Save size={13} /> Salvar</Btn>
+                <Btn variant="ghost" color={cor} onClick={() => setEditandoDados(false)}>Cancelar</Btn>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setEditandoDados(true)} className="text-xs underline mt-4 flex items-center gap-1" style={{ color: C.ember }}>
+              <Pencil size={12} /> editar dados da célula
+            </button>
+          )
+        )}
+
+        <div className="mt-8">
+          <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Participantes</p>
+          {participantesLista.length === 0 ? (
+            <Empty text="Nenhum participante cadastrado ainda." />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {participantesLista.map((nome, idx) => (
+                <span key={idx} className="text-xs px-3 py-1.5 rounded-full" style={{ background: cor + "1a", color: C.ink }}>{nome}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-10">
+          <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Encontros</p>
+          {encontrosOrdenados.length === 0 && <Empty text="Nenhum encontro registrado ainda." />}
+          <div className="grid sm:grid-cols-3 gap-4">
+            {encontrosOrdenados.map((e) => (
+              <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: "#fff" }}>
+                <div className="p-4">
+                  <div className="flex justify-between items-start">
+                    <p className="font-display font-semibold text-sm">{fmtDate(e.data)}</p>
+                    {canManage && <button onClick={() => delEncontro(e.id)}><Trash2 size={13} color={C.stone} /></button>}
+                  </div>
+                  {e.anfitriao && <p className="text-xs mt-1" style={{ color: C.stone }}>Anfitrião(ã): {e.anfitriao}</p>}
+                  {e.local && <p className="text-xs mt-1" style={{ color: C.stone }}>{e.local}</p>}
+                  {e.relato && <p className="text-xs mt-2 leading-relaxed" style={{ color: C.ink }}>{e.relato}</p>}
+                </div>
+                {(e.fotos || []).length > 0 && (
+                  <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">
+                    {e.fotos.map((f, idx) => (
+                      <div key={idx} className="relative">
+                        <img src={f} className="w-full h-28 object-cover rounded" />
+                        {canManage && (
+                          <button onClick={() => delFoto(e.id, idx)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                            <X size={10} color="#fff" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {canManage && <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />}
+              </div>
+            ))}
+          </div>
+          {canManage && (
+            <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.)</p>
+              <DynamicForm fields={CELULA_ENCONTRO_FIELDS} accent={cor} onSubmit={(v) => v.data && addEncontro(v)} submitLabel="Cadastrar encontro" />
+            </div>
+          )}
+        </div>
+
+        {adminMode && (
+          <div className="mt-10 pt-4 border-t text-xs" style={{ borderColor: C.line, color: C.stone }}>
+            Código do Líder de Células (válido para as 3 células): <strong style={{ color: C.ink }}>{liderCode}</strong> · {liderCodeActive ? "ativo" : "revogado"}
+            <button onClick={toggleCodigo} className="underline ml-3" style={{ color: C.violet }}>{liderCodeActive ? "revogar" : "reativar"}</button>
+            <button onClick={regenCodigo} className="underline ml-3" style={{ color: C.ember }}>resetar código</button>
+          </div>
+        )}
+      </div>
+
+      <div className="py-10 text-center">
+        <button onClick={onVoltar} className="text-sm underline" style={{ color: C.violet }}>← Voltar ao site do Ministério Avivar do Espírito</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Nossa História — aberta pelo clique no nome/logo do Hero da Home    */
+/* ---------------------------------------------------------------- */
+function PaginaHistoria({ historia, save, adminMode, onVoltar }) {
+  const [editandoTexto, setEditandoTexto] = useState(false);
+  const [texto, setTexto] = useState(historia.texto || "");
+  const salvarTexto = () => { save({ ...historia, texto }); setEditandoTexto(false); };
+
+  const fotos = historia.fotosAntigas || [];
+  const addFoto = (url) => { if (url.trim()) save({ ...historia, fotosAntigas: [...fotos, url.trim()] }); };
+  const delFoto = (idx) => save({ ...historia, fotosAntigas: fotos.filter((_, i) => i !== idx) });
+
+  const diretoria = historia.diretoria || [];
+  const addDiretor = (v) => save({ ...historia, diretoria: [...diretoria, { id: uid(), ...v }] });
+  const delDiretor = (id) => save({ ...historia, diretoria: diretoria.filter((d) => d.id !== id) });
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
+      <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+          <button onClick={onVoltar} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: C.goldBright }}>
+            <ArrowLeft size={16} /> Voltar ao site
+          </button>
+          <div className="flex items-center gap-2">
+            <img src={LOGO_ICON} alt="" className="h-9 w-auto rounded" />
+            <span className="font-display font-semibold text-sm hidden sm:inline" style={{ color: "#fff" }}>Nossa História</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <Eyebrow><History size={12} className="inline mr-1" />Uma casa de fé aberta a todos</Eyebrow>
+        <SectionTitle>Nossa História</SectionTitle>
+
+        {editandoTexto ? (
+          <div className="mt-4 space-y-2 max-w-2xl">
+            <textarea rows={10} className={inputCls} style={{ borderColor: C.line }} value={texto} onChange={(e) => setTexto(e.target.value)} />
+            <div className="flex gap-2">
+              <Btn onClick={salvarTexto}><Save size={13} /> Salvar</Btn>
+              <Btn variant="ghost" onClick={() => setEditandoTexto(false)}>Cancelar</Btn>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 max-w-2xl">
+            {(historia.texto || "").split("\n\n").map((p, idx) => (
+              <p key={idx} className="text-sm mt-3 leading-relaxed" style={{ color: C.stone }}>{p}</p>
+            ))}
+            {adminMode && (
+              <button onClick={() => setEditandoTexto(true)} className="text-xs underline mt-3 flex items-center gap-1" style={{ color: C.ember }}>
+                <Pencil size={12} /> editar histórico
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-12">
+          <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Fotos antigas</p>
+          {fotos.length === 0 && <Empty text="Nenhuma foto antiga cadastrada ainda." />}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {fotos.map((url, idx) => (
+              <div key={idx} className="relative rounded-lg overflow-hidden border" style={{ borderColor: C.line }}>
+                <img src={url} className="w-full h-32 object-cover" />
+                {adminMode && (
+                  <button onClick={() => delFoto(idx)} className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
+                    <X size={11} color="#fff" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {adminMode && <div className="mt-3"><MiniPhotoAdder onAdd={addFoto} /></div>}
+        </div>
+
+        <div className="mt-12">
+          <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Diretoria</p>
+          {diretoria.length === 0 && <Empty text="Nenhum membro da diretoria cadastrado ainda." />}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {diretoria.map((d) => (
+              <div key={d.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: "#fff" }}>
+                <ImgOrPlaceholder url={d.fotoUrl} alt={d.nome} className="w-full h-32 object-cover" ph={d.nome} />
+                <div className="p-2">
+                  <p className="font-display font-semibold text-xs leading-snug">{d.nome}</p>
+                  <p className="text-[10px]" style={{ color: C.ember }}>{d.cargo}</p>
+                  {adminMode && <button onClick={() => delDiretor(d.id)} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>excluir</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {adminMode && (
+            <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo membro da diretoria</p>
+              <DynamicForm fields={DIRETORIA_FIELDS} onSubmit={(v) => v.nome && addDiretor(v)} submitLabel="Cadastrar" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="py-10 text-center">
+        <button onClick={onVoltar} className="text-sm underline" style={{ color: C.violet }}>← Voltar ao site do Ministério Avivar do Espírito</button>
+      </div>
     </div>
   );
 }
@@ -2566,10 +2916,17 @@ function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode,
 /* ---------------------------------------------------------------- */
 /* Ao Vivo                                                             */
 /* ---------------------------------------------------------------- */
+// Categorias das "estantes" de VOD da Avivar News TV (estilo streaming). "Treinamento
+// Profundo" é a única que fica bloqueada — só abre pra quem já destravou os Códigos
+// Avivar (ou é admin); as outras são "Sinal Aberto", abertas a qualquer visitante.
+const ANT_CATEGORIAS = ["Transmissões Gerais", "Profetas dos Últimos Dias", "Manifestações e Milagres", "Avivar Music", "Treinamento Profundo"];
+const ANT_CATEGORIA_BLOQUEADA = "Treinamento Profundo";
+
 const PASSADA_FIELDS = [
   { key: "titulo", label: "Título da transmissão" },
   { key: "data", label: "Data", type: "date" },
   { key: "videoUrl", label: "Link do vídeo (YouTube ou Vimeo)", type: "url" },
+  { key: "categoria", label: "Categoria (estante da Avivar News TV)", type: "select", options: ANT_CATEGORIAS },
 ];
 
 // Modal global de reportagem — usado em TODO lugar do site que abre uma matéria do
@@ -2795,6 +3152,324 @@ function AoVivo({ data, save, passadas, savePassadas, news, saveNews, adminMode,
             <DynamicForm fields={AVIVARNEWS_FIELDS} onSubmit={(v) => v.titulo && addNews(v)} submitLabel="Publicar reportagem" />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Avivar News TV (ANT) — página cheia, sem rolagem pro player           */
+/* ---------------------------------------------------------------- */
+// Paleta própria da ANT: dark mode absoluto (identidade do produto, não uma
+// preferência de tema) — roxo espiritual vibrante, dourado pro Botão Rhema,
+// vermelho-fogo pro "ao vivo". Mantida separada da paleta C.* do resto do
+// site de propósito: quando isso virar app de Smart TV/mobile, essa
+// identidade visual sai praticamente pronta.
+const ANT = {
+  bg: "#0A0A0A", surface: "#121212", surface2: "#1B1B1E", surface3: "#232327",
+  text: "#F5F5F7", dim: "#9A9AA2", border: "rgba(255,255,255,.08)",
+  accent: "#8B5CF6", accentDeep: "#6D28D9",
+  gold: "#E8B339", goldDeep: "#B9872A",
+  fire: "#E8463B",
+};
+const ANT_RHEMAS = [
+  { texto: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus.", ref: "Isaías 41:10" },
+  { texto: "O Senhor é o meu pastor; nada me faltará.", ref: "Salmos 23:1" },
+  { texto: "Tudo posso naquele que me fortalece.", ref: "Filipenses 4:13" },
+  { texto: "Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará.", ref: "Salmos 37:5" },
+];
+
+// Player principal da ANT — mesma máquina de estados do card da Home
+// (HeroLiveVideoCard: ao vivo > contagem regressiva > transmissão fixada/mais
+// recente > mensagem padrão), só que ocupando a tela quase inteira, com o
+// Botão Rhema e o Modo Vigília por cima.
+function AntHeroPlayer({ aoVivo, passadas }) {
+  const [agora, setAgora] = useState(() => new Date());
+  const [vigilia, setVigilia] = useState(false);
+  const [rhema, setRhema] = useState(null);
+  const playerRef = useRef(null);
+  const rhemaTimer = useRef(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setAgora(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const data = aoVivo || DEFAULT_AOVIVO;
+  const sortedPassadas = [...(passadas || [])].sort((a, b) => {
+    if (!!a.destaque !== !!b.destaque) return a.destaque ? -1 : 1;
+    return new Date(b.data) - new Date(a.data);
+  });
+  const destaquePassada = sortedPassadas[0] || null;
+
+  const alvo = data.proximaTransmissaoEm ? new Date(data.proximaTransmissaoEm) : null;
+  const contandoRegressiva = !data.isLive && alvo && !isNaN(alvo.getTime()) && alvo.getTime() > agora.getTime();
+  const diffSeg = contandoRegressiva ? Math.floor((alvo.getTime() - agora.getTime()) / 1000) : 0;
+  const dd = Math.floor(diffSeg / 86400), hh = Math.floor((diffSeg % 86400) / 3600), mm = Math.floor((diffSeg % 3600) / 60), ss = diffSeg % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+
+  function abrirRhema() {
+    setRhema(ANT_RHEMAS[Math.floor(Math.random() * ANT_RHEMAS.length)]);
+    clearTimeout(rhemaTimer.current);
+    rhemaTimer.current = setTimeout(() => setRhema(null), 4200);
+  }
+  async function alternarTelaCheia() {
+    try {
+      if (!document.fullscreenElement) await playerRef.current?.requestFullscreen?.();
+      else await document.exitFullscreen?.();
+    } catch { /* ignora silenciosamente — nem todo navegador suporta */ }
+  }
+
+  const temIframe = (data.isLive && data.embedUrl) || (!contandoRegressiva && destaquePassada);
+
+  return (
+    <div ref={playerRef} className="relative isolate w-full h-full overflow-hidden rounded-[22px] bg-black shadow-2xl">
+      {data.isLive && data.embedUrl ? (
+        <iframe title="Avivar News TV — ao vivo" src={getEmbedUrl(data.embedUrl)} className="absolute inset-0 w-full h-full" allowFullScreen />
+      ) : contandoRegressiva ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center" style={{ background: `radial-gradient(ellipse at 50% 30%, ${ANT.accentDeep}55, transparent 60%), ${ANT.bg}` }}>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-wider" style={{ color: ANT.gold }}>Próxima transmissão</p>
+          <p className="font-display text-lg sm:text-2xl font-bold text-white mt-1">{data.proximaTransmissaoTitulo || "Em breve"}</p>
+          <p className="font-mono text-2xl sm:text-4xl mt-2 tracking-wider tabular-nums" style={{ color: ANT.accent }}>
+            {dd > 0 ? `${dd}d ` : ""}{pad(hh)}:{pad(mm)}:{pad(ss)}
+          </p>
+        </div>
+      ) : destaquePassada ? (
+        <iframe title={destaquePassada.titulo} src={getEmbedUrl(destaquePassada.videoUrl)} className="absolute inset-0 w-full h-full" allowFullScreen />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center" style={{ background: ANT.bg }}>
+          <Tv size={28} color={ANT.accent} />
+          <p className="text-sm mt-1" style={{ color: ANT.dim }}>{data.mensagem || "Nenhuma transmissão no momento."}</p>
+        </div>
+      )}
+
+      {/* topo: badge AO VIVO + Botão Rhema */}
+      <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between p-3 sm:p-5 pointer-events-none">
+        {data.isLive ? (
+          <span className="live-pulse pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+            <Radio size={12} color={ANT.fire} /> <span className="text-[11px] font-bold tracking-wide text-white">AO VIVO</span>
+          </span>
+        ) : <span />}
+        <button
+          onClick={abrirRhema}
+          className="pointer-events-auto ml-auto flex items-center gap-1.5 rounded-full px-3.5 sm:px-4 py-2 text-xs font-bold shadow-lg"
+          style={{ background: `linear-gradient(135deg,#FFDA7A,${ANT.gold} 55%,${ANT.goldDeep})`, color: "#1A1203" }}
+        >
+          <Flame size={15} /> Rhema
+        </button>
+      </div>
+
+      {rhema && (
+        <div className="absolute right-3 sm:right-5 top-14 sm:top-16 z-20 w-[min(280px,70%)] rounded-2xl p-4 shadow-2xl border" style={{ background: "linear-gradient(160deg,#1C1406,#0E0A03)", borderColor: ANT.gold + "55" }}>
+          <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: ANT.gold }}>Palavra Rhema de agora</p>
+          <p className="mt-2 font-display text-sm font-semibold leading-snug" style={{ color: "#FCEFC9" }}>“{rhema.texto}”</p>
+          <p className="mt-2 text-[11px] font-semibold" style={{ color: "#8a7239" }}>{rhema.ref}</p>
+        </div>
+      )}
+
+      {/* rodapé: Modo Vigília + tela cheia (só quando há vídeo de verdade pra controlar) */}
+      {temIframe && (
+        <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-end gap-3 bg-gradient-to-t from-black/80 to-transparent px-4 py-3">
+          <label className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold" style={{ color: ANT.dim }}>Modo Vigília</span>
+            <button
+              role="switch" aria-checked={vigilia} onClick={() => setVigilia((v) => !v)}
+              className="relative h-[22px] w-[38px] rounded-full transition"
+              style={{ background: vigilia ? ANT.accent : "rgba(255,255,255,.2)" }}
+            >
+              <span className="absolute top-0.5 h-[18px] w-[18px] rounded-full bg-white transition-transform" style={{ transform: vigilia ? "translateX(16px)" : "translateX(2px)" }} />
+            </button>
+          </label>
+          <button onClick={alternarTelaCheia} aria-label="Tela cheia" className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/10 text-white hover:bg-white/20">
+            <Maximize size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* overlay do Modo Vigília — escurece a tela, o áudio do vídeo continua por trás */}
+      {vigilia && temIframe && (
+        <div
+          role="button" tabIndex={0} onClick={() => setVigilia(false)}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setVigilia(false)}
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-4 bg-black"
+        >
+          <div className="flex h-11 items-end gap-1">
+            {[22, 34, 14, 40, 20].map((h, i) => (
+              <span key={i} className="w-1 rounded-sm animate-pulse" style={{ height: h, background: `linear-gradient(to top,${ANT.accentDeep},${ANT.accent})`, animationDelay: `${i * 0.12}s` }} />
+            ))}
+          </div>
+          <p className="font-display text-sm font-semibold uppercase tracking-wide" style={{ color: ANT.dim }}>Modo Vigília ativo</p>
+          <p className="text-xs" style={{ color: "#6b6b72" }}>Só o áudio continua — toque na tela pra voltar ao vídeo.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Radar de Intercessão — feed público de pedidos curtos (sem contato/telefone;
+// pra isso já existe o Pedido de Oração privado). Qualquer visitante pode
+// publicar um pedido breve e qualquer visitante pode clicar "Orar agora", que
+// soma no contador — pensado pra dar a sensação de comunidade orando junto,
+// ao vivo, enquanto assiste.
+function RadarIntercessao({ itens, save, adminMode }) {
+  const [nome, setNome] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const sorted = [...(itens || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 30);
+  const totalOrando = (itens || []).reduce((n, i) => n + (i.oracoes || 0), 0);
+
+  function publicar() {
+    if (!mensagem.trim()) return;
+    save([...(itens || []), { id: uid(), nome: nome.trim() || "Anônimo", mensagem: mensagem.trim(), timestamp: nowISO(), oracoes: 0 }]);
+    setNome(""); setMensagem("");
+  }
+  function orarAgora(id) {
+    save((itens || []).map((i) => (i.id === id ? { ...i, oracoes: (i.oracoes || 0) + 1 } : i)));
+  }
+
+  return (
+    <aside className="flex h-full min-h-[300px] flex-col overflow-hidden rounded-[22px] border" style={{ borderColor: ANT.border, background: ANT.surface }}>
+      <div className="flex items-center justify-between border-b px-4 py-3.5" style={{ borderColor: ANT.border }}>
+        <span className="flex items-center gap-2 font-display text-sm font-bold" style={{ color: ANT.text }}>
+          <Radio size={12} color={ANT.fire} /> Radar de Intercessão
+        </span>
+        <span className="text-[11px] font-semibold tabular-nums" style={{ color: ANT.dim }}>{totalOrando} orações</span>
+      </div>
+
+      <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: 360 }}>
+        {sorted.length === 0 && <p className="px-1 py-6 text-center text-xs" style={{ color: ANT.dim }}>Nenhum pedido no momento — seja o primeiro a publicar.</p>}
+        {sorted.map((i) => (
+          <div key={i.id} className="rounded-[14px] border p-3" style={{ borderColor: ANT.border, background: ANT.surface2 }}>
+            <div className="mb-1 flex items-baseline justify-between">
+              <span className="text-xs font-bold" style={{ color: ANT.text }}>{i.nome}</span>
+              <span className="text-[10px]" style={{ color: ANT.dim }}>{fmtDateTime(i.timestamp)}</span>
+            </div>
+            <p className="mb-2.5 text-[12.5px] leading-relaxed" style={{ color: "#C9C9D1" }}>{i.mensagem}</p>
+            <div className="flex items-center justify-between">
+              <button onClick={() => orarAgora(i.id)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold" style={{ background: ANT.accent + "26", color: "#C7B2FF" }}>
+                <HandHeart size={12} /> Orar agora
+              </button>
+              {i.oracoes > 0 && <span className="text-[10px] font-semibold tabular-nums" style={{ color: ANT.dim }}>{i.oracoes} orando</span>}
+              {adminMode && (
+                <button onClick={() => save((itens || []).filter((x) => x.id !== i.id))} className="ml-2"><Trash2 size={12} color={ANT.dim} /></button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-auto space-y-2 border-t p-3" style={{ borderColor: ANT.border }}>
+        <p className="text-[10px]" style={{ color: ANT.dim }}>Visível publicamente — não coloque dados de contato aqui.</p>
+        <input
+          value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome (opcional)"
+          className="w-full rounded-lg px-3 py-2 text-xs"
+          style={{ background: ANT.surface3, color: ANT.text, border: `1px solid ${ANT.border}` }}
+        />
+        <div className="flex gap-2">
+          <input
+            value={mensagem} onChange={(e) => setMensagem(e.target.value)} placeholder="Seu pedido, em poucas palavras..."
+            onKeyDown={(e) => e.key === "Enter" && publicar()}
+            className="flex-1 min-w-0 rounded-lg px-3 py-2 text-xs"
+            style={{ background: ANT.surface3, color: ANT.text, border: `1px solid ${ANT.border}` }}
+          />
+          <button onClick={publicar} className="shrink-0 rounded-lg px-3 py-2 text-xs font-bold" style={{ background: ANT.accent, color: "#fff" }}>
+            <Send size={13} />
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// Estante de VOD estilo streaming — uma categoria, rolagem horizontal. Vídeos
+// da categoria "Treinamento Profundo" aparecem com cadeado quando `unlocked`
+// é falso (mesma regra de acesso dos Códigos Avivar já usada no resto do site).
+function AntVodShelf({ categoria, videos, unlocked, adminMode, onAbrirCodigos }) {
+  if (!videos || videos.length === 0) return null;
+  const bloqueada = categoria === ANT_CATEGORIA_BLOQUEADA;
+  return (
+    <section className="pt-8">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-base sm:text-lg font-bold" style={{ color: ANT.text }}>{categoria}</h2>
+        {bloqueada && (
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: ANT.accent }}>
+            <Lock size={12} /> Código Avivar
+          </span>
+        )}
+      </div>
+      <div className="flex gap-3.5 overflow-x-auto pb-3" style={{ scrollSnapType: "x proximity" }}>
+        {videos.map((v) => {
+          const travado = bloqueada && !unlocked && !adminMode;
+          return (
+            <button
+              key={v.id}
+              onClick={() => (travado ? onAbrirCodigos?.() : window.open(v.videoUrl, "_blank", "noopener,noreferrer"))}
+              className="group relative aspect-[16/10] w-[210px] sm:w-[230px] flex-none overflow-hidden rounded-[14px] transition-transform duration-200 ease-out hover:scale-[1.045]"
+              style={{ background: ANT.surface2, scrollSnapAlign: "start" }}
+            >
+              <div className={`absolute inset-0 ${travado ? "brightness-[.45] saturate-[.7]" : ""}`} style={{ background: `radial-gradient(circle at 30% 20%, ${ANT.accent}33, transparent 60%), linear-gradient(160deg, ${ANT.accentDeep}44, ${ANT.surface2})` }} />
+              {travado ? (
+                <span className="absolute right-2.5 top-2.5 z-10 flex h-[26px] w-[26px] items-center justify-center rounded-lg" style={{ background: ANT.accentDeep + "d9" }}>
+                  <Lock size={13} color="#fff" />
+                </span>
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                  <PlayCircle size={32} color="#fff" />
+                </span>
+              )}
+              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2.5 text-left">
+                <span className="block text-[12.5px] font-bold leading-tight text-white">{v.titulo}</span>
+                <span className="block text-[10px] font-semibold" style={{ color: ANT.dim }}>{fmtDate(v.data)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function PaginaAvivarNewsTV({ aoVivo, saveAoVivo, passadas, savePassadas, news, saveNews, adminMode, onOpenNews, unlocked, intercessao, saveIntercessao, onVoltar, onAbrirCodigos }) {
+  const porCategoria = ANT_CATEGORIAS.map((cat) => ({
+    categoria: cat,
+    videos: (passadas || []).filter((p) => (p.categoria || "Transmissões Gerais") === cat),
+  }));
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: ANT.bg, color: ANT.text }}>
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-8 py-3.5" style={{ background: "linear-gradient(to bottom, rgba(10,10,10,.97), rgba(10,10,10,.8) 70%, transparent)", backdropFilter: "blur(6px)" }}>
+        <button onClick={onVoltar} className="flex items-center gap-2 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: "#fff" }}>
+          <ArrowLeft size={16} /> Voltar ao site
+        </button>
+        <div className="flex items-center gap-2">
+          <Tv size={17} color={ANT.accent} />
+          <span className="font-display text-sm font-bold">Avivar News TV</span>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-8">
+        {/* Dobra 1 — player + radar, pensado pra caber sem rolar na maioria das telas */}
+        <div className="flex flex-col gap-4 lg:h-[calc(100vh-110px)] lg:flex-row">
+          <div className="min-h-[280px] flex-1 lg:min-h-0">
+            <AntHeroPlayer aoVivo={aoVivo} passadas={passadas} />
+          </div>
+          <div className="lg:w-[320px] lg:flex-none">
+            <RadarIntercessao itens={intercessao} save={saveIntercessao} adminMode={adminMode} />
+          </div>
+        </div>
+
+        {/* Biblioteca de VOD — estilo streaming, abaixo da dobra */}
+        {porCategoria.map(({ categoria, videos }) => (
+          <AntVodShelf key={categoria} categoria={categoria} videos={videos} unlocked={unlocked} adminMode={adminMode} onAbrirCodigos={onAbrirCodigos} />
+        ))}
+
+        {/* Gerenciamento (admin) — reaproveita a tela já existente de configuração da
+            transmissão, transmissões anteriores e grade semanal. */}
+        <div className="mt-10 rounded-[24px] overflow-hidden" style={{ background: C.parchment }}>
+          <div className="px-5 pt-5">
+            <p className="text-[11px] font-mono uppercase tracking-wide" style={{ color: C.stone }}>Gerenciar (visível a todos, edição só pro admin)</p>
+          </div>
+          <AoVivo data={aoVivo} save={saveAoVivo} passadas={passadas} savePassadas={savePassadas} news={news} saveNews={saveNews} adminMode={adminMode} onOpenNews={onOpenNews} />
+        </div>
       </div>
     </div>
   );
@@ -4005,29 +4680,51 @@ const COLAB_FIELDS = [
   { key: "fotoUrl", label: "URL da foto", type: "url" },
 ];
 
+function ColaboradorCard({ c, adminMode, onDel }) {
+  return (
+    <div className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
+      <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-44 object-cover" ph={c.nome} />
+      <div className="p-2" style={{ background: C.parchment }}>
+        <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
+        {c.cargo && <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>}
+        {c.ministerio && <p className="text-[10px] mt-0.5" style={{ color: C.stone }}>{c.ministerio}</p>}
+        {c.telefone && <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><Phone size={10} />{c.telefone}</p>}
+        {adminMode && <button onClick={onDel} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>excluir</button>}
+      </div>
+    </div>
+  );
+}
+
 function Colaboradores({ items, save, adminMode }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
-  const sorted = [...items].sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
+  const porNome = (a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+  // Lista separada em dois grupos, pedido do Marcos: os colaboradores que já
+  // existiam (sem a marca "novo") primeiro, e os recém-cadastrados depois.
+  const antigos = items.filter((i) => i.grupo !== "novo").sort(porNome);
+  const novos = items.filter((i) => i.grupo === "novo").sort(porNome);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Quem serve conosco</Eyebrow>
       <SectionTitle>Colaboradores</SectionTitle>
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
-        {sorted.map((c) => (
-          <div key={c.id} className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
-            <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-44 object-cover" ph={c.nome} />
-            <div className="p-2" style={{ background: C.parchment }}>
-              <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
-              <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: C.stone }}>{c.ministerio}</p>
-              {c.telefone && <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><Phone size={10} />{c.telefone}</p>}
-              {adminMode && <button onClick={() => del(c.id)} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>excluir</button>}
-            </div>
+      {antigos.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
+          {antigos.map((c) => (
+            <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} />
+          ))}
+        </div>
+      )}
+      {novos.length > 0 && (
+        <div className="mt-10">
+          <p className="text-xs font-mono mb-3 uppercase tracking-wide" style={{ color: C.stone }}>Novos colaboradores</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {novos.map((c) => (
+              <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} />
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
       {adminMode && (
         <div className="mt-8">
           <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo colaborador</p>
@@ -5452,6 +6149,144 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 }
 
 /* ---------------------------------------------------------------- */
+/* Avivar Music — página cheia, sem rolagem pro painel inicial           */
+/* ---------------------------------------------------------------- */
+// Paleta própria do Avivar Music: roxo espiritual sobre fundo creme — mesma
+// identidade já aprovada no protótipo, mantida separada da paleta C.* do
+// resto do site de propósito (vira app independente mais pra frente).
+const AM = { bg: "#FBF7F0", card: "#FFFFFF", card2: "#F1E9F7", accent: "#6A1B9A", accentDeep: "#4A1270", ink: "#2B1A3A", dim: "#6B5A7A", line: "rgba(43,26,58,.1)" };
+
+// Metrônomo simples — BPM ajustável, play/pause, pulso visual + beep (Web
+// Audio API). Ferramenta de estúdio independente, sem precisar de backend.
+function MetronomoEstudio({ onFechar }) {
+  const [bpm, setBpm] = useState(96);
+  const [tocando, setTocando] = useState(false);
+  const [batida, setBatida] = useState(0);
+  const timerRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  function beep(forte) {
+    try {
+      audioCtxRef.current = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = forte ? 1200 : 880;
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.08);
+    } catch { /* navegador sem suporte — segue só visual */ }
+  }
+
+  function alternar() {
+    if (tocando) { clearInterval(timerRef.current); setTocando(false); setBatida(0); return; }
+    setTocando(true);
+    let b = 0;
+    beep(true); setBatida(0);
+    timerRef.current = setInterval(() => {
+      b = (b + 1) % 4;
+      setBatida(b);
+      beep(b === 0);
+    }, 60000 / bpm);
+  }
+  useEffect(() => () => clearInterval(timerRef.current), []);
+  useEffect(() => { if (tocando) { clearInterval(timerRef.current); timerRef.current = setInterval(() => { setBatida((b) => { const nb = (b + 1) % 4; beep(nb === 0); return nb; }); }, 60000 / bpm); } }, [bpm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000080" }} onClick={onFechar}>
+      <div className="w-full max-w-xs rounded-2xl p-6 flex flex-col items-center gap-4" style={{ background: AM.card }} onClick={(e) => e.stopPropagation()}>
+        <p className="font-display font-semibold text-lg" style={{ color: AM.ink }}>Metrônomo</p>
+        <p className="text-4xl font-mono font-bold tabular-nums" style={{ color: AM.accent }}>{bpm}</p>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setBpm((v) => Math.max(40, v - 4))} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: AM.card2, color: AM.accent }}><Minus size={16} /></button>
+          <button onClick={alternar} className="w-16 h-16 rounded-full flex items-center justify-center text-white" style={{ background: AM.accent }}>
+            {tocando ? <Pause size={24} /> : <Play size={24} />}
+          </button>
+          <button onClick={() => setBpm((v) => Math.min(220, v + 4))} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: AM.card2, color: AM.accent }}><Plus size={16} /></button>
+        </div>
+        <div className="flex gap-2.5">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="w-3 h-3 rounded-full transition" style={{ background: tocando && batida === i ? AM.accent : AM.card2, transform: tocando && batida === i ? "scale(1.3)" : "scale(1)" }} />
+          ))}
+        </div>
+        <button onClick={onFechar} className="text-xs underline mt-1" style={{ color: AM.dim }}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
+function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar }) {
+  const [metronomoAberto, setMetronomoAberto] = useState(false);
+  const painelRef = useRef(null);
+
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const futuros = [...(repertorio || [])].filter((c) => c.data && new Date(c.data) >= hoje).sort((a, b) => new Date(a.data) - new Date(b.data));
+  const passados = [...(repertorio || [])].filter((c) => !c.data || new Date(c.data) < hoje).sort((a, b) => new Date(b.data) - new Date(a.data));
+  const proximo = futuros[0] || passados[0] || null;
+  const diasAte = proximo?.data ? Math.round((new Date(proximo.data).setHours(0, 0, 0, 0) - hoje.getTime()) / 86400000) : null;
+  const rotuloData = diasAte === 0 ? "Hoje" : diasAte === 1 ? "Amanhã" : diasAte > 1 ? `Em ${diasAte} dias` : proximo ? fmtDate(proximo.data) : "";
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: AM.bg, color: AM.ink }}>
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-8 py-3.5" style={{ background: AM.accentDeep }}>
+        <button onClick={onVoltar} className="flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md">
+          <ArrowLeft size={16} /> Voltar ao site
+        </button>
+        <div className="flex items-center gap-2">
+          <Music size={17} color="#E8C875" />
+          <span className="font-display text-sm font-bold text-white">Avivar Music</span>
+        </div>
+      </div>
+
+      {/* Dobra 1 — painel inicial, pensado pra caber sem rolar */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-8 pt-8 pb-6 lg:min-h-[calc(100vh-280px)] flex flex-col justify-center">
+        <p className="font-display text-sm font-semibold" style={{ color: AM.accent }}>Grupo de louvor</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold mt-1" style={{ color: AM.ink }}>Avivar Music</h1>
+
+        <div className="rounded-2xl p-5 sm:p-6 mt-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${AM.accent}, ${AM.accentDeep})` }}>
+          {proximo ? (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próxima apresentação</span>
+                {rotuloData && <span className="text-[10px] font-bold bg-white/20 rounded-full px-3 py-1">{rotuloData}</span>}
+              </div>
+              <p className="font-display text-xl font-bold">{proximo.titulo}</p>
+              <p className="text-sm text-white/85 mt-0.5">{proximo.musicas?.length || 0} música(s) no repertório</p>
+            </>
+          ) : (
+            <p className="text-sm text-white/90 py-3 text-center">Nenhum culto cadastrado no repertório ainda.</p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <button
+            onClick={() => painelRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="flex flex-col items-start gap-2 rounded-2xl p-4 shadow-sm"
+            style={{ background: AM.card }}
+          >
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: AM.accent }}><Library size={18} /></span>
+            <span className="text-sm font-semibold" style={{ color: AM.ink }}>Repertório, músicos e álbuns</span>
+          </button>
+          <button onClick={() => setMetronomoAberto(true)} className="flex flex-col items-start gap-2 rounded-2xl p-4 shadow-sm" style={{ background: AM.card }}>
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: AM.accent }}><Settings2 size={18} /></span>
+            <span className="text-sm font-semibold" style={{ color: AM.ink }}>Estúdio — Metrônomo</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Conteúdo já existente (músicos, álbuns, repertório) — reaproveitado tal como já
+          funcionava, só reposicionado pra baixo da nova dobra inicial. */}
+      <div ref={painelRef} style={{ background: C.parchment }}>
+        <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
+      </div>
+
+      {metronomoAberto && <MetronomoEstudio onFechar={() => setMetronomoAberto(false)} />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Contato                                                              */
 /* ---------------------------------------------------------------- */
 const CONTATO_FIELDS = [
@@ -5501,6 +6336,10 @@ export default function App() {
     if (h[h.length - 1] !== page) h.push(page);
   }, [page]);
   const scrollToSection = (key) => {
+    // Avivar News TV e Avivar Music não são mais seções da rolagem única —
+    // abrem como página cheia própria (mesmo padrão da Unidade Avivar/Cursos).
+    if (key === "aovivo") { setPaginaAvivarNewsTVOpen(true); return; }
+    if (key === "avivarmusic") { setPaginaAvivarMusicOpen(true); return; }
     setPage(key);
     requestAnimationFrame(() => {
       const el = document.getElementById(key);
@@ -5538,6 +6377,11 @@ export default function App() {
   // Página "Cursos dos Códigos Avivar" (cursos, PDFs, vídeos — em breve) — mesmo
   // padrão de página cheia sem rolagem que a de Unidade Avivar, acima.
   const [paginaCursosOpen, setPaginaCursosOpen] = useState(false);
+  // Avivar News TV e Avivar Music ganharam o mesmo padrão de página cheia sem
+  // rolagem — a dobra inicial (player/dashboard) cabe na tela sem precisar
+  // descer, o resto (biblioteca de vídeos, repertório, admin) fica abaixo.
+  const [paginaAvivarNewsTVOpen, setPaginaAvivarNewsTVOpen] = useState(false);
+  const [paginaAvivarMusicOpen, setPaginaAvivarMusicOpen] = useState(false);
   // Se a pessoa já entrou em Códigos Avivar (nome + código válidos) — levantado pra cá
   // (em vez de ficar só dentro de CodigosAvivar) pra que abrirReportagem saiba, de
   // qualquer lugar do site, se pode abrir uma reportagem "exclusiva" direto ou se deve
@@ -5583,6 +6427,15 @@ export default function App() {
   const [pedidosOracao, setPedidosOracao] = useState([]);
   const [pedidosFisicos, setPedidosFisicos] = useState([]);
   const [oracaoLocalDia, setOracaoLocalDia] = useState({ fotoUrl: "", local: "" });
+  // Radar de Intercessão (Avivar News TV) — feed público de pedidos curtos,
+  // propositalmente separado do Pedido de Oração privado (que guarda contato).
+  const [intercessao, setIntercessao] = useState([]);
+  // Células Avivar (Alfa/Beta/Gama) — substituiu a seção "Sobre nós" na Home.
+  const [celulas, setCelulas] = useState(DEFAULT_CELULAS);
+  const [paginaCelulaKey, setPaginaCelulaKey] = useState(null);
+  // "Nossa História" — aberta ao clicar no nome/logo do Ministério no Hero.
+  const [historia, setHistoria] = useState(DEFAULT_HISTORIA);
+  const [paginaHistoriaOpen, setPaginaHistoriaOpen] = useState(false);
   const [seeds, setSeeds] = useState({});
 
   const sideCarouselPhotos = useMemo(() => {
@@ -5653,6 +6506,9 @@ export default function App() {
       setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
       setOracaoLocalDia(await loadKey("avivar:oracaolocaldia", { fotoUrl: "", local: "" }));
       setBiblioteca(await loadKey("avivar:biblioteca", []));
+      setIntercessao(await loadKey("avivar:intercessao", []));
+      setCelulas(await loadKey("avivar:celulas", DEFAULT_CELULAS));
+      setHistoria(await loadKey("avivar:historia", DEFAULT_HISTORIA));
       setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
     })();
@@ -6631,6 +7487,58 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.homeCardsOracaoImg1 = true;
     }
+    // Foto enviada pelo Marcos (encontro em casa, grupo reunido na sala) — cadastrada
+    // como um encontro de Orações nos Lares com data própria (29/11/2026, segundo o
+    // Marcos), já que esse registro tem data e não é só "o local de hoje".
+    if (!seeds.oracaoEncontroFoto1) {
+      const jaTem = (oracaoEncontros || []).some((e) => e.seedId === "oracao-encontro-29-11");
+      if (!jaTem) {
+        const novoEncontro = { id: uid(), seedId: "oracao-encontro-29-11", anfitriao: "", diaSemana: "Domingo", data: "2026-11-29", hora: "", endereco: "", contato: "", fotos: ["/96-oracao-lares-encontro.jpg"] };
+        const novosEncontros = [...(oracaoEncontros || []), novoEncontro];
+        setOracaoEncontros(novosEncontros);
+        saveKey("avivar:oracaoencontros", novosEncontros);
+      }
+      todo.oracaoEncontroFoto1 = true;
+    }
+    // Logos das 3 Células Avivar (Alfa/Beta/Gama), enviados pelo Marcos — só define
+    // se a célula ainda não tiver logo cadastrado, pra nunca sobrescrever o que o
+    // admin já tenha trocado.
+    if (!seeds.celulaLogos1) {
+      const logosPadrao = { alfa: "/103-celula-alfa-logo.png", beta: "/102-celula-beta-logo.png", gama: "/104-celula-gama-logo.png" };
+      const celulasAtual = celulas || DEFAULT_CELULAS;
+      const precisaLogo = CELULA_KEYS.some((k) => !(celulasAtual[k] && celulasAtual[k].logoUrl));
+      if (precisaLogo) {
+        const novasCelulas = { ...celulasAtual };
+        CELULA_KEYS.forEach((k) => {
+          if (!novasCelulas[k] || !novasCelulas[k].logoUrl) {
+            novasCelulas[k] = { ...(novasCelulas[k] || CELULA_VAZIA(k)), logoUrl: logosPadrao[k] };
+          }
+        });
+        setCelulas(novasCelulas);
+        saveKey("avivar:celulas", novasCelulas);
+      }
+      todo.celulaLogos1 = true;
+    }
+    // Cinco colaboradores enviados pelo Marcos (fotos individuais) — entram sem
+    // cargo definido (pedido dele) e marcados como "novo" pra aparecerem destacados
+    // abaixo dos colaboradores que já existiam (ver Colaboradores/ColaboradorCard).
+    if (!seeds.colaboradoresCelulas1) {
+      const seedIds = ["colab-barbara", "colab-marcio", "colab-sofia", "colab-ezequiel", "colab-tarciana"];
+      const jaTem = (colaboradoresW || []).some((c) => seedIds.includes(c.seedId));
+      if (!jaTem) {
+        const novosColaboradores = [
+          { id: uid(), seedId: "colab-barbara", nome: "Ir. Bárbara", cargo: "", ministerio: "", telefone: "", fotoUrl: "/97-colaborador-barbara.jpg", grupo: "novo" },
+          { id: uid(), seedId: "colab-marcio", nome: "Ir. Márcio", cargo: "", ministerio: "", telefone: "", fotoUrl: "/98-colaborador-marcio.jpg", grupo: "novo" },
+          { id: uid(), seedId: "colab-sofia", nome: "Princesa Sofia", cargo: "", ministerio: "", telefone: "", fotoUrl: "/99-colaborador-sofia.jpg", grupo: "novo" },
+          { id: uid(), seedId: "colab-ezequiel", nome: "Ir. Ezequiel", cargo: "", ministerio: "", telefone: "", fotoUrl: "/100-colaborador-ezequiel.jpg", grupo: "novo" },
+          { id: uid(), seedId: "colab-tarciana", nome: "Ir. Tarciana", cargo: "", ministerio: "", telefone: "", fotoUrl: "/101-colaborador-tarciana.jpg", grupo: "novo" },
+        ];
+        colaboradoresW = [...colaboradoresW, ...novosColaboradores];
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
+      }
+      todo.colaboradoresCelulas1 = true;
+    }
     if (!seeds.reportagemPortaisImg1) {
       const precisaImagem = avivarNews.some((n) => n.seedId === "codigos-portais" && !n.imageUrl);
       if (precisaImagem) {
@@ -6748,6 +7656,9 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     oracaoLocalDia: (v) => { setOracaoLocalDia(v); saveKey("avivar:oracaolocaldia", v); },
     biblioteca: (v) => { setBiblioteca(v); saveKey("avivar:biblioteca", v); },
     musicos: (v) => { setMusicos(v); saveKey("avivar:musicos", v); },
+    intercessao: (v) => { setIntercessao(v); saveKey("avivar:intercessao", v); },
+    celulas: (v) => { setCelulas(v); saveKey("avivar:celulas", v); },
+    historia: (v) => { setHistoria(v); saveKey("avivar:historia", v); },
   };
 
   if (loading) {
@@ -6814,6 +7725,65 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     return <PaginaCursos onVoltar={() => setPaginaCursosOpen(false)} />;
   }
 
+  // Página própria de uma Célula Avivar (Alfa/Beta/Gama) — mesmo padrão de página
+  // cheia sem rolagem das demais (Unidade Avivar, Cursos, Avivar News TV/Music).
+  if (paginaCelulaKey) {
+    return (
+      <PaginaCelula
+        chave={paginaCelulaKey}
+        celula={(celulas && celulas[paginaCelulaKey]) || CELULA_VAZIA(paginaCelulaKey)}
+        coordenador={celulas && celulas.coordenador}
+        liderCode={celulas && celulas.liderCode}
+        liderCodeActive={celulas && celulas.liderCodeActive}
+        adminMode={adminMode}
+        onSave={(v) => persist.celulas({ ...celulas, [paginaCelulaKey]: v })}
+        onPatchTop={(patch) => persist.celulas({ ...celulas, ...patch })}
+        onVoltar={() => setPaginaCelulaKey(null)}
+      />
+    );
+  }
+
+  // Página "Nossa História" — aberta pelo clique no nome/logo do Ministério no Hero.
+  if (paginaHistoriaOpen) {
+    return (
+      <PaginaHistoria
+        historia={historia}
+        save={persist.historia}
+        adminMode={adminMode}
+        onVoltar={() => setPaginaHistoriaOpen(false)}
+      />
+    );
+  }
+
+  // Avivar News TV — mesmo padrão de página cheia sem rolagem.
+  if (paginaAvivarNewsTVOpen) {
+    return (
+      <PaginaAvivarNewsTV
+        aoVivo={aoVivo} saveAoVivo={persist.aoVivo}
+        passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas}
+        news={avivarNews} saveNews={persist.avivarNews}
+        adminMode={adminMode} onOpenNews={abrirReportagem}
+        unlocked={codigosUnlocked}
+        intercessao={intercessao} saveIntercessao={persist.intercessao}
+        onVoltar={() => setPaginaAvivarNewsTVOpen(false)}
+        onAbrirCodigos={() => { setPaginaAvivarNewsTVOpen(false); scrollToSection("codigos"); }}
+      />
+    );
+  }
+
+  // Avivar Music — mesmo padrão de página cheia sem rolagem.
+  if (paginaAvivarMusicOpen) {
+    return (
+      <PaginaAvivarMusic
+        repertorio={repertorio} saveRepertorio={persist.repertorio}
+        musicos={musicos} saveMusicos={persist.musicos}
+        albuns={albuns} saveAlbuns={persist.albuns}
+        adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)}
+        onVoltar={() => setPaginaAvivarMusicOpen(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
       <style>{`
@@ -6855,11 +7825,10 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
 
       <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} forumPosts={forumPosts} addForumPost={(p) => persist.forum([...forumPosts, p])} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
-        <section id="aovivo" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><AoVivo data={aoVivo} save={persist.aoVivo} passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas} news={avivarNews} saveNews={persist.avivarNews} adminMode={adminMode} onOpenNews={abrirReportagem} /></section>
         <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
         <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
         <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
@@ -6870,7 +7839,6 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="avivarmusic" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><AvivarMusic repertorio={repertorio} saveRepertorio={persist.repertorio} musicos={musicos} saveMusicos={persist.musicos} albuns={albuns} saveAlbuns={persist.albuns} adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
         <section id="operadores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
