@@ -180,7 +180,6 @@ const DEFAULT_HOMECARDS = [
   { key: "eventos", titulo: "Eventos & Galeria", desc: "Agenda e melhores momentos.", resumo: "Confira a agenda de cultos, encontros especiais e os melhores momentos em fotos.", imageUrl: EVENTOS_BANNER, tone: "gold" },
   { key: "codigos", titulo: "Códigos Avivar", desc: "Profecia, ciência e espiritualidade.", resumo: "Profecia, ciência e espiritualidade — revelações para os últimos tempos.", imageUrl: CODIGOS_BANNER, tone: "violet" },
   { key: "loja", titulo: "Loja Avivar", desc: "Livros, roupas e utensílios cristãos.", resumo: "Livros, roupas e utensílios cristãos para fortalecer sua caminhada.", imageUrl: LOJA_BANNER, tone: "gold" },
-  { key: "doacoes", titulo: "Dízimos e Ofertas", desc: "Contribua com o Reino.", resumo: "Semeie com um coração generoso e seja parte do que Deus está fazendo.", imageUrl: DOACOES_BANNER, tone: "gold" },
 ];
 
 const DEFAULT_SITE = {
@@ -265,7 +264,7 @@ const DEFAULT_CELULAS = {
   liderCodeActive: true,
   alfa: {
     ...CELULA_VAZIA("alfa"),
-    logoUrl: "/103-celula-alfa-logo.png",
+    logoUrl: "/109-celula-alfa-logo.png",
     anfitriao: "Irmão Renato",
     historia:
       "A Célula Alfa foi a primeira célula formada pelo Ministério Avivar do Espírito, em 01/10/2026 — o início do projeto Células Avivar. Tem o Irmão Renato como anfitrião.",
@@ -273,14 +272,15 @@ const DEFAULT_CELULAS = {
       { id: "seed-celula-alfa-01", data: "2026-10-01", anfitriao: "Irmão Renato", local: "", fotos: ["/95-celula-alfa-primeiro-encontro.jpg"] },
     ],
   },
-  beta: { ...CELULA_VAZIA("beta"), logoUrl: "/102-celula-beta-logo.png" },
-  gama: { ...CELULA_VAZIA("gama"), logoUrl: "/104-celula-gama-logo.png" },
+  beta: { ...CELULA_VAZIA("beta"), logoUrl: "/111-celula-beta-logo.png" },
+  gama: { ...CELULA_VAZIA("gama"), logoUrl: "/110-celula-gama-logo.png" },
 };
 const CELULA_ENCONTRO_FIELDS = [
   { key: "data", label: "Data", type: "date" },
   { key: "anfitriao", label: "Anfitrião(ã)" },
   { key: "local", label: "Local / endereço" },
   { key: "relato", label: "Relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.)", type: "textarea" },
+  { key: "presentes", label: "Relação dos presentes nesse encontro (um nome por linha)", type: "textarea" },
 ];
 
 /* ---------------------------------------------------------------- */
@@ -640,7 +640,6 @@ const NAV = [
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
   { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen, red: true },
   { key: "contato", label: "Contato", icon: Mail },
-  { key: "doacoes", label: "Doações", icon: Send, red: true },
 ];
 // "Escala" primeiro (pra alinhar embaixo de "Início", o 1º botão da barra de
 // cima — ver o espaçador invisível na NavBar); "Biblioteca" (nome encurtado) e
@@ -680,22 +679,76 @@ function NoticiasCarousel() {
     // Notícias gerais do Brasil e do mundo (qualquer assunto) — não mais restrito a
     // temas de igreja/evangelho, a pedido do Marcos ("as informações da igreja não
     // precisam"). Usa o feed de principais notícias do Google Notícias no Brasil.
+    let cancelado = false;
     const feedUrl = "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419";
-    const proxied = "https://api.allorigins.win/raw?url=" + encodeURIComponent(feedUrl);
-    fetch(proxied)
-      .then((r) => (r.ok ? r.text() : Promise.reject()))
-      .then((xmlText) => {
-        const xml = new DOMParser().parseFromString(xmlText, "text/xml");
-        const items = Array.from(xml.querySelectorAll("item"))
-          .slice(0, 10)
-          .map((item) => ({
-            titulo: item.querySelector("title")?.textContent || "",
-            link: item.querySelector("link")?.textContent || "",
-          }))
+
+    const parseRssXml = (xmlText) => {
+      const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+      return Array.from(xml.querySelectorAll("item"))
+        .slice(0, 12)
+        .map((item) => ({
+          titulo: item.querySelector("title")?.textContent || "",
+          link: item.querySelector("link")?.textContent || "",
+        }))
+        .filter((n) => n.titulo);
+    };
+
+    // Tenta mais de uma fonte, em sequência: se a primeira falhar (proxy fora
+    // do ar, limite de uso, bloqueio temporário etc.) tenta a próxima, só
+    // caindo nas manchetes padrão se todas falharem. Isso evita que o
+    // carrossel fique preso nas notícias padrão quando um único serviço
+    // externo está indisponível.
+    const fontes = [
+      // rss2json: serviço feito especificamente pra isso, devolve JSON
+      // pronto — em geral mais confiável que um proxy de CORS genérico.
+      async () => {
+        const r = await fetch("https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feedUrl));
+        if (!r.ok) throw new Error("rss2json falhou");
+        const data = await r.json();
+        if (data.status !== "ok" || !Array.isArray(data.items)) throw new Error("rss2json sem itens");
+        return data.items
+          .slice(0, 12)
+          .map((item) => ({ titulo: item.title || "", link: item.link || "" }))
           .filter((n) => n.titulo);
-        if (items.length > 0) setNoticias(items);
-      })
-      .catch(() => {});
+      },
+      // allorigins: proxy de CORS genérico, devolve o XML original do feed.
+      async () => {
+        const proxied = "https://api.allorigins.win/raw?url=" + encodeURIComponent(feedUrl);
+        const r = await fetch(proxied);
+        if (!r.ok) throw new Error("allorigins falhou");
+        const items = parseRssXml(await r.text());
+        if (items.length === 0) throw new Error("allorigins sem itens");
+        return items;
+      },
+      // corsproxy.io: segunda alternativa de proxy genérico, caso o allorigins
+      // esteja fora do ar ou com limite de uso atingido.
+      async () => {
+        const proxied = "https://corsproxy.io/?url=" + encodeURIComponent(feedUrl);
+        const r = await fetch(proxied);
+        if (!r.ok) throw new Error("corsproxy falhou");
+        const items = parseRssXml(await r.text());
+        if (items.length === 0) throw new Error("corsproxy sem itens");
+        return items;
+      },
+    ];
+
+    (async () => {
+      for (const tentar of fontes) {
+        try {
+          const items = await tentar();
+          if (!cancelado && items.length > 0) {
+            setNoticias(items);
+            return;
+          }
+        } catch (e) {
+          // tenta a próxima fonte da lista
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
   // Nunca retorna null — sempre mostra ao menos as manchetes padrão, com margem
@@ -1284,8 +1337,8 @@ function LiveHomeCard({ aoVivo, onClick }) {
           </button>
         )}
         {aoVivo.isLive && (
-          <span className="absolute top-2 left-2 text-[10px] font-mono px-2 py-1 rounded-full text-white flex items-center gap-1" style={{ background: "#E14D3A" }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-white" /> AO VIVO
+          <span className="live-pulse absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-full text-white flex items-center gap-1" style={{ background: "#E14D3A" }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-white" /> LIVE
           </span>
         )}
       </div>
@@ -1696,7 +1749,7 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
         <>
           <iframe title="transmissão ao vivo" src={getEmbedUrl(data.embedUrl)} className="w-full h-full" allowFullScreen />
           <span className="live-pulse absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold pointer-events-none" style={{ background: "#E14D3A", color: "#fff" }}>
-            <Radio size={10} /> AO VIVO
+            <Radio size={10} /> LIVE
           </span>
           <button onClick={onAmpliar} className={`${ampliarBtnCls} bottom-2 right-2`} style={ampliarBtnStyle}>ampliar ⤢</button>
         </>
@@ -1726,7 +1779,7 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
@@ -1764,7 +1817,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
 
         <div className="order-3 lg:order-3 flex flex-col gap-3 h-full">
           <div className="flex-[7] min-h-0">
-            <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => setPage("doacoes")} />
+            <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => {}} />
           </div>
           <div className="flex-[3] min-h-0">
             <PedidoOracaoCard compact onClick={() => setPage("pedidooracao")} />
@@ -1781,6 +1834,22 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
             <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
             <Field label="Histórico breve — coluna 1 (Ministério)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={site.heroHistoricoBreve || ""} onChange={(e) => saveSite({ ...site, heroHistoricoBreve: e.target.value })} /></Field>
             <Field label="WhatsApp do Ministério (com DDD, só números)"><input className={inputCls} style={{ borderColor: C.line }} value={site.whatsappMinisterio || ""} onChange={(e) => saveSite({ ...site, whatsappMinisterio: e.target.value })} /></Field>
+          </div>
+        </div>
+      )}
+
+      {/* Configuração da chave Pix do card "Dízimo e Oferta" — antes vivia numa
+          página própria de Dízimos e Ofertas (removida a pedido do Marcos); o
+          card com QR Code continua aqui na Home, então o ajuste da chave
+          também fica aqui, só visível pro admin. */}
+      {adminMode && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-3 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+          <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · Dízimo e Oferta (chave Pix do card da Home)</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Chave PIX"><input className={inputCls} style={{ borderColor: C.line }} value={(doacoes || DEFAULT_DOACOES).pixKey || ""} onChange={(e) => saveDoacoes({ ...(doacoes || DEFAULT_DOACOES), pixKey: e.target.value })} /></Field>
+            <Field label="Nome do recebedor (aparece no QR)"><input className={inputCls} style={{ borderColor: C.line }} value={(doacoes || DEFAULT_DOACOES).nomeRecebedor || ""} onChange={(e) => saveDoacoes({ ...(doacoes || DEFAULT_DOACOES), nomeRecebedor: e.target.value })} /></Field>
+            <Field label="Cidade do recebedor (aparece no QR)"><input className={inputCls} style={{ borderColor: C.line }} value={(doacoes || DEFAULT_DOACOES).cidade || ""} onChange={(e) => saveDoacoes({ ...(doacoes || DEFAULT_DOACOES), cidade: e.target.value })} /></Field>
+            <Field label="Link Mercado Pago (opcional — pagamento por cartão)"><input className={inputCls} style={{ borderColor: C.line }} value={(doacoes || DEFAULT_DOACOES).mercadoPagoUrl || ""} onChange={(e) => saveDoacoes({ ...(doacoes || DEFAULT_DOACOES), mercadoPagoUrl: e.target.value })} /></Field>
           </div>
         </div>
       )}
@@ -1841,19 +1910,25 @@ function CelulaCard({ chave, celula, onOpen }) {
   const nParticipantes = (celula.participantes || "").split("\n").map((s) => s.trim()).filter(Boolean).length;
   const ultimoEncontro = [...(celula.encontros || [])].sort((a, b) => new Date(b.data) - new Date(a.data))[0];
   return (
-    <button onClick={onOpen} className="text-left rounded-2xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 hover:opacity-95" style={{ borderColor: cor, background: "#fff" }}>
-      <div className="h-28 flex items-center justify-center" style={{ background: cor + "1a" }}>
+    // Layout horizontal a pedido do Marcos: logo à esquerda (ocupando a
+    // altura inteira do card), histórico à direita, alinhado no topo e na
+    // base da imagem da logo.
+    <button onClick={onOpen} className="text-left rounded-2xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 hover:opacity-95 flex items-stretch" style={{ borderColor: cor, background: "#fff" }}>
+      <div className="w-28 sm:w-32 shrink-0 flex items-center justify-center" style={{ background: cor + "1a" }}>
         <ImgOrPlaceholder url={celula.logoUrl} alt={celula.nome} className="h-full w-full object-contain p-3" ph="Logo — a enviar" />
       </div>
-      <div className="p-4">
-        <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>{celula.nome}</h3>
-        {celula.anfitriao && <p className="text-xs mt-1" style={{ color: C.stone }}>Anfitrião(ã): {celula.anfitriao}</p>}
-        {nParticipantes > 0 && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{nParticipantes} participante{nParticipantes > 1 ? "s" : ""}</p>}
-        {ultimoEncontro && (
-          <p className="text-xs mt-1" style={{ color: cor }}>
-            <Calendar size={11} className="inline mr-1" />{fmtDate(ultimoEncontro.data)}{ultimoEncontro.local ? ` · ${ultimoEncontro.local}` : ""}
-          </p>
-        )}
+      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
+        <div>
+          <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>{celula.nome}</h3>
+          {celula.historia && <p className="text-xs mt-1.5 leading-relaxed line-clamp-3" style={{ color: C.stone }}>{celula.historia}</p>}
+          {celula.anfitriao && <p className="text-xs mt-1.5" style={{ color: C.stone }}>Anfitrião(ã): {celula.anfitriao}</p>}
+          {nParticipantes > 0 && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{nParticipantes} participante{nParticipantes > 1 ? "s" : ""}</p>}
+          {ultimoEncontro && (
+            <p className="text-xs mt-1" style={{ color: cor }}>
+              <Calendar size={11} className="inline mr-1" />{fmtDate(ultimoEncontro.data)}{ultimoEncontro.local ? ` · ${ultimoEncontro.local}` : ""}
+            </p>
+          )}
+        </div>
         <span className="text-xs underline mt-3 inline-block" style={{ color: C.violet }}>Ver célula →</span>
       </div>
     </button>
@@ -1896,6 +1971,10 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
 
   const regenCodigo = () => onPatchTop({ liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase() });
   const toggleCodigo = () => onPatchTop({ liderCodeActive: !liderCodeActive });
+
+  // Foto ampliada (lightbox) — ao clicar em qualquer foto, grande ou da
+  // galeria menor, de qualquer encontro, ela abre em tela cheia.
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
 
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
@@ -1971,43 +2050,110 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
         <div className="mt-10">
           <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Encontros</p>
           {encontrosOrdenados.length === 0 && <Empty text="Nenhum encontro registrado ainda." />}
-          <div className="grid sm:grid-cols-3 gap-4">
-            {encontrosOrdenados.map((e) => (
-              <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: "#fff" }}>
-                <div className="p-4">
-                  <div className="flex justify-between items-start">
+          {/* Um bloco por encontro (empilhados), em vez da antiga grade de 3
+              colunas: a primeira foto do encontro aparece bem maior (pelo menos
+              4x o tamanho da miniatura antiga), com o relato e a relação dos
+              presentes ao lado; abaixo, uma galeria com o restante das fotos,
+              menores, que ampliam ao clicar. */}
+          <div className="flex flex-col gap-6">
+            {encontrosOrdenados.map((e) => {
+              const fotos = e.fotos || [];
+              const fotoDestaque = fotos[0] || "";
+              const galeria = fotos.slice(1);
+              const presentesLista = (e.presentes || "").split("\n").map((s) => s.trim()).filter(Boolean);
+              return (
+                <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: "#fff" }}>
+                  <div className="flex items-start justify-between px-4 pt-4">
                     <p className="font-display font-semibold text-sm">{fmtDate(e.data)}</p>
                     {canManage && <button onClick={() => delEncontro(e.id)}><Trash2 size={13} color={C.stone} /></button>}
                   </div>
-                  {e.anfitriao && <p className="text-xs mt-1" style={{ color: C.stone }}>Anfitrião(ã): {e.anfitriao}</p>}
-                  {e.local && <p className="text-xs mt-1" style={{ color: C.stone }}>{e.local}</p>}
-                  {e.relato && <p className="text-xs mt-2 leading-relaxed" style={{ color: C.ink }}>{e.relato}</p>}
-                </div>
-                {(e.fotos || []).length > 0 && (
-                  <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">
-                    {e.fotos.map((f, idx) => (
-                      <div key={idx} className="relative">
-                        <img src={f} className="w-full h-28 object-cover rounded" />
+
+                  <div className="grid md:grid-cols-[2fr_1fr] gap-4 p-4 items-start">
+                    {/* Foto em destaque do encontro — bem maior que a galeria abaixo */}
+                    {fotoDestaque ? (
+                      <div className="relative">
+                        <button onClick={() => setFotoAmpliada(fotoDestaque)} className="block w-full focus:outline-none focus:ring-2 rounded-lg overflow-hidden" style={{ background: cor + "0f" }}>
+                          <img src={fotoDestaque} alt={`Encontro de ${fmtDate(e.data)}`} className="w-full h-64 sm:h-[26rem] object-cover" />
+                        </button>
                         {canManage && (
-                          <button onClick={() => delFoto(e.id, idx)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                            <X size={10} color="#fff" />
+                          <button onClick={() => delFoto(e.id, 0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1">
+                            <X size={13} color="#fff" />
                           </button>
                         )}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="w-full h-64 sm:h-[26rem] rounded-lg flex items-center justify-center text-xs" style={{ background: cor + "0f", color: C.stone }}>
+                        Foto — a enviar
+                      </div>
+                    )}
+
+                    {/* Relato + relação dos presentes, ao lado da foto em destaque */}
+                    <div>
+                      {e.anfitriao && <p className="text-xs" style={{ color: C.stone }}>Anfitrião(ã): {e.anfitriao}</p>}
+                      {e.local && <p className="text-xs mt-1" style={{ color: C.stone }}>{e.local}</p>}
+                      {e.relato && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold" style={{ color: C.ink }}>Relato do encontro</p>
+                          <p className="text-xs mt-1 leading-relaxed" style={{ color: C.stone }}>{e.relato}</p>
+                        </div>
+                      )}
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold" style={{ color: C.ink }}>Relação dos presentes</p>
+                        {presentesLista.length === 0 ? (
+                          <p className="text-xs mt-1" style={{ color: C.stone }}>Não registrada ainda.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {presentesLista.map((nome, idx) => (
+                              <span key={idx} className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: cor + "1a", color: C.ink }}>{nome}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-                {canManage && <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />}
-              </div>
-            ))}
+
+                  {/* Galeria com o restante das fotos — menores, ampliam ao clicar */}
+                  {galeria.length > 0 && (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 px-4 pb-3">
+                      {galeria.map((f, idx) => (
+                        <div key={idx} className="relative">
+                          <button onClick={() => setFotoAmpliada(f)} className="block w-full focus:outline-none focus:ring-2 rounded">
+                            <img src={f} className="w-full h-16 sm:h-20 object-cover rounded" />
+                          </button>
+                          {canManage && (
+                            <button onClick={() => delFoto(e.id, idx + 1)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                              <X size={10} color="#fff" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {canManage && (
+                    <div className="px-4 pb-4">
+                      <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {canManage && (
             <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.)</p>
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.) e relação dos presentes</p>
               <DynamicForm fields={CELULA_ENCONTRO_FIELDS} accent={cor} onSubmit={(v) => v.data && addEncontro(v)} submitLabel="Cadastrar encontro" />
             </div>
           )}
         </div>
+
+        {fotoAmpliada && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "#000000e0" }} onClick={() => setFotoAmpliada(null)}>
+            <button onClick={() => setFotoAmpliada(null)} className="absolute top-4 right-4 p-2 rounded-full" style={{ background: "#ffffff22" }}>
+              <X size={20} color="#fff" />
+            </button>
+            <img src={fotoAmpliada} alt="" className="max-w-full max-h-full rounded-lg object-contain" onClick={(ev) => ev.stopPropagation()} />
+          </div>
+        )}
 
         {adminMode && (
           <div className="mt-10 pt-4 border-t text-xs" style={{ borderColor: C.line, color: C.stone }}>
@@ -3243,11 +3389,11 @@ function AntHeroPlayer({ aoVivo, passadas }) {
         </div>
       )}
 
-      {/* topo: badge AO VIVO + Botão Rhema */}
+      {/* topo: badge LIVE (botão vermelho pulsante, canto superior esquerdo) + Botão Rhema */}
       <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between p-3 sm:p-5 pointer-events-none">
         {data.isLive ? (
-          <span className="live-pulse pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm">
-            <Radio size={12} color={ANT.fire} /> <span className="text-[11px] font-bold tracking-wide text-white">AO VIVO</span>
+          <span className="live-pulse pointer-events-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 shadow-lg" style={{ background: "#E14D3A" }}>
+            <Radio size={12} color="#fff" /> <span className="text-[11px] font-bold tracking-wide text-white">LIVE</span>
           </span>
         ) : <span />}
         <button
@@ -4049,7 +4195,14 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
 }
 
 /* ---------------------------------------------------------------- */
-/* Doações                                                              */
+/* Doações — usado só dentro da página de cada Unidade Avivar/Igreja     */
+/* (PaginaIgreja). A seção "Dízimos e Ofertas" do site principal, que     */
+/* ficava aqui embaixo antes do cadastro de Visitantes, foi removida a    */
+/* pedido do Marcos — duplicava o card "Dízimo e Oferta" já existente na  */
+/* Home (HeroDoacoesCard, com o mesmo QR Code Pix). O ajuste da chave Pix */
+/* principal pelo admin passou a viver direto na Home (bloco ADMIN logo   */
+/* abaixo do Hero, em Home()) — este componente Doacoes abaixo continua   */
+/* existindo só para a chave Pix própria de cada Unidade/Igreja.          */
 /* ---------------------------------------------------------------- */
 function PixCard({ icon: Icon, titulo, desc, pixKey, mercadoPagoUrl, nomeRecebedor, cidade }) {
   const [copiado, setCopiado] = useState(false);
@@ -4669,6 +4822,41 @@ function PaginaCursos({ onVoltar }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Liderança em destaque — Pastor e Pastora, fixos no topo de Colaboradores */
+/* ---------------------------------------------------------------- */
+const DEFAULT_LIDERANCA = {
+  marcos: { nome: "Pastor Marcos Fagner", texto: "Pastor Marcos Fagner, líder e fundador do Ministério Avivar do Espírito.", fotoUrl: "" },
+  wladia: { nome: "Wládia Silva", texto: "Wládia Silva, pastora e vice-líder do Ministério Avivar do Espírito.", fotoUrl: "" },
+};
+
+function LiderancaCard({ pessoa, onChange, adminMode }) {
+  return (
+    <div className="rounded-xl border-2 overflow-hidden flex flex-col sm:flex-row" style={{ borderColor: C.gold, background: "#fff" }}>
+      <ImgOrPlaceholder url={pessoa.fotoUrl} alt={pessoa.nome} className="w-full sm:w-40 h-56 sm:h-auto object-contain bg-[#F1E7D3] p-2 shrink-0" ph={pessoa.nome} />
+      <div className="p-4 flex items-center">
+        <p className="text-sm leading-relaxed" style={{ color: C.ink }}>{pessoa.texto}</p>
+      </div>
+      {adminMode && (
+        <div className="p-3 border-t sm:border-t-0 sm:border-l shrink-0 sm:w-64" style={{ borderColor: C.line, background: "#00000006" }}>
+          <Field label="URL da foto"><input className={inputCls} style={{ borderColor: C.line }} value={pessoa.fotoUrl || ""} onChange={(e) => onChange({ ...pessoa, fotoUrl: e.target.value })} /></Field>
+          <div className="mt-2"><Field label="Texto"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={pessoa.texto || ""} onChange={(e) => onChange({ ...pessoa, texto: e.target.value })} /></Field></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LiderancaDestaque({ data, save, adminMode }) {
+  const d = data || DEFAULT_LIDERANCA;
+  return (
+    <div className="grid sm:grid-cols-2 gap-4 mb-10">
+      <LiderancaCard pessoa={d.marcos || DEFAULT_LIDERANCA.marcos} onChange={(v) => save({ ...d, marcos: v })} adminMode={adminMode} />
+      <LiderancaCard pessoa={d.wladia || DEFAULT_LIDERANCA.wladia} onChange={(v) => save({ ...d, wladia: v })} adminMode={adminMode} />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* Colaboradores                                                       */
 /* ---------------------------------------------------------------- */
 const COLAB_FIELDS = [
@@ -4680,10 +4868,14 @@ const COLAB_FIELDS = [
   { key: "fotoUrl", label: "URL da foto", type: "url" },
 ];
 
-function ColaboradorCard({ c, adminMode, onDel }) {
+function ColaboradorCard({ c, adminMode, onDel, contido }) {
+  // "contido" (object-contain, com fundo) evita cortar a cabeça de fotos mais
+  // verticais/ampliadas — a foto inteira aparece, só um pouco menor dentro do
+  // quadro, em vez de preencher o quadro cortando as bordas (object-cover).
+  const imgCls = contido ? "w-full h-44 object-contain bg-[#F1E7D3] p-1.5" : "w-full h-44 object-cover";
   return (
     <div className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
-      <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className="w-full h-44 object-cover" ph={c.nome} />
+      <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className={imgCls} ph={c.nome} />
       <div className="p-2" style={{ background: C.parchment }}>
         <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
         {c.cargo && <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>}
@@ -4695,7 +4887,15 @@ function ColaboradorCard({ c, adminMode, onDel }) {
   );
 }
 
-function Colaboradores({ items, save, adminMode }) {
+// Avivar Kids — seção própria abaixo de Colaboradores, com fotos das crianças/
+// jovens do ministério infantil. Campos simples (só nome + foto), já que não
+// têm cargo/ministério/telefone como os colaboradores adultos.
+const AVIVAR_KIDS_FIELDS = [
+  { key: "nome", label: "Nome" },
+  { key: "fotoUrl", label: "URL da foto", type: "url" },
+];
+
+function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca, saveLideranca }) {
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
   const porNome = (a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR");
@@ -4703,10 +4903,18 @@ function Colaboradores({ items, save, adminMode }) {
   // existiam (sem a marca "novo") primeiro, e os recém-cadastrados depois.
   const antigos = items.filter((i) => i.grupo !== "novo").sort(porNome);
   const novos = items.filter((i) => i.grupo === "novo").sort(porNome);
+
+  const addKid = (v) => saveKids([...(kidsItems || []), { id: uid(), ...v }]);
+  const delKid = (id) => saveKids((kidsItems || []).filter((i) => i.id !== id));
+  const kidsOrdenados = [...(kidsItems || [])].sort(porNome);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Quem serve conosco</Eyebrow>
       <SectionTitle>Colaboradores</SectionTitle>
+
+      <LiderancaDestaque data={lideranca} save={saveLideranca} adminMode={adminMode} />
+
       {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
       {antigos.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
@@ -4716,11 +4924,11 @@ function Colaboradores({ items, save, adminMode }) {
         </div>
       )}
       {novos.length > 0 && (
-        <div className="mt-10">
-          <p className="text-xs font-mono mb-3 uppercase tracking-wide" style={{ color: C.stone }}>Novos colaboradores</p>
+        <div className="mt-10 p-4 rounded-xl" style={{ background: C.cream }}>
+          <p className="text-xs font-mono mb-3 uppercase tracking-wide" style={{ color: C.stone }}>Nossos Colaboradores</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {novos.map((c) => (
-              <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} />
+              <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} contido />
             ))}
           </div>
         </div>
@@ -4731,6 +4939,27 @@ function Colaboradores({ items, save, adminMode }) {
           <DynamicForm fields={COLAB_FIELDS} onSubmit={add} submitLabel="Cadastrar" />
         </div>
       )}
+
+      {/* Avivar Kids — seção própria, abaixo de Colaboradores */}
+      <div className="mt-14 pt-10 border-t" style={{ borderColor: C.line }}>
+        <Eyebrow color={C.ember}><Sparkles size={12} className="inline mr-1" />Ministério infantil</Eyebrow>
+        <SectionTitle>Avivar Kids</SectionTitle>
+        {kidsOrdenados.length === 0 ? (
+          <div className="mt-6"><Empty text="Nenhuma criança cadastrada ainda." /></div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
+            {kidsOrdenados.map((k) => (
+              <ColaboradorCard key={k.id} c={k} adminMode={adminMode} onDel={() => delKid(k.id)} />
+            ))}
+          </div>
+        )}
+        {adminMode && (
+          <div className="mt-8">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova criança em Avivar Kids</p>
+            <DynamicForm fields={AVIVAR_KIDS_FIELDS} onSubmit={addKid} submitLabel="Cadastrar" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -6409,6 +6638,8 @@ export default function App() {
   const [loja, setLoja] = useState([]);
   const [igrejas, setIgrejas] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [avivarKids, setAvivarKids] = useState([]);
+  const [lideranca, setLideranca] = useState(DEFAULT_LIDERANCA);
   const [estudos, setEstudos] = useState([]);
   const [avivarNews, setAvivarNews] = useState([]);
   const [visitantes, setVisitantes] = useState([]);
@@ -6448,6 +6679,9 @@ export default function App() {
     (colaboradores || []).forEach((c) => {
       if (c.fotoUrl) photos.push({ url: c.fotoUrl, label: c.nome, target: "colaboradores" });
     });
+    (avivarKids || []).forEach((k) => {
+      if (k.fotoUrl) photos.push({ url: k.fotoUrl, label: k.nome, target: "colaboradores" });
+    });
     (oracaoEncontros || []).forEach((e) => {
       (e.fotos || []).forEach((url) => {
         photos.push({ url, label: e.anfitriao || "Oração", target: "oracoes" });
@@ -6472,7 +6706,7 @@ export default function App() {
       if (b.capaUrl) photos.push({ url: b.capaUrl, label: b.titulo || "Biblioteca Avivar", target: "biblioteca" });
     });
     return photos;
-  }, [galeria, colaboradores, oracaoEncontros, eventos, loja, igrejas, avivarNews, albuns, biblioteca]);
+  }, [galeria, colaboradores, avivarKids, oracaoEncontros, eventos, loja, igrejas, avivarNews, albuns, biblioteca]);
 
   useEffect(() => {
     (async () => {
@@ -6488,6 +6722,8 @@ export default function App() {
       setLoja(await loadKey("avivar:loja", []));
       setIgrejas(await loadKey("avivar:igrejas", []));
       setColaboradores(await loadKey("avivar:colaboradores", []));
+      setAvivarKids(await loadKey("avivar:avivarkids", []));
+      setLideranca(await loadKey("avivar:lideranca", DEFAULT_LIDERANCA));
       setEstudos(await loadKey("avivar:estudos", []));
       setAvivarNews(await loadKey("avivar:avivarnews", []));
       setVisitantes(await loadKey("avivar:visitantes", []));
@@ -6527,6 +6763,8 @@ export default function App() {
     let bibliotecaW = biblioteca || [];
     let galeriaW = galeria || [];
     let colaboradoresW = colaboradores || [];
+    let avivarKidsW = avivarKids || [];
+    let liderancaW = lideranca || DEFAULT_LIDERANCA;
     if (!seeds.reportagensCodigos) {
       const jaTem = avivarNews.some((n) => n.seedId && n.seedId.startsWith("codigos-"));
       if (!jaTem) {
@@ -7392,12 +7630,17 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             id: uid(),
             seedId: "codigos-cura-da-alma",
             categoria: "Códigos Avivar",
+            paraVenda: true,
+            pdfNaoLiberado: true,
+            fisicoEsgotado: true,
             titulo: "Cura da Alma",
             nome: "Cura da Alma",
             autor: "Pr. Marcos Fagner",
             imageUrl: LIVRO_CURA_ALMA_CAPA,
             destino: "loja",
             preco: "",
+            precoPdf: "",
+            precoFisico: "",
             linkCompra: "",
             linkCartao: "",
             descricao: "Cura da Alma — Ciência e Fé Unidas Para Curar. Partindo da tricotomia do homem (corpo, alma e espírito — Hebreus 13:20-21), o livro mostra que a cura é possível quando a Medicina e a fé caminham juntas, trazendo orientação prática e fundamentada sobre esquizofrenia, síndrome do pânico, transtorno de ansiedade e depressão. Em breve disponível — aguardando a finalização do miolo.",
@@ -7421,12 +7664,17 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           id: uid(),
           seedId: "codigos-anjos-trono-terra",
           categoria: "Códigos Avivar",
+          paraVenda: true,
+          pdfNaoLiberado: true,
+          fisicoEsgotado: true,
           titulo: "Anjos: Entre o Trono e a Terra",
           nome: "Anjos: Entre o Trono e a Terra",
           autor: "Pr. Marcos Fagner",
           imageUrl: LIVRO_ANJOS_CAPA,
           destino: "loja",
           preco: "",
+          precoPdf: "",
+          precoFisico: "",
           linkCompra: "",
           linkCartao: "",
           descricao: "Série Códigos Avivar — Profetas dos Últimos Dias, Volume IX. \"Ele envia seus anjos como espíritos, e seus ministros como chama\" (Salmos 104:4). Os anjos são mais do que seres celestiais: são mensageiros, guerreiros, protetores e instrumentos do plano de Deus em todas as eras. Com base nas Escrituras e em diferentes tradições, este livro revela a origem, a hierarquia, as funções, a energia e os segredos dos anjos, mostrando como atuam entre o trono e a terra, guiando, protegendo e influenciando o destino da humanidade. Em breve disponível — aguardando a finalização do miolo.",
@@ -7437,12 +7685,17 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           id: uid(),
           seedId: "codigos-milagres-jesus",
           categoria: "Códigos Avivar",
+          paraVenda: true,
+          pdfNaoLiberado: true,
+          fisicoEsgotado: true,
           titulo: "Os Milagres de Jesus Cristo",
           nome: "Os Milagres de Jesus Cristo",
           autor: "Pr. Marcos Fagner",
           imageUrl: LIVRO_MILAGRES_JESUS_CAPA,
           destino: "loja",
           preco: "",
+          precoPdf: "",
+          precoFisico: "",
           linkCompra: "",
           linkCartao: "",
           descricao: "Série Códigos Avivar — Profetas dos Últimos Dias, Volume VIII. Energia divina, transformação molecular e o poder que nenhuma ciência consegue medir: uma jornada pelos milagres de Jesus Cristo à luz da fé e da ciência, revelando como o mesmo poder que curou enfermos, abriu olhos cegos e ressuscitou mortos continua disponível à Igreja hoje. Em breve disponível — aguardando a finalização do miolo.",
@@ -7474,6 +7727,27 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         saveKey("avivar:loja", lojaW);
       }
       todo.resumosLivrosCodigos1 = true;
+    }
+    // Correção: "Cura da Alma", "Anjos: Entre o Trono e a Terra" e "Os Milagres de
+    // Jesus Cristo" são livros do Pr. Marcos Fagner (mesmo padrão da trilogia e de
+    // "A Energia do Criador"), e por isso devem aparecer na Loja Avivar pública,
+    // mesmo "em breve disponível" — só faltava marcar paraVenda: true (sem isso, o
+    // filtro da Loja os escondia, mostrando só na vitrine interna de Códigos Avivar).
+    // Isso resolve o Marcos continuar vendo "as capas dos livros não subiram": as
+    // imagens sempre estiveram no ar, só não apareciam na página da Loja.
+    if (!seeds.livrosCodigosParaVenda1) {
+      const idsParaVenda = ["codigos-cura-da-alma", "codigos-anjos-trono-terra", "codigos-milagres-jesus"];
+      const precisaCorrigir = lojaW.some((p) => idsParaVenda.includes(p.seedId) && !p.paraVenda);
+      if (precisaCorrigir) {
+        lojaW = lojaW.map((p) =>
+          idsParaVenda.includes(p.seedId)
+            ? { ...p, paraVenda: true, pdfNaoLiberado: true, fisicoEsgotado: true, precoPdf: p.precoPdf || "", precoFisico: p.precoFisico || "" }
+            : p
+        );
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.livrosCodigosParaVenda1 = true;
     }
     if (!seeds.homeCardsOracaoImg1) {
       const hc = site.homeCards || DEFAULT_HOMECARDS;
@@ -7518,6 +7792,20 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         saveKey("avivar:celulas", novasCelulas);
       }
       todo.celulaLogos1 = true;
+    }
+    // Marcos achou as logos anteriores das 3 Células confusas e mandou substituir
+    // em todo lugar — diferente do seed acima, este sobrescreve de propósito,
+    // mesmo já havendo uma logo cadastrada.
+    if (!seeds.celulaLogos2) {
+      const logosNovas = { alfa: "/109-celula-alfa-logo.png", beta: "/111-celula-beta-logo.png", gama: "/110-celula-gama-logo.png" };
+      const celulasAtual = celulas || DEFAULT_CELULAS;
+      const novasCelulas = { ...celulasAtual };
+      CELULA_KEYS.forEach((k) => {
+        novasCelulas[k] = { ...(novasCelulas[k] || CELULA_VAZIA(k)), logoUrl: logosNovas[k] };
+      });
+      setCelulas(novasCelulas);
+      saveKey("avivar:celulas", novasCelulas);
+      todo.celulaLogos2 = true;
     }
     // Cinco colaboradores enviados pelo Marcos (fotos individuais) — entram sem
     // cargo definido (pedido dele) e marcados como "novo" pra aparecerem destacados
@@ -7600,6 +7888,20 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       saveKey("avivar:site", novoSite);
       todo.homeCardsReorg1 = true;
     }
+    // Remove o card "Dízimos e Ofertas" da grade de 9 cards da Home — a seção
+    // própria que ele abria foi removida (duplicava o card de Pix já existente
+    // no Hero da Home), então o card da grade ficaria sem destino.
+    if (!seeds.homeCardsRemoverDoacoes1) {
+      const hcAtual = site.homeCards || DEFAULT_HOMECARDS;
+      if (hcAtual.some((c) => c.key === "doacoes")) {
+        const hcSemDoacoes = hcAtual.filter((c) => c.key !== "doacoes");
+        const siteAtual = site || DEFAULT_SITE;
+        const novoSite = { ...siteAtual, homeCards: hcSemDoacoes };
+        setSite(novoSite);
+        saveKey("avivar:site", novoSite);
+      }
+      todo.homeCardsRemoverDoacoes1 = true;
+    }
     // Marcos perdeu as 11 fotos originais da galeria "Vida em Comunidade" (nunca
     // chegou a colar os arquivos /32 a /42-galeria-comunidade.jpg no GitHub) e mandou
     // 14 fotos novas pra substituir. Sobrescreve o array de fotos dessa sessão — que
@@ -7616,6 +7918,79 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       setGaleria(galeriaW);
       saveKey("avivar:galeria", galeriaW);
       todo.galeriaComunidadeFotosNovas1 = true;
+    }
+    // Avivar Kids — nova seção abaixo de Colaboradores, a pedido do Marcos. As
+    // fotos de Ir. Ismael, Ir. João e Ir. Gabriel entram aqui, e a foto da
+    // Princesa Sofia (antes em Colaboradores) é movida pra cá também.
+    if (!seeds.avivarKids1) {
+      const sofiaEmColaboradores = colaboradoresW.find((c) => c.seedId === "colab-sofia");
+      if (sofiaEmColaboradores) {
+        colaboradoresW = colaboradoresW.filter((c) => c.seedId !== "colab-sofia");
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
+      }
+      const jaTemKids = avivarKidsW.some((k) => k.seedId && k.seedId.startsWith("kids-"));
+      const novosKids = [];
+      if (!jaTemKids) {
+        novosKids.push(
+          { id: uid(), seedId: "kids-ismael", nome: "Ir. Ismael", fotoUrl: "/105-avivar-kids-ismael.jpg" },
+          { id: uid(), seedId: "kids-joao", nome: "Ir. João", fotoUrl: "/106-avivar-kids-joao.jpg" },
+          { id: uid(), seedId: "kids-gabriel", nome: "Ir. Gabriel", fotoUrl: "/107-avivar-kids-gabriel.jpg" }
+        );
+      }
+      const jaTemSofiaKids = avivarKidsW.some((k) => k.seedId === "colab-sofia");
+      if (sofiaEmColaboradores && !jaTemSofiaKids) {
+        novosKids.push({ id: uid(), seedId: "colab-sofia", nome: sofiaEmColaboradores.nome || "Princesa Sofia", fotoUrl: sofiaEmColaboradores.fotoUrl });
+      }
+      if (novosKids.length > 0) {
+        avivarKidsW = [...avivarKidsW, ...novosKids];
+        setAvivarKids(avivarKidsW);
+        saveKey("avivar:avivarkids", avivarKidsW);
+      }
+      todo.avivarKids1 = true;
+    }
+    // Liderança em destaque — move Pastor Marcos e Pastora Wládia de dentro da
+    // lista normal de Colaboradores pra um bloco fixo no topo da seção, com
+    // texto próprio (pedido do Marcos). Busca por nome (sem acento, sem
+    // depender de maiúsculas) pra achar os dois cadastros já existentes,
+    // feitos pelo próprio admin antes desta atualização, e aproveita a foto
+    // que já estava cadastrada neles.
+    if (!seeds.liderancaDestaque1) {
+      const semAcento = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      const marcosEntry = colaboradoresW.find((c) => semAcento(c.nome).includes("marcos"));
+      const wladiaEntry = colaboradoresW.find((c) => semAcento(c.nome).includes("wladia"));
+      let liderancaNova = { ...DEFAULT_LIDERANCA, ...liderancaW };
+      let mudouColaboradores = false;
+      if (marcosEntry) {
+        liderancaNova = { ...liderancaNova, marcos: { ...DEFAULT_LIDERANCA.marcos, ...liderancaNova.marcos, fotoUrl: marcosEntry.fotoUrl || liderancaNova.marcos.fotoUrl } };
+        colaboradoresW = colaboradoresW.filter((c) => c.id !== marcosEntry.id);
+        mudouColaboradores = true;
+      }
+      if (wladiaEntry) {
+        liderancaNova = { ...liderancaNova, wladia: { ...DEFAULT_LIDERANCA.wladia, ...liderancaNova.wladia, fotoUrl: wladiaEntry.fotoUrl || liderancaNova.wladia.fotoUrl } };
+        colaboradoresW = colaboradoresW.filter((c) => c.id !== wladiaEntry.id);
+        mudouColaboradores = true;
+      }
+      liderancaW = liderancaNova;
+      setLideranca(liderancaW);
+      saveKey("avivar:lideranca", liderancaW);
+      if (mudouColaboradores) {
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
+      }
+      todo.liderancaDestaque1 = true;
+    }
+    // A foto da Ir. Vitória Dimas, enviada na mesma leva das 3 fotos de Avivar
+    // Kids, é de uma colaboradora adulta — entra em Colaboradores (Nossos
+    // Colaboradores), não em Avivar Kids.
+    if (!seeds.colaboradoraVitoriaDimas1) {
+      const jaTem = colaboradoresW.some((c) => c.seedId === "colab-vitoria-dimas");
+      if (!jaTem) {
+        colaboradoresW = [...colaboradoresW, { id: uid(), seedId: "colab-vitoria-dimas", nome: "Ir. Vitória Dimas", cargo: "", ministerio: "", telefone: "", fotoUrl: "/108-colaboradora-vitoria-dimas.jpg", grupo: "novo" }];
+        setColaboradores(colaboradoresW);
+        saveKey("avivar:colaboradores", colaboradoresW);
+      }
+      todo.colaboradoraVitoriaDimas1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
@@ -7638,6 +8013,8 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     loja: (v) => { setLoja(v); saveKey("avivar:loja", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
+    avivarKids: (v) => { setAvivarKids(v); saveKey("avivar:avivarkids", v); },
+    lideranca: (v) => { setLideranca(v); saveKey("avivar:lideranca", v); },
     estudos: (v) => { setEstudos(v); saveKey("avivar:estudos", v); },
     avivarNews: (v) => { setAvivarNews(v); saveKey("avivar:avivarnews", v); },
     visitantes: (v) => { setVisitantes(v); saveKey("avivar:visitantes", v); },
@@ -7825,16 +8202,15 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
 
       <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} forumPosts={forumPosts} addForumPost={(p) => persist.forum([...forumPosts, p])} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
-        <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} /></section>
+        <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} kidsItems={avivarKids} saveKids={persist.avivarKids} lideranca={lideranca} saveLideranca={persist.lideranca} /></section>
         <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="doacoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Doacoes data={doacoes} save={persist.doacoes} adminMode={adminMode} /></section>
         <section id="visitantes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
