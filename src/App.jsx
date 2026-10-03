@@ -6,7 +6,8 @@ import {
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
   Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv, Feather, Gem, Crown, CheckCircle2,
-  Play, Pause, Maximize, Minus, Settings2, Layers, History
+  Play, Pause, Maximize, Minus, Settings2, Layers, History,
+  Eye, EyeOff, Bell, Star, Check, Mic, Headphones, Music2, Music3, Music4
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -1038,11 +1039,11 @@ function RestrictedNotice({ onUnlock }) {
 const SETORES_OPERADOR = [
   { key: "todos", label: "Todos os setores" },
   { key: "oracoes", label: "Oração nos Lares" },
-  { key: "avivarmusic", label: "Avivar Music (cadastro de músicos)" },
+  { key: "avivarmusic", label: "Avivar Music (liderança do louvor)" },
   { key: "visitantes", label: "Visitantes" },
   { key: "membros", label: "Membros" },
   { key: "escala", label: "Escala de Obreiros" },
-  { key: "loja", label: "Loja (calcular frete)" },
+  { key: "loja", label: "Loja (editar produtos, frete e pedidos)" },
 ];
 // Apelidos aceitos no campo "setores" de um código — o admin pode escrever do jeito
 // que fala no dia a dia (ex: "recepção"), com ou sem acento, que cai no setor certo.
@@ -4105,7 +4106,9 @@ function gravarComprasAprovadasLS(v) {
   } catch (e) {}
 }
 
-function Loja({ items, save, adminMode, operatorMode, onRequestOperator, doacoes, pedidosFisicos, savePedidosFisicos }) {
+function Loja({ items, save, adminMode: adminReal, operatorMode, onRequestOperator, doacoes, pedidosFisicos, savePedidosFisicos }) {
+  // Servidor com código do setor "loja" tem os mesmos poderes do admin dentro da Loja (incluir, editar, excluir).
+  const adminMode = adminReal || operatorMode;
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
   const podeVerFrete = adminMode || operatorMode;
@@ -5547,8 +5550,10 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
 // disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
 // naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
 // com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
-function EscalaObreiros({ data, save, adminMode, operatorMode, onRequestOperator }) {
-  const canManage = adminMode || operatorMode;
+function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator }) {
+  // Código do setor "escala" = poderes completos de admin dentro da Escala.
+  const adminMode = adminReal || operatorMode;
+  const canManage = adminMode;
   const safeData = {
     ...DEFAULT_ESCALA_OBREIROS,
     ...(data || {}),
@@ -6259,8 +6264,10 @@ const ENCONTRO_FIELDS = [
 // no JSX abaixo de onde é usado).
 const CORES_COLUNAS_ORACAO = ["#FBF1DE" /* creme */, "#E7F0FB" /* azul claro */, "#FBE9F0" /* rosé claro */];
 
-function OracoesLares({ items, save, encontros, saveEncontros, adminMode, operatorMode, onRequestOperator, localDia, saveLocalDia }) {
-  const canManageAgenda = adminMode || operatorMode;
+function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminReal, operatorMode, onRequestOperator, localDia, saveLocalDia }) {
+  // Código do setor "oracoes" = poderes completos de admin dentro de Oração nos Lares.
+  const adminMode = adminReal || operatorMode;
+  const canManageAgenda = adminMode;
   const add = (v) => save([...items, { id: uid(), ...v, timestamp: nowISO(), status: "pendente" }]);
   const setStatus = (id, status) => save(items.map((i) => (i.id === id ? { ...i, status } : i)));
 
@@ -6846,17 +6853,35 @@ const AM = { bg: "#FBF7F0", card: "#FFFFFF", card2: "#F1E9F7", accent: "#6A1B9A"
 /* Formato dos dados (equivale às tabelas do app futuro):             */
 /*   acessos:    [{ id, nome, instrumento, email, codigo, senhaHash,  */
 /*                 ativo, criadoEm }]              -> musicians        */
-/*   acervo:     [{ id, titulo, tomIgreja, tomOriginal, bpm,          */
-/*                 youtubeUrl, cifra }]            -> songs            */
-/*   eventos:    [{ id, tipo, titulo, data, hora,                     */
+/*   acervo:     [{ id, titulo, artista, tomIgreja, tomOriginal, bpm, */
+/*                 youtubeUrl, cifra, estrutura:[parte], observacoes, */
+/*                 criadoEm, atualizadoEm }]       -> songs            */
+/*   eventos:    [{ id, tipo, titulo, data, hora, local,              */
+/*                 vagas:[{instrumento,qtd}],                         */
 /*                 escalados: [{ musicoId, instrumento }],            */
-/*                 musicas: [songId] }]            -> events           */
-/*   disponibilidade: [{ musicoId, eventoId, pode }] -> availability  */
-/*   patrimonio: [{ id, nome, status, obs }]       -> equipment        */
+/*                 musicas: [songId] }]            -> events/scales   */
+/*   disponibilidade: [{ musicoId, eventoId, status, motivo,          */
+/*                 avisado }]   status: confirmado|nao (pendente =    */
+/*                 sem registro)                   -> availability    */
+/*   favoritos:  [{ musicoId, musicaId }]          -> favorites       */
+/*   preparacao: [{ musicoId, eventoId, itens:[bool] }]               */
+/*                                       -> preparation_checklists    */
+/*   notificacoes: [{ id, para, tipo, texto, em, lida }]              */
+/*                 (estrutura pronta p/ push, e-mail e WhatsApp)      */
+/*   auditoria:  [{ id, em, quem, acao }]          -> audit_logs      */
+/*   patrimonio: [{ id, nome, numero, local, aquisicao, status, obs,  */
+/*                 manutencoes:[{id,data,texto}] }]-> equipment       */
 /* ================================================================ */
-const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], patrimonio: [] };
+const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], equipeImportada: false };
 const AM_TIPOS_EVENTO = ["Culto", "Ensaio", "Treinamento"];
 const AM_STATUS_PATRIMONIO = ["Operacional", "Defeito", "Em Manutenção"];
+const AM_MOTIVOS = ["Trabalho", "Viagem", "Compromisso", "Saúde", "Outro"];
+const AM_PREP_ITENS = ["Confirmei minha escala", "Estudei as músicas", "Conferi os tons", "Conferi o BPM", "Separei meu equipamento", "Estou pronto"];
+const AM_PARTES = ["Intro", "Verso", "Pré-refrão", "Refrão", "Ponte", "Final"];
+const AM_COR = { confirmado: "#2E7D4F", pendente: "#B7791F", nao: "#B03428" };
+const AM_ROTULO = { confirmado: "🟢 Confirmado", pendente: "🟡 Pendente", nao: "🔴 Não posso" };
+// Músicos que NÃO entram na equipe de acesso (decisão do Marcos): comparados pelo primeiro nome / qualquer parte do nome.
+const AM_IGNORAR_EQUIPE = ["wladia", "marcos"];
 const AM_ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const amGerarCodigo = () => { let s = ""; for (let i = 0; i < 6; i++) s += AM_ALFABETO[Math.floor(Math.random() * AM_ALFABETO.length)]; return "AM-" + s; };
 // A senha nunca é guardada em texto: guarda-se só o resumo (SHA-256) dela com o código.
@@ -6874,10 +6899,49 @@ const amTema = (escuro) => escuro
   ? { bg: "#120B1A", card: "#1E1429", card2: "#2A1D3A", accent: "#B97BE0", accentDeep: "#2B0F42", ink: "#F3EAFB", dim: "#B7A6C8", line: "rgba(255,255,255,.12)", onAccent: "#1A0B26" }
   : { ...AM, onAccent: "#FFFFFF" };
 const amDataHora = (ev) => `${fmtDate(ev.data)}${ev.hora ? " · " + ev.hora : ""}`;
-const amEventosFuturos = (eventos) => {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  return [...(eventos || [])].filter((e) => e.data && new Date(e.data + "T00:00:00") >= hoje).sort((a, b) => (a.data + (a.hora || "")).localeCompare(b.data + (b.hora || "")));
-};
+const amHoje = () => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; };
+const amOrdenar = (a, b) => (a.data + (a.hora || "")).localeCompare(b.data + (b.hora || ""));
+const amEventosFuturos = (eventos) => [...(eventos || [])].filter((e) => e.data && new Date(e.data + "T00:00:00") >= amHoje()).sort(amOrdenar);
+const amEventosPassados = (eventos) => [...(eventos || [])].filter((e) => e.data && new Date(e.data + "T00:00:00") < amHoje()).sort((a, b) => amOrdenar(b, a));
+const amMesmoInstr = (a, b) => { const x = semAcento(a).trim(); const y = semAcento(b).trim(); return !!x && !!y && (x === y || x.includes(y) || y.includes(x)); };
+
+// Disponibilidade: "pendente" = ainda sem resposta (não há registro). Aceita o formato antigo { pode: true/false }.
+function amDispDe(dados, musicoId, eventoId) {
+  const d = (dados.disponibilidade || []).find((x) => x.musicoId === musicoId && x.eventoId === eventoId);
+  if (!d) return { status: "pendente", motivo: "", avisado: false };
+  const status = d.status || (d.pode === true ? "confirmado" : d.pode === false ? "nao" : "pendente");
+  return { status, motivo: d.motivo || "", avisado: !!d.avisado };
+}
+function amSetDisp(dados, musicoId, eventoId, patch) {
+  const resto = (dados.disponibilidade || []).filter((x) => !(x.musicoId === musicoId && x.eventoId === eventoId));
+  const novo = { musicoId, eventoId, ...amDispDe(dados, musicoId, eventoId), ...patch };
+  if (novo.status === "pendente") return { ...dados, disponibilidade: resto };
+  return { ...dados, disponibilidade: [...resto, novo] };
+}
+// Eventos internos de aviso — hoje só aparecem dentro do app; a estrutura já serve p/ push, e-mail e WhatsApp.
+const amNotif = (dados, para, tipo, texto) => ({ ...dados, notificacoes: [{ id: uid(), para, tipo, texto, em: new Date().toISOString(), lida: false }, ...(dados.notificacoes || [])].slice(0, 150) });
+const amNotifVarios = (dados, lista, tipo, texto) => lista.reduce((acc, para) => amNotif(acc, para, tipo, texto), dados);
+const amAud = (dados, acao) => ({ ...dados, auditoria: [{ id: uid(), em: new Date().toISOString(), quem: "Liderança", acao }, ...(dados.auditoria || [])].slice(0, 300) });
+
+// Equipe: monta os acessos a partir dos músicos do Grupo, sem duplicar nome e sem os ignorados.
+const amNomeIgnorado = (nome) => semAcento(nome).split(/\s+/).some((p) => AM_IGNORAR_EQUIPE.includes(p));
+function amImportarEquipe(dados, musicosGrupo) {
+  const acessos = dados.acessos || [];
+  const jaTem = new Set(acessos.map((a) => semAcento(a.nome).trim()));
+  const usados = new Set(acessos.map((a) => a.codigo));
+  const novos = []; const ignorados = [];
+  (musicosGrupo || []).forEach((m) => {
+    const nome = (m.nome || "").trim();
+    if (!nome) return;
+    if (amNomeIgnorado(nome)) { ignorados.push(nome); return; }
+    const k = semAcento(nome).trim();
+    if (jaTem.has(k)) return;
+    jaTem.add(k);
+    let codigo = amGerarCodigo(); while (usados.has(codigo)) codigo = amGerarCodigo(); usados.add(codigo);
+    novos.push({ id: uid(), nome, instrumento: (m.instrumento || "").trim(), email: "", codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString(), origemGrupo: m.id });
+  });
+  return { novos, ignorados };
+}
 
 function AmBotao({ t, children, onClick, tom = "cheio", className = "", ...rest }) {
   const estilo = tom === "cheio" ? { background: t.accent, color: t.onAccent } : tom === "perigo" ? { background: "transparent", color: "#D0473A", border: "1px solid #D0473A66" } : { background: t.card2, color: t.ink };
@@ -6889,11 +6953,25 @@ function AmCard({ t, children, className = "" }) {
 function AmInput({ t, ...rest }) {
   return <input {...rest} className="w-full min-h-[48px] rounded-xl px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />;
 }
+// Campo de senha com "olho": a pessoa confere o que digitou antes de entrar.
+function AmSenha({ t, ...rest }) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className="relative">
+      <input {...rest} type={ver ? "text" : "password"} autoComplete="off" className="w-full min-h-[48px] rounded-xl pl-3 pr-12 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+      <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? "Esconder senha" : "Mostrar senha"} aria-pressed={ver} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 rounded-lg flex items-center justify-center" style={{ color: t.dim }}>
+        {ver ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  );
+}
 function AmSelect({ t, children, ...rest }) {
   return <select {...rest} className="w-full min-h-[48px] rounded-xl px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }}>{children}</select>;
 }
+function AmVazio({ t, children }) {
+  return <AmCard t={t}><p className="text-sm text-center py-3" style={{ color: t.dim }}>{children}</p></AmCard>;
+}
 
-/* ---------- Login fechado: código + senha (sem "criar conta" pública) ---------- */
 function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
   const [modo, setModo] = useState("entrar"); // entrar | primeiro | lider
   const [ident, setIdent] = useState("");
@@ -6906,7 +6984,7 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
   };
   const entrar = async () => {
     setErro("");
-    if (modo === "lider") { if (!tentarCodigoLider(ident)) setErro("Código de liderança inválido."); return; }
+    if (modo === "lider") { if (!tentarCodigoLider(ident.trim())) setErro("Código de liderança inválido."); return; }
     const a = achar(ident);
     if (!a) { setErro("Código não encontrado ou desativado. Peça ao líder do louvor."); return; }
     if (modo === "primeiro") {
@@ -6929,43 +7007,97 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
         <p className="text-xs mt-1" style={{ color: t.dim }}>O acesso é fechado: o líder do louvor gera um código para cada músico.</p>
         <div className="grid grid-cols-3 gap-1.5 mt-4">
           {[["entrar", "Já tenho senha"], ["primeiro", "Primeiro acesso"], ["lider", "Sou líder"]].map(([k, r]) => (
-            <button key={k} onClick={() => { setModo(k); setErro(""); }} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: modo === k ? t.accent : t.card2, color: modo === k ? t.onAccent : t.ink }}>{r}</button>
+            <button key={k} type="button" onClick={() => { setModo(k); setErro(""); }} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: modo === k ? t.accent : t.card2, color: modo === k ? t.onAccent : t.ink }}>{r}</button>
           ))}
         </div>
-        <div className="mt-4 space-y-3">
-          <AmInput t={t} placeholder={modo === "lider" ? "Código de liderança" : modo === "primeiro" ? "Código de acesso (ex: AM-7K42QX)" : "Código de acesso ou e-mail"} value={ident} onChange={(e) => setIdent(e.target.value)} type={modo === "lider" ? "password" : "text"} />
-          {modo !== "lider" && <AmInput t={t} type="password" placeholder={modo === "primeiro" ? "Crie sua senha pessoal" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} />}
-          {modo === "primeiro" && <AmInput t={t} type="password" placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
+        <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); entrar(); }}>
+          {modo === "lider"
+            ? <AmSenha t={t} placeholder="Código de liderança" value={ident} onChange={(e) => setIdent(e.target.value)} />
+            : <AmInput t={t} placeholder={modo === "primeiro" ? "Código de acesso (ex: AM-7K42QX)" : "Código de acesso ou e-mail"} value={ident} onChange={(e) => setIdent(e.target.value)} autoCapitalize="characters" />}
+          {modo !== "lider" && <AmSenha t={t} placeholder={modo === "primeiro" ? "Crie sua senha pessoal" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} />}
+          {modo === "primeiro" && <AmSenha t={t} placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
           {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
-          <AmBotao t={t} className="w-full" onClick={entrar}><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
-        </div>
+          <AmBotao t={t} type="submit" className="w-full"><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
+        </form>
       </AmCard>
     </div>
   );
 }
 
-/* ---------- A) Dashboard pessoal ---------- */
-function AmDashboard({ t, dados, salvar, musico, lider, irPara }) {
-  const futuros = amEventosFuturos(dados.eventos);
-  const meus = musico ? futuros.filter((e) => (e.escalados || []).some((x) => x.musicoId === musico.id)) : futuros;
-  const proximo = meus[0] || null;
-  const meuInstrumento = proximo && musico ? (proximo.escalados.find((x) => x.musicoId === musico.id) || {}).instrumento : "";
-  const dispDe = (evId) => (dados.disponibilidade || []).find((d) => d.musicoId === musico?.id && d.eventoId === evId);
-  const marcar = (evId, pode) => {
-    const resto = (dados.disponibilidade || []).filter((d) => !(d.musicoId === musico.id && d.eventoId === evId));
-    salvar({ ...dados, disponibilidade: [...resto, { musicoId: musico.id, eventoId: evId, pode }] });
+/* ---------- Avisos internos (estrutura pronta p/ push, e-mail e WhatsApp) ---------- */
+function AmAvisos({ t, dados, salvar, para }) {
+  const lista = (dados.notificacoes || []).filter((n) => n.para === para && !n.lida).slice(0, 8);
+  if (lista.length === 0) return null;
+  const lerTodos = () => salvar({ ...dados, notificacoes: (dados.notificacoes || []).map((n) => (n.para === para ? { ...n, lida: true } : n)) });
+  return (
+    <AmCard t={t}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Bell size={16} style={{ color: t.accent }} /> Avisos</p>
+        <button onClick={lerTodos} className="min-h-[44px] px-3 text-xs font-semibold rounded-xl" style={{ background: t.card2, color: t.ink }}>Marcar como lidos</button>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {lista.map((n) => (
+          <div key={n.id} className="rounded-xl px-3 py-2" style={{ background: t.card2 }}>
+            <p className="text-sm" style={{ color: t.ink }}>{n.texto}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: t.dim }}>{fmtDateTime(n.em)}</p>
+          </div>
+        ))}
+      </div>
+    </AmCard>
+  );
+}
+
+/* ---------- Disponibilidade: Confirmado / Pendente / Não posso (+ motivo + avisar líder) ---------- */
+function AmDispControle({ t, dados, salvar, musico, ev }) {
+  const d = amDispDe(dados, musico.id, ev.id);
+  const mudar = (status) => salvar(amSetDisp(dados, musico.id, ev.id, status === "nao" ? { status } : { status, motivo: "", avisado: false }));
+  const avisar = () => {
+    const base = amSetDisp(dados, musico.id, ev.id, { avisado: true });
+    salvar(amNotif(base, "lider", "ausencia", `${musico.nome} não pode em ${ev.titulo || ev.tipo} (${fmtDate(ev.data)})${d.motivo ? " — motivo: " + d.motivo : ""}.`));
   };
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[["confirmado", "Confirmado"], ["pendente", "Pendente"], ["nao", "Não posso"]].map(([k, r]) => (
+          <button key={k} onClick={() => mudar(k)} className="min-h-[48px] rounded-xl text-xs sm:text-sm font-semibold px-1" style={{ background: d.status === k ? AM_COR[k] : t.card, color: d.status === k ? "#fff" : t.ink, border: `1px solid ${t.line}` }}>{r}</button>
+        ))}
+      </div>
+      {d.status === "nao" && (
+        <div className="mt-2 grid sm:grid-cols-[1fr_auto] gap-2">
+          <AmSelect t={t} value={d.motivo} onChange={(e) => salvar(amSetDisp(dados, musico.id, ev.id, { motivo: e.target.value, avisado: false }))} aria-label="Motivo (opcional)">
+            <option value="">Motivo (opcional)</option>
+            {AM_MOTIVOS.map((m) => <option key={m}>{m}</option>)}
+          </AmSelect>
+          <AmBotao t={t} tom={d.avisado ? "suave" : "cheio"} onClick={avisar} disabled={d.avisado}><Send size={15} /> {d.avisado ? "Líder avisado" : "Avisar líder"}</AmBotao>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- A) Dashboard do músico ---------- */
+function AmDashboard({ t, dados, salvar, musico, lider, irPara, abrirCulto }) {
+  if (!musico) return <AmDashboardLider t={t} dados={dados} salvar={salvar} irPara={irPara} abrirCulto={abrirCulto} />;
+  const futuros = amEventosFuturos(dados.eventos);
+  const meus = futuros.filter((e) => (e.escalados || []).some((x) => x.musicoId === musico.id));
+  const proximo = meus[0] || null;
+  const meuInstrumento = proximo ? (proximo.escalados.find((x) => x.musicoId === musico.id) || {}).instrumento : "";
+  const st = proximo ? amDispDe(dados, musico.id, proximo.id).status : null;
   const musicasDe = (ev) => (ev.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean);
+  const semResposta = meus.filter((e) => amDispDe(dados, musico.id, e.id).status === "pendente");
   return (
     <div className="space-y-4">
-      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>{musico ? `Olá, ${musico.nome.split(" ")[0]}` : "Painel do líder"}</p>
-      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: `linear-gradient(135deg, #6A1B9A, #4A1270)` }}>
-        <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próxima escala</span>
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Olá, {musico.nome.split(" ")[0]}</p>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #6A1B9A, #4A1270)" }}>
+        <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo culto</span>
         {proximo ? (
           <>
             <p className="font-display text-2xl font-bold mt-3">{proximo.titulo || proximo.tipo}</p>
-            <p className="text-sm text-white/85 mt-0.5">{proximo.tipo} · {amDataHora(proximo)}</p>
-            {meuInstrumento && <p className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2 text-sm font-semibold"><Music size={15} /> Você toca: {meuInstrumento}</p>}
+            <p className="text-sm text-white/85 mt-0.5">{proximo.tipo} · {amDataHora(proximo)}{proximo.local ? ` · ${proximo.local}` : ""}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {meuInstrumento && <p className="inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2 text-sm font-semibold"><Music size={15} /> Seu instrumento: {meuInstrumento}</p>}
+              <p className="inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2 text-sm font-semibold">Status: {AM_ROTULO[st]}</p>
+            </div>
             {musicasDe(proximo).length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {musicasDe(proximo).map((m) => <span key={m.id} className="text-xs bg-white/15 rounded-full px-2.5 py-1">{m.titulo}{m.tomIgreja ? ` (${m.tomIgreja})` : ""}</span>)}
@@ -6973,41 +7105,245 @@ function AmDashboard({ t, dados, salvar, musico, lider, irPara }) {
             )}
           </>
         ) : (
-          <p className="text-sm text-white/90 mt-3">{musico ? "Você ainda não está em nenhuma escala futura." : "Nenhum evento futuro cadastrado."}</p>
+          <p className="text-sm text-white/90 mt-3">Você ainda não possui nenhuma escala.</p>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+          <button onClick={() => irPara("escala")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>VER ESCALA</button>
+          <button onClick={() => irPara("acervo")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>VER REPERTÓRIO</button>
+          <button onClick={() => irPara("estudio")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>ABRIR ESTÚDIO</button>
+        </div>
+        {proximo && musicasDe(proximo).length > 0 && (
+          <button onClick={() => abrirCulto(proximo)} className="mt-2 w-full min-h-[48px] rounded-xl bg-white/15 text-sm font-bold inline-flex items-center justify-center gap-2"><Maximize size={16} /> MODO CULTO</button>
         )}
       </div>
 
-      {musico && (
-        <AmCard t={t}>
-          <p className="font-display font-bold" style={{ color: t.ink }}>Minha disponibilidade</p>
-          <p className="text-xs mt-0.5" style={{ color: t.dim }}>Avise se pode ou não tocar em cada data. O líder vê sua resposta ao montar a escala.</p>
-          {futuros.length === 0 && <p className="text-sm mt-3" style={{ color: t.dim }}>Nenhuma data futura cadastrada.</p>}
-          <div className="mt-3 space-y-2">
-            {futuros.map((ev) => {
-              const d = dispDe(ev.id);
-              return (
-                <div key={ev.id} className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between" style={{ background: t.card2 }}>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
-                    <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:w-56">
-                    <button onClick={() => marcar(ev.id, true)} className="min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: d?.pode === true ? "#2E7D4F" : t.card, color: d?.pode === true ? "#fff" : t.ink, border: `1px solid ${t.line}` }}>Posso</button>
-                    <button onClick={() => marcar(ev.id, false)} className="min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: d?.pode === false ? "#B03428" : t.card, color: d?.pode === false ? "#fff" : t.ink, border: `1px solid ${t.line}` }}>Não posso</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </AmCard>
+      {semResposta.length > 0 && (
+        <AmCard t={t}><p className="text-sm" style={{ color: t.ink }}>🟡 Você ainda não confirmou sua disponibilidade em {semResposta.length === 1 ? "1 data" : `${semResposta.length} datas`}. Responda abaixo para o líder se organizar.</p></AmCard>
       )}
+      <AmAvisos t={t} dados={dados} salvar={salvar} para={musico.id} />
+
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Minha disponibilidade</p>
+        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Confirme, deixe pendente ou avise que não pode. O líder vê sua resposta ao montar a escala.</p>
+        {futuros.length === 0 && <p className="text-sm mt-3" style={{ color: t.dim }}>Nenhuma data futura cadastrada ainda.</p>}
+        <div className="mt-3 space-y-3">
+          {futuros.map((ev) => (
+            <div key={ev.id} className="rounded-xl p-3" style={{ background: t.card2 }}>
+              <p className="text-sm font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
+              <p className="text-xs mb-2" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}</p>
+              <AmDispControle t={t} dados={dados} salvar={salvar} musico={musico} ev={ev} />
+            </div>
+          ))}
+        </div>
+      </AmCard>
+    </div>
+  );
+}
+
+/* ---------- Dashboard do líder: confirmações, vagas, substituição ---------- */
+function AmDashboardLider({ t, dados, salvar, irPara, abrirCulto }) {
+  const futuros = amEventosFuturos(dados.eventos);
+  const ev = futuros[0] || null;
+  const [subst, setSubst] = useState(false);
+  const esc = ev ? ev.escalados || [] : [];
+  const cont = { confirmado: 0, pendente: 0, nao: 0 };
+  esc.forEach((x) => { cont[amDispDe(dados, x.musicoId, ev.id).status]++; });
+  const vagas = ev ? (ev.vagas || []).map((v) => ({ ...v, preenchidas: esc.filter((x) => amMesmoInstr(x.instrumento, v.instrumento)).length })) : [];
+  const nomeDe = (id) => ((dados.acessos || []).find((a) => a.id === id) || {}).nome || "(removido)";
+  const pendentes = ev ? esc.filter((x) => amDispDe(dados, x.musicoId, ev.id).status === "pendente").map((x) => nomeDe(x.musicoId)) : [];
+  const faltaVaga = vagas.some((v) => v.preenchidas < v.qtd);
+  const temMusicas = ev && (ev.musicas || []).length > 0;
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Painel do líder</p>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #6A1B9A, #4A1270)" }}>
+        <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo evento</span>
+        {ev ? (
+          <>
+            <p className="font-display text-2xl font-bold mt-3">{ev.titulo || ev.tipo}</p>
+            <p className="text-sm text-white/85 mt-0.5">{ev.tipo} · {amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide mt-4 text-white/70">Confirmações</p>
+            {esc.length === 0 ? <p className="text-sm text-white/90 mt-1">Ninguém escalado ainda.</p> : (
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {[["confirmado", "confirmados"], ["pendente", "pendentes"], ["nao", "indisponíveis"]].map(([k, r]) => (
+                  <div key={k} className="rounded-xl bg-white/15 px-2 py-2 text-center"><p className="text-2xl font-bold">{cont[k]}</p><p className="text-[10px]">{AM_ROTULO[k].split(" ")[0]} {r}</p></div>
+                ))}
+              </div>
+            )}
+            {vagas.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-wide mt-4 text-white/70">Escala</p>
+                <div className="mt-1 grid grid-cols-2 gap-1.5">
+                  {vagas.map((v, i) => (
+                    <p key={i} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: v.preenchidas < v.qtd ? "#B0342899" : "rgba(255,255,255,.15)" }}>{v.instrumento} — {v.preenchidas}/{v.qtd}{v.preenchidas < v.qtd ? " · vaga aberta" : ""}</p>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="grid sm:grid-cols-2 gap-2 mt-4">
+              <button onClick={() => setSubst((v) => !v)} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>ENCONTRAR SUBSTITUTO{cont.nao > 0 || faltaVaga ? " •" : ""}</button>
+              {temMusicas && <button onClick={() => abrirCulto(ev)} className="min-h-[48px] rounded-xl bg-white/15 text-sm font-bold inline-flex items-center justify-center gap-2"><Maximize size={16} /> MODO CULTO</button>}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-white/90 mt-3">Nenhum evento futuro cadastrado. Crie o primeiro em Escalas.</p>
+        )}
+      </div>
+
+      {subst && ev && <AmSubstituto t={t} dados={dados} salvar={salvar} ev={ev} onFechar={() => setSubst(false)} />}
+      {pendentes.length > 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.ink }}>🟡 Ainda não responderam: <b>{pendentes.join(", ")}</b></p></AmCard>}
+      <AmAvisos t={t} dados={dados} salvar={salvar} para="lider" />
 
       <div className="grid grid-cols-2 gap-3">
-        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("acervo")}><Library size={20} /> Acervo de louvores</AmBotao>
-        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("estudio")}><Settings2 size={20} /> Estúdio</AmBotao>
-        {lider && <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("escalas")}><Calendar size={20} /> Escalas</AmBotao>}
-        {lider && <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("patrimonio")}><Package size={20} /> Patrimônio</AmBotao>}
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("escalas")}><Calendar size={20} /> Escalas</AmBotao>
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("equipe")}><Users size={20} /> Equipe</AmBotao>
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("acervo")}><Library size={20} /> Acervo</AmBotao>
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("patrimonio")}><Package size={20} /> Patrimônio</AmBotao>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Sistema de substituição ---------- */
+function AmSubstituto({ t, dados, salvar, ev, onFechar }) {
+  const esc = ev.escalados || [];
+  const nomeDe = (id) => ((dados.acessos || []).find((a) => a.id === id) || {}).nome || "(removido)";
+  const primeiroNao = esc.find((x) => amDispDe(dados, x.musicoId, ev.id).status === "nao");
+  const [quem, setQuem] = useState((primeiroNao || esc[0] || {}).musicoId || "");
+  const alvo = esc.find((x) => x.musicoId === quem) || null;
+  const candidatos = alvo
+    ? (dados.acessos || []).filter((a) => a.ativo !== false && !esc.some((x) => x.musicoId === a.id))
+        .map((a) => ({ a, st: amDispDe(dados, a.id, ev.id).status, mesmo: amMesmoInstr(a.instrumento, alvo.instrumento) }))
+        .sort((x, y) => (Number(y.mesmo) - Number(x.mesmo)) || (Number(x.st === "nao") - Number(y.st === "nao")) || (Number(y.st === "confirmado") - Number(x.st === "confirmado")))
+    : [];
+  const trocar = (cand) => {
+    const novoEsc = esc.map((x) => (x.musicoId === quem ? { musicoId: cand.id, instrumento: alvo.instrumento } : x));
+    let novo = { ...dados, eventos: dados.eventos.map((e) => (e.id === ev.id ? { ...e, escalados: novoEsc } : e)) };
+    const titulo = ev.titulo || ev.tipo;
+    novo = amNotif(novo, cand.id, "escalado", `Você foi escalado em ${titulo} (${fmtDate(ev.data)}) — ${alvo.instrumento || "instrumento a definir"}.`);
+    novo = amNotif(novo, quem, "substituido", `Você foi substituído em ${titulo} (${fmtDate(ev.data)}).`);
+    novo = amAud(novo, `Substituição em ${titulo} (${fmtDate(ev.data)}): ${nomeDe(quem)} → ${cand.nome} (${alvo.instrumento || "—"})`);
+    salvar(novo);
+    onFechar();
+  };
+  return (
+    <AmCard t={t}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Encontrar substituto</p>
+          <p className="text-xs" style={{ color: t.dim }}>Escolha quem sai. Mostramos primeiro quem toca o mesmo instrumento.</p>
+        </div>
+        <button aria-label="Fechar" onClick={onFechar} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><X size={16} /></button>
+      </div>
+      {esc.length === 0 ? <p className="text-sm mt-3" style={{ color: t.dim }}>Ninguém escalado neste evento ainda.</p> : (
+        <>
+          <div className="mt-3">
+            <AmSelect t={t} value={quem} onChange={(e) => setQuem(e.target.value)}>
+              {esc.map((x) => <option key={x.musicoId} value={x.musicoId}>{AM_ROTULO[amDispDe(dados, x.musicoId, ev.id).status].split(" ")[0]} {nomeDe(x.musicoId)} — {x.instrumento || "—"}</option>)}
+            </AmSelect>
+          </div>
+          <div className="mt-3 space-y-1.5">
+            {candidatos.length === 0 && <p className="text-sm" style={{ color: t.dim }}>Nenhum outro músico ativo disponível na equipe.</p>}
+            {candidatos.map(({ a, st, mesmo }) => (
+              <div key={a.id} className="rounded-xl px-3 py-2 flex items-center justify-between gap-2" style={{ background: t.card2 }}>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: t.ink }}>{st === "confirmado" ? "🟢" : st === "nao" ? "🔴" : "🟡"} {a.nome}</p>
+                  <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{mesmo ? " · mesmo instrumento" : ""} · {st === "confirmado" ? "disponível" : st === "nao" ? "indisponível" : "ainda não respondeu"}</p>
+                </div>
+                <AmBotao t={t} className="!min-h-[44px] shrink-0" onClick={() => trocar(a)}>Escalar</AmBotao>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </AmCard>
+  );
+}
+
+/* ---------- MODO CULTO: tela escura, cifra grande, anterior/próxima ---------- */
+function AmModoCulto({ evento, musicas, onSair }) {
+  const [i, setI] = useState(0);
+  const [fonte, setFonte] = useState(22);
+  const areaRef = useRef(null);
+  const m = musicas[i];
+  useEffect(() => {
+    let lock = null;
+    try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then((l) => { lock = l; }).catch(() => {}); } catch (e) { /* sem wake lock */ }
+    return () => { try { lock && lock.release(); } catch (e) { /* ok */ } };
+  }, []);
+  useEffect(() => { if (areaRef.current) areaRef.current.scrollTop = 0; }, [i]);
+  if (!m) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#07030C", color: "#F3EAFB" }}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,.12)" }}>
+        <button onClick={onSair} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: "rgba(255,255,255,.1)" }}><X size={16} /> Sair</button>
+        <p className="text-xs truncate" style={{ color: "#B7A6C8" }}>{evento.titulo || evento.tipo} · {i + 1}/{musicas.length}</p>
+        <div className="flex gap-1.5">
+          <button aria-label="Diminuir letra" onClick={() => setFonte((f) => Math.max(14, f - 2))} className="w-11 h-11 rounded-xl font-bold" style={{ background: "rgba(255,255,255,.1)" }}>A−</button>
+          <button aria-label="Aumentar letra" onClick={() => setFonte((f) => Math.min(48, f + 2))} className="w-11 h-11 rounded-xl font-bold text-lg" style={{ background: "rgba(255,255,255,.1)" }}>A+</button>
+        </div>
+      </div>
+      <div ref={areaRef} className="flex-1 overflow-y-auto px-4 sm:px-10 py-5">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold">{m.titulo}</h2>
+          <p className="font-mono text-xl sm:text-2xl mt-2" style={{ color: "#B97BE0" }}>Tom: {m.tomIgreja || "—"} <span style={{ color: "#B7A6C8" }}>·</span> BPM: {m.bpm || "—"}</p>
+          {(m.estrutura || []).length > 0 && <p className="mt-3 text-sm uppercase tracking-wide" style={{ color: "#B7A6C8" }}>{m.estrutura.join(" → ")}</p>}
+          {m.observacoes && <p className="mt-3 rounded-xl px-4 py-3 text-base" style={{ background: "#3A2552", color: "#F3EAFB" }}>⚠ {m.observacoes}</p>}
+          {m.cifra ? <pre className="mt-5 whitespace-pre-wrap font-mono leading-relaxed pb-10" style={{ fontSize: fonte }}>{m.cifra}</pre> : <p className="mt-5" style={{ color: "#B7A6C8" }}>Cifra ainda não cadastrada.</p>}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 p-3" style={{ borderTop: "1px solid rgba(255,255,255,.12)" }}>
+        <button onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0} className="min-h-[64px] rounded-2xl text-lg font-bold inline-flex items-center justify-center gap-2 disabled:opacity-30" style={{ background: "rgba(255,255,255,.1)" }}><ChevronLeft size={22} /> ANTERIOR</button>
+        <button onClick={() => setI((v) => Math.min(musicas.length - 1, v + 1))} disabled={i === musicas.length - 1} className="min-h-[64px] rounded-2xl text-lg font-bold inline-flex items-center justify-center gap-2 disabled:opacity-30" style={{ background: "#6A1B9A" }}>PRÓXIMA <ChevronRight size={22} /></button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Escala do músico + preparação do culto ---------- */
+function AmEscalaMusico({ t, dados, salvar, musico, abrirCulto }) {
+  const futuros = amEventosFuturos(dados.eventos).filter((e) => (e.escalados || []).some((x) => x.musicoId === musico.id));
+  const prepDe = (eid) => ((dados.preparacao || []).find((p) => p.musicoId === musico.id && p.eventoId === eid) || {}).itens || AM_PREP_ITENS.map(() => false);
+  const marcarPrep = (eid, idx) => {
+    const itens = prepDe(eid).slice(); while (itens.length < AM_PREP_ITENS.length) itens.push(false);
+    itens[idx] = !itens[idx];
+    const resto = (dados.preparacao || []).filter((p) => !(p.musicoId === musico.id && p.eventoId === eid));
+    salvar({ ...dados, preparacao: [...resto, { musicoId: musico.id, eventoId: eid, itens }] });
+  };
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Minha escala</p>
+      {futuros.length === 0 && <AmVazio t={t}>Você ainda não possui nenhuma escala.</AmVazio>}
+      {futuros.map((ev) => {
+        const meu = ev.escalados.find((x) => x.musicoId === musico.id);
+        const musicas = (ev.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean);
+        const prep = prepDe(ev.id); const feitos = prep.filter(Boolean).length;
+        return (
+          <AmCard t={t} key={ev.id}>
+            <p className="font-display font-bold text-lg" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
+            <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
+            <p className="text-sm mt-2" style={{ color: t.ink }}>Seu instrumento: <b>{(meu && meu.instrumento) || "a definir"}</b></p>
+            <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Repertório</p>
+            {musicas.length === 0 ? <p className="text-sm mt-1" style={{ color: t.dim }}>Nenhum repertório foi definido para este evento.</p> : (
+              <div className="mt-1 space-y-1">
+                {musicas.map((m) => <p key={m.id} className="text-sm rounded-xl px-3 py-2" style={{ background: t.card2, color: t.ink }}><b>{m.titulo}</b> <span style={{ color: t.dim }}>· Tom {m.tomIgreja || "—"} · {m.bpm ? m.bpm + " BPM" : "BPM a definir"}</span></p>)}
+                <AmBotao t={t} tom="suave" className="w-full mt-1" onClick={() => abrirCulto(ev)}><Maximize size={16} /> Modo Culto</AmBotao>
+              </div>
+            )}
+            <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Minha disponibilidade</p>
+            <div className="mt-1"><AmDispControle t={t} dados={dados} salvar={salvar} musico={musico} ev={ev} /></div>
+            <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Preparação · {feitos}/{AM_PREP_ITENS.length}</p>
+            <div className="mt-1 space-y-1.5">
+              {AM_PREP_ITENS.map((r, idx) => (
+                <button key={r} onClick={() => marcarPrep(ev.id, idx)} className="w-full min-h-[48px] rounded-xl px-3 flex items-center gap-3 text-left text-sm" style={{ background: t.card2, color: t.ink }}>
+                  <span className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ background: prep[idx] ? "#2E7D4F" : t.card, border: `1px solid ${t.line}`, color: "#fff" }}>{prep[idx] && <Check size={15} />}</span>
+                  <span style={{ textDecoration: prep[idx] ? "line-through" : "none", opacity: prep[idx] ? 0.7 : 1 }}>{r}</span>
+                </button>
+              ))}
+            </div>
+          </AmCard>
+        );
+      })}
     </div>
   );
 }
@@ -7039,6 +7375,7 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
       <div ref={areaRef} className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-2xl font-bold">{musica.titulo}</h2>
+          {musica.artista && <p className="text-sm" style={{ color: t.dim }}>{musica.artista}</p>}
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[["Tom da igreja", musica.tomIgreja], ["Tom original", musica.tomOriginal], ["BPM", musica.bpm]].map(([r, v]) => (
               <div key={r} className="rounded-xl p-3 text-center" style={{ background: t.card2 }}>
@@ -7047,6 +7384,12 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
               </div>
             ))}
           </div>
+          {(musica.estrutura || []).length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {musica.estrutura.map((p, i) => <span key={i} className="text-xs font-bold uppercase rounded-full px-3 py-1" style={{ background: t.card2, color: t.accent }}>{p}</span>)}
+            </div>
+          )}
+          {musica.observacoes && <p className="mt-3 rounded-xl px-4 py-3 text-sm" style={{ background: t.card2, color: t.ink, borderLeft: `4px solid ${t.accent}` }}><b>Observações do líder:</b> {musica.observacoes}</p>}
           {musica.youtubeUrl && (
             <div className="aspect-video rounded-2xl overflow-hidden bg-black mt-4">
               <iframe title={`Referência — ${musica.titulo}`} src={getEmbedUrl(musica.youtubeUrl)} className="w-full h-full" allowFullScreen />
@@ -7071,9 +7414,10 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
   );
 }
 
-const AM_MUSICA_VAZIA = { titulo: "", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: "" };
-function AmAcervo({ t, dados, salvar, lider, repertorio, escuro }) {
+const AM_MUSICA_VAZIA = { titulo: "", artista: "", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: "", estrutura: [], observacoes: "" };
+function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey }) {
   const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todas"); // todas | favoritas | recentes
   const [aberta, setAberta] = useState(null);
   const [form, setForm] = useState(null); // null | objeto em edição
   // Músicas do repertório antigo (por culto) entram no acervo só para consulta.
@@ -7084,32 +7428,68 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro }) {
     const k = semAcento(m.titulo).trim();
     if (k && !titulos.has(k)) { titulos.add(k); antigas.push({ id: "rep-" + m.id, titulo: m.titulo, tomIgreja: m.tom || "", tomOriginal: "", bpm: "", youtubeUrl: m.youtubeUrl || "", cifra: m.cifra || m.letra || "", doRepertorio: true }); }
   }));
-  const todas = [...doAcervo, ...antigas].sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
-  const filtradas = todas.filter((m) => semAcento(m.titulo).includes(semAcento(busca)));
+  const todas = [...doAcervo, ...antigas];
+  const ehFav = (id) => (dados.favoritos || []).some((f) => f.musicoId === userKey && f.musicaId === id);
+  const alternarFav = (id) => salvar({ ...dados, favoritos: ehFav(id) ? dados.favoritos.filter((f) => !(f.musicoId === userKey && f.musicaId === id)) : [...(dados.favoritos || []), { musicoId: userKey, musicaId: id }] });
+  let lista = todas.filter((m) => semAcento(m.titulo).includes(semAcento(busca)) || semAcento(m.artista).includes(semAcento(busca)));
+  if (filtro === "favoritas") lista = lista.filter((m) => ehFav(m.id));
+  if (filtro === "recentes") lista = lista.filter((m) => m.atualizadoEm || m.criadoEm).sort((a, b) => (b.atualizadoEm || b.criadoEm).localeCompare(a.atualizadoEm || a.criadoEm)).slice(0, 15);
+  else lista = lista.sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
   const gravar = () => {
     if (!form.titulo.trim()) return;
-    const limpo = { ...form, titulo: form.titulo.trim() }; delete limpo.doRepertorio;
+    const agora = new Date().toISOString();
+    const limpo = { ...form, titulo: form.titulo.trim(), atualizadoEm: agora }; delete limpo.doRepertorio;
     const existe = doAcervo.some((m) => m.id === form.id);
-    salvar({ ...dados, acervo: existe ? doAcervo.map((m) => (m.id === form.id ? limpo : m)) : [...doAcervo, { ...limpo, id: uid() }] });
+    const novo = { ...dados, acervo: existe ? doAcervo.map((m) => (m.id === form.id ? limpo : m)) : [...doAcervo, { ...limpo, id: uid(), criadoEm: agora }] };
+    let final = amAud(novo, `${existe ? "Música alterada" : "Música cadastrada"}: ${limpo.titulo}`);
+    if (existe) {
+      const avisar = (dados.eventos || []).filter((e) => (e.musicas || []).includes(form.id) && e.data >= new Date().toISOString().slice(0, 10)).flatMap((e) => (e.escalados || []).map((x) => x.musicoId));
+      final = amNotifVarios(final, [...new Set(avisar)], "musica", `A música "${limpo.titulo}" foi atualizada.`);
+    }
+    salvar(final);
     setForm(null);
   };
-  const excluir = (id) => salvar({ ...dados, acervo: doAcervo.filter((m) => m.id !== id), eventos: (dados.eventos || []).map((e) => ({ ...e, musicas: (e.musicas || []).filter((x) => x !== id) })) });
+  const excluir = (m) => salvar(amAud({ ...dados, acervo: doAcervo.filter((x) => x.id !== m.id), favoritos: (dados.favoritos || []).filter((f) => f.musicaId !== m.id), eventos: (dados.eventos || []).map((e) => ({ ...e, musicas: (e.musicas || []).filter((x) => x !== m.id) })) }, `Música excluída: ${m.titulo}`));
+  const vazioMsg = todas.length === 0 ? "Nenhuma música no acervo ainda." : filtro === "favoritas" ? "Você ainda não marcou nenhuma favorita. Toque na ⭐ de uma música." : "Nenhuma música encontrada.";
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Acervo de louvores</p>
         {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MUSICA_VAZIA })}><Plus size={16} /> Nova</AmBotao>}
       </div>
-      <AmInput t={t} placeholder="Pesquisar música..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <AmInput t={t} placeholder="Pesquisar por música ou artista..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="grid grid-cols-3 gap-1.5">
+        {[["todas", "Todas"], ["favoritas", "⭐ Favoritas"], ["recentes", "Recentes"]].map(([k, r]) => (
+          <button key={k} onClick={() => setFiltro(k)} className="min-h-[44px] rounded-xl text-xs font-semibold" style={{ background: filtro === k ? t.accent : t.card2, color: filtro === k ? t.onAccent : t.ink }}>{r}</button>
+        ))}
+      </div>
       {form && (
         <AmCard t={t}>
           <p className="font-display font-bold mb-3" style={{ color: t.ink }}>{doAcervo.some((m) => m.id === form.id) ? "Editar música" : "Nova música"}</p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2"><AmInput t={t} placeholder="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} /></div>
+            <AmInput t={t} placeholder="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+            <AmInput t={t} placeholder="Artista / compositor" value={form.artista || ""} onChange={(e) => setForm({ ...form, artista: e.target.value })} />
             <AmInput t={t} placeholder="Tom da igreja (ex: G)" value={form.tomIgreja} onChange={(e) => setForm({ ...form, tomIgreja: e.target.value })} />
             <AmInput t={t} placeholder="Tom original (ex: A)" value={form.tomOriginal} onChange={(e) => setForm({ ...form, tomOriginal: e.target.value })} />
             <AmInput t={t} placeholder="BPM (ex: 72)" inputMode="numeric" value={form.bpm} onChange={(e) => setForm({ ...form, bpm: e.target.value })} />
             <AmInput t={t} placeholder="Link do YouTube (referência de arranjo)" value={form.youtubeUrl} onChange={(e) => setForm({ ...form, youtubeUrl: e.target.value })} />
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold mb-1.5" style={{ color: t.dim }}>Estrutura da música (toque para adicionar na ordem)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {AM_PARTES.map((p) => <button key={p} type="button" onClick={() => setForm({ ...form, estrutura: [...(form.estrutura || []), p] })} className="min-h-[40px] px-3 rounded-full text-xs font-bold uppercase" style={{ background: t.card2, color: t.ink }}>+ {p}</button>)}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(form.estrutura || []).length === 0 && <span className="text-xs" style={{ color: t.dim }}>Nem toda música usa todas as partes — monte só o que ela tem.</span>}
+                {(form.estrutura || []).map((p, i) => (
+                  <span key={i} className="text-xs font-bold uppercase rounded-full pl-3 pr-1 py-1 inline-flex items-center gap-1" style={{ background: t.accent, color: t.onAccent }}>{p}
+                    <button type="button" aria-label={`Tirar ${p}`} onClick={() => setForm({ ...form, estrutura: form.estrutura.filter((_, j) => j !== i) })} className="w-6 h-6 rounded-full flex items-center justify-center"><X size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <textarea rows={3} placeholder="Observações musicais (ex: Bateria entra só no 2º refrão; guitarra faz ambiente na ponte)" value={form.observacoes || ""} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+            </div>
             <div className="sm:col-span-2">
               <textarea rows={10} placeholder="Cifra (cole aqui, com os acordes sobre a letra)" value={form.cifra} onChange={(e) => setForm({ ...form, cifra: e.target.value })} className="w-full rounded-xl p-3 text-sm font-mono focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
             </div>
@@ -7120,20 +7500,21 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro }) {
           </div>
         </AmCard>
       )}
-      {filtradas.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>{todas.length === 0 ? "Nenhuma música no acervo ainda." : "Nenhuma música encontrada."}</p></AmCard>}
+      {lista.length === 0 && <AmVazio t={t}>{vazioMsg}</AmVazio>}
       <div className="space-y-2">
-        {filtradas.map((m) => (
+        {lista.map((m) => (
           <div key={m.id} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
-            <button onClick={() => setAberta(m)} className="flex-1 text-left p-4 min-h-[64px] focus:outline-none focus:ring-2">
+            <button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>
+            <button onClick={() => setAberta(m)} className="flex-1 text-left py-4 pr-3 min-h-[64px] focus:outline-none focus:ring-2">
               <p className="font-semibold" style={{ color: t.ink }}>{m.titulo}</p>
               <p className="text-xs mt-0.5" style={{ color: t.dim }}>
-                {m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.youtubeUrl ? " · vídeo" : ""}
+                {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.youtubeUrl ? " · vídeo" : ""}
               </p>
             </button>
             {lider && (
               <div className="flex items-center gap-1 pr-2">
-                <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
-                {!m.doRepertorio && <button aria-label="Excluir" onClick={() => excluir(m.id)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>}
+                <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...AM_MUSICA_VAZIA, ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
+                {!m.doRepertorio && <button aria-label="Excluir" onClick={() => excluir(m)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>}
               </div>
             )}
           </div>
@@ -7149,24 +7530,45 @@ function AmEscalas({ t, dados, salvar }) {
   const hoje = new Date();
   const [mes, setMes] = useState({ a: hoje.getFullYear(), m: hoje.getMonth() });
   const [dia, setDia] = useState(null); // "AAAA-MM-DD"
-  const [novo, setNovo] = useState({ tipo: "Culto", titulo: "", hora: "" });
+  const [novo, setNovo] = useState({ tipo: "Culto", titulo: "", hora: "", local: "" });
   const [addMusico, setAddMusico] = useState({});
+  const [vaga, setVaga] = useState({});
+  const [substEv, setSubstEv] = useState(null);
   const eventos = dados.eventos || [];
   const iso = (d) => `${mes.a}-${String(mes.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const primeiro = new Date(mes.a, mes.m, 1).getDay();
   const nDias = new Date(mes.a, mes.m + 1, 0).getDate();
   const nomeMes = new Date(mes.a, mes.m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   const mudar = (delta) => { const d = new Date(mes.a, mes.m + delta, 1); setMes({ a: d.getFullYear(), m: d.getMonth() }); setDia(null); };
-  const upd = (id, patch) => salvar({ ...dados, eventos: eventos.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
+  const nomeDe = (id) => ((dados.acessos || []).find((a) => a.id === id) || {}).nome || "(removido)";
+  const upd = (id, patch, base = dados) => ({ ...base, eventos: base.eventos.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
   const criar = () => {
     if (!dia) return;
-    salvar({ ...dados, eventos: [...eventos, { id: uid(), tipo: novo.tipo, titulo: novo.titulo.trim() || novo.tipo, data: dia, hora: novo.hora, escalados: [], musicas: [] }] });
-    setNovo({ tipo: "Culto", titulo: "", hora: "" });
+    const titulo = novo.titulo.trim() || novo.tipo;
+    salvar(amAud({ ...dados, eventos: [...eventos, { id: uid(), tipo: novo.tipo, titulo, data: dia, hora: novo.hora, local: novo.local.trim(), vagas: [], escalados: [], musicas: [] }] }, `Evento criado: ${titulo} (${fmtDate(dia)})`));
+    setNovo({ tipo: "Culto", titulo: "", hora: "", local: "" });
   };
-  const excluir = (id) => salvar({ ...dados, eventos: eventos.filter((e) => e.id !== id), disponibilidade: (dados.disponibilidade || []).filter((d) => d.eventoId !== id) });
+  const excluir = (ev) => salvar(amAud({ ...dados, eventos: eventos.filter((e) => e.id !== ev.id), disponibilidade: (dados.disponibilidade || []).filter((d) => d.eventoId !== ev.id), preparacao: (dados.preparacao || []).filter((p) => p.eventoId !== ev.id) }, `Evento excluído: ${ev.titulo} (${fmtDate(ev.data)})`));
+  const escalar = (ev, musicoId, instrumento) => {
+    const tit = ev.titulo || ev.tipo;
+    let n = upd(ev.id, { escalados: [...(ev.escalados || []), { musicoId, instrumento }] });
+    n = amNotif(n, musicoId, "escalado", `Você foi escalado em ${tit} (${fmtDate(ev.data)}) — ${instrumento || "instrumento a definir"}.`);
+    salvar(amAud(n, `Escalado em ${tit} (${fmtDate(ev.data)}): ${nomeDe(musicoId)} — ${instrumento || "—"}`));
+  };
+  const tirar = (ev, musicoId) => {
+    const tit = ev.titulo || ev.tipo;
+    let n = upd(ev.id, { escalados: ev.escalados.filter((y) => y.musicoId !== musicoId) });
+    n = amNotif(n, musicoId, "escala_alterada", `Sua escala em ${tit} (${fmtDate(ev.data)}) foi alterada: você saiu da escala.`);
+    salvar(amAud(n, `Retirado da escala de ${tit} (${fmtDate(ev.data)}): ${nomeDe(musicoId)}`));
+  };
+  const addMusica = (ev, id) => {
+    const m = (dados.acervo || []).find((y) => y.id === id);
+    let n = upd(ev.id, { musicas: [...(ev.musicas || []), id] });
+    n = amNotifVarios(n, (ev.escalados || []).map((x) => x.musicoId), "repertorio", `Novo repertório em ${ev.titulo || ev.tipo} (${fmtDate(ev.data)}): ${m ? m.titulo : "música adicionada"}.`);
+    salvar(amAud(n, `Música adicionada a ${ev.titulo || ev.tipo} (${fmtDate(ev.data)}): ${m ? m.titulo : "—"}`));
+  };
   const doDia = dia ? eventos.filter((e) => e.data === dia) : [];
   const ativos = (dados.acessos || []).filter((a) => a.ativo !== false);
-  const disp = (evId, mid) => (dados.disponibilidade || []).find((d) => d.eventoId === evId && d.musicoId === mid);
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Escalas</p>
@@ -7195,10 +7597,11 @@ function AmEscalas({ t, dados, salvar }) {
       {dia && (
         <AmCard t={t}>
           <p className="font-display font-bold" style={{ color: t.ink }}>Novo evento em {fmtDate(dia)}</p>
-          <div className="grid sm:grid-cols-3 gap-2 mt-3">
+          <div className="grid sm:grid-cols-2 gap-2 mt-3">
             <AmSelect t={t} value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>{AM_TIPOS_EVENTO.map((x) => <option key={x}>{x}</option>)}</AmSelect>
             <AmInput t={t} placeholder="Nome (ex: Culto de Domingo)" value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} />
             <AmInput t={t} type="time" value={novo.hora} onChange={(e) => setNovo({ ...novo, hora: e.target.value })} />
+            <AmInput t={t} placeholder="Local (opcional)" value={novo.local} onChange={(e) => setNovo({ ...novo, local: e.target.value })} />
           </div>
           <AmBotao t={t} className="mt-3" onClick={criar}><Plus size={16} /> Criar evento</AmBotao>
         </AmCard>
@@ -7206,6 +7609,7 @@ function AmEscalas({ t, dados, salvar }) {
 
       {doDia.map((ev) => {
         const sel = addMusico[ev.id] || { musicoId: "", instrumento: "" };
+        const vg = vaga[ev.id] || { instrumento: "", qtd: "1" };
         const livres = ativos.filter((a) => !(ev.escalados || []).some((x) => x.musicoId === a.id));
         const musLivres = (dados.acervo || []).filter((m) => !(ev.musicas || []).includes(m.id));
         return (
@@ -7213,32 +7617,53 @@ function AmEscalas({ t, dados, salvar }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-display font-bold text-lg" style={{ color: t.ink }}>{ev.titulo}</p>
-                <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}</p>
+                <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
               </div>
-              <button aria-label="Excluir evento" onClick={() => excluir(ev.id)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+              <button aria-label="Excluir evento" onClick={() => excluir(ev)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+            </div>
+
+            <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Vagas por instrumento (opcional)</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(ev.vagas || []).length === 0 && <p className="text-xs" style={{ color: t.dim }}>Defina quantos músicos precisa de cada instrumento para o painel mostrar o que falta.</p>}
+              {(ev.vagas || []).map((v, i) => {
+                const n = (ev.escalados || []).filter((x) => amMesmoInstr(x.instrumento, v.instrumento)).length;
+                return (
+                  <span key={i} className="text-xs rounded-full pl-3 pr-1 py-1 inline-flex items-center gap-1 font-semibold" style={{ background: n < v.qtd ? "#B0342833" : t.card2, color: t.ink }}>
+                    {v.instrumento} {n}/{v.qtd}
+                    <button aria-label={`Tirar vaga ${v.instrumento}`} onClick={() => salvar(upd(ev.id, { vagas: ev.vagas.filter((_, j) => j !== i) }))} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ color: "#D0473A" }}><X size={13} /></button>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-[1fr_88px_auto] gap-2 mt-2">
+              <AmInput t={t} placeholder="Instrumento (ex: Vocal)" value={vg.instrumento} onChange={(e) => setVaga({ ...vaga, [ev.id]: { ...vg, instrumento: e.target.value } })} />
+              <AmInput t={t} type="number" min="1" inputMode="numeric" value={vg.qtd} onChange={(e) => setVaga({ ...vaga, [ev.id]: { ...vg, qtd: e.target.value } })} aria-label="Quantidade" />
+              <AmBotao t={t} tom="suave" onClick={() => { const q = Math.max(1, parseInt(vg.qtd, 10) || 1); if (!vg.instrumento.trim()) return; salvar(upd(ev.id, { vagas: [...(ev.vagas || []), { instrumento: vg.instrumento.trim(), qtd: q }] })); setVaga({ ...vaga, [ev.id]: { instrumento: "", qtd: "1" } }); }}><Plus size={16} /></AmBotao>
             </div>
 
             <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Músicos</p>
             <div className="mt-2 space-y-1.5">
               {(ev.escalados || []).length === 0 && <p className="text-sm" style={{ color: t.dim }}>Ninguém escalado ainda.</p>}
               {(ev.escalados || []).map((x) => {
-                const a = (dados.acessos || []).find((y) => y.id === x.musicoId); const d = disp(ev.id, x.musicoId);
+                const d = amDispDe(dados, x.musicoId, ev.id);
                 return (
                   <div key={x.musicoId} className="rounded-xl px-3 py-2 flex items-center justify-between gap-2" style={{ background: t.card2 }}>
-                    <span className="text-sm" style={{ color: t.ink }}><b>{x.instrumento || "—"}</b> · {a ? a.nome : "(removido)"}{d ? (d.pode ? " · confirmou" : " · avisou que não pode") : ""}</span>
-                    <button aria-label="Tirar da escala" onClick={() => upd(ev.id, { escalados: ev.escalados.filter((y) => y.musicoId !== x.musicoId) })} style={{ color: "#D0473A" }}><X size={16} /></button>
+                    <span className="text-sm" style={{ color: t.ink }}>{AM_ROTULO[d.status].split(" ")[0]} <b>{x.instrumento || "—"}</b> · {nomeDe(x.musicoId)}{d.status === "nao" && d.motivo ? ` (${d.motivo})` : ""}</span>
+                    <button aria-label="Tirar da escala" onClick={() => tirar(ev, x.musicoId)} className="w-11 h-11 flex items-center justify-center" style={{ color: "#D0473A" }}><X size={16} /></button>
                   </div>
                 );
               })}
             </div>
+            {(ev.escalados || []).length > 0 && <AmBotao t={t} tom="suave" className="mt-2 w-full" onClick={() => setSubstEv(substEv === ev.id ? null : ev.id)}>Encontrar substituto</AmBotao>}
+            {substEv === ev.id && <div className="mt-2"><AmSubstituto t={t} dados={dados} salvar={salvar} ev={ev} onFechar={() => setSubstEv(null)} /></div>}
             {livres.length > 0 && (
               <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 mt-2">
                 <AmSelect t={t} value={sel.musicoId} onChange={(e) => { const a = ativos.find((y) => y.id === e.target.value); setAddMusico({ ...addMusico, [ev.id]: { musicoId: e.target.value, instrumento: a ? a.instrumento || "" : "" } }); }}>
                   <option value="">Escolher músico...</option>
-                  {livres.map((a) => { const d = disp(ev.id, a.id); return <option key={a.id} value={a.id}>{a.nome}{a.instrumento ? ` (${a.instrumento})` : ""}{d ? (d.pode ? " — disponível" : " — NÃO pode") : ""}</option>; })}
+                  {livres.map((a) => { const d = amDispDe(dados, a.id, ev.id); return <option key={a.id} value={a.id}>{AM_ROTULO[d.status].split(" ")[0]} {a.nome}{a.instrumento ? ` (${a.instrumento})` : ""}</option>; })}
                 </AmSelect>
                 <AmInput t={t} placeholder="Instrumento neste evento" value={sel.instrumento} onChange={(e) => setAddMusico({ ...addMusico, [ev.id]: { ...sel, instrumento: e.target.value } })} />
-                <AmBotao t={t} onClick={() => { if (!sel.musicoId) return; upd(ev.id, { escalados: [...(ev.escalados || []), { musicoId: sel.musicoId, instrumento: sel.instrumento }] }); setAddMusico({ ...addMusico, [ev.id]: { musicoId: "", instrumento: "" } }); }}><Plus size={16} /> Escalar</AmBotao>
+                <AmBotao t={t} onClick={() => { if (!sel.musicoId) return; escalar(ev, sel.musicoId, sel.instrumento); setAddMusico({ ...addMusico, [ev.id]: { musicoId: "", instrumento: "" } }); }}><Plus size={16} /> Escalar</AmBotao>
               </div>
             )}
             {ativos.length === 0 && <p className="text-xs mt-2" style={{ color: t.dim }}>Cadastre os músicos na aba Equipe para poder escalar.</p>}
@@ -7249,13 +7674,13 @@ function AmEscalas({ t, dados, salvar }) {
               {(ev.musicas || []).map((id) => { const m = (dados.acervo || []).find((y) => y.id === id); return (
                 <span key={id} className="text-xs rounded-full pl-3 pr-1 py-1 inline-flex items-center gap-1" style={{ background: t.card2, color: t.ink }}>
                   {m ? m.titulo : "(removida)"}{m && m.tomIgreja ? ` (${m.tomIgreja})` : ""}
-                  <button aria-label="Tirar música" onClick={() => upd(ev.id, { musicas: ev.musicas.filter((y) => y !== id) })} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ color: "#D0473A" }}><X size={13} /></button>
+                  <button aria-label="Tirar música" onClick={() => salvar(upd(ev.id, { musicas: ev.musicas.filter((y) => y !== id) }))} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ color: "#D0473A" }}><X size={13} /></button>
                 </span>
               ); })}
             </div>
             {musLivres.length > 0 && (
               <div className="mt-2">
-                <AmSelect t={t} value="" onChange={(e) => e.target.value && upd(ev.id, { musicas: [...(ev.musicas || []), e.target.value] })}>
+                <AmSelect t={t} value="" onChange={(e) => e.target.value && addMusica(ev, e.target.value)}>
                   <option value="">Adicionar música do acervo...</option>
                   {musLivres.map((m) => <option key={m.id} value={m.id}>{m.titulo}</option>)}
                 </AmSelect>
@@ -7269,23 +7694,37 @@ function AmEscalas({ t, dados, salvar }) {
 }
 
 /* ---------- Equipe: o líder gera o código de acesso de cada músico ---------- */
-function AmEquipe({ t, dados, salvar }) {
+function AmEquipe({ t, dados, salvar, musicosGrupo }) {
   const [f, setF] = useState({ nome: "", instrumento: "", email: "" });
   const [copiado, setCopiado] = useState("");
+  const [msg, setMsg] = useState("");
   const acessos = dados.acessos || [];
   const criar = () => {
     if (!f.nome.trim()) return;
     let codigo = amGerarCodigo();
     while (acessos.some((a) => a.codigo === codigo)) codigo = amGerarCodigo();
-    salvar({ ...dados, acessos: [...acessos, { id: uid(), nome: f.nome.trim(), instrumento: f.instrumento.trim(), email: f.email.trim(), codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString() }] });
+    salvar(amAud({ ...dados, acessos: [...acessos, { id: uid(), nome: f.nome.trim(), instrumento: f.instrumento.trim(), email: f.email.trim(), codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString() }] }, `Músico cadastrado: ${f.nome.trim()}`));
     setF({ nome: "", instrumento: "", email: "" });
   };
-  const upd = (id, patch) => salvar({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
-  const excluir = (id) => salvar({ ...dados, acessos: acessos.filter((a) => a.id !== id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== id) });
+  const upd = (id, patch, acao) => salvar(amAud({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) }, acao));
+  const excluir = (a) => salvar(amAud({ ...dados, acessos: acessos.filter((x) => x.id !== a.id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== a.id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== a.id), favoritos: (dados.favoritos || []).filter((x) => x.musicoId !== a.id), preparacao: (dados.preparacao || []).filter((x) => x.musicoId !== a.id) }, `Músico excluído: ${a.nome}`));
   const copiar = (c) => { try { navigator.clipboard.writeText(c); } catch (e) { /* sem área de transferência */ } setCopiado(c); };
+  const convite = (a) => `Paz do Senhor, ${a.nome.split(" ")[0]}! Seu acesso ao Avivar Music: abra avivardoespirito.com.br, entre em Avivar Music > "Primeiro acesso" e use o código ${a.codigo} para criar sua senha.`;
+  const importar = () => {
+    const { novos, ignorados } = amImportarEquipe(dados, musicosGrupo);
+    if (novos.length === 0) { setMsg(`Ninguém novo para importar.${ignorados.length ? ` Fora da equipe: ${ignorados.join(", ")}.` : ""}`); return; }
+    salvar(amAud({ ...dados, acessos: [...acessos, ...novos], equipeImportada: true }, `Equipe importada do Grupo: ${novos.map((n) => n.nome).join(", ")}`));
+    setMsg(`${novos.length} músico(s) importado(s).${ignorados.length ? ` Fora da equipe: ${ignorados.join(", ")}.` : ""}`);
+  };
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Equipe e códigos de acesso</p>
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Montar equipe a partir do Grupo</p>
+        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Traz os músicos já cadastrados na aba Grupo e gera um código para cada um. Wládia e Marcos ficam de fora.</p>
+        <AmBotao t={t} tom="suave" className="mt-3" onClick={importar}><Users size={16} /> Importar músicos do Grupo</AmBotao>
+        {msg && <p className="text-xs mt-2" style={{ color: t.accent }}>{msg}</p>}
+      </AmCard>
       <AmCard t={t}>
         <p className="font-display font-bold" style={{ color: t.ink }}>Novo músico</p>
         <p className="text-xs mt-0.5" style={{ color: t.dim }}>Ao salvar, o sistema gera um código único. Entregue o código ao músico: no primeiro acesso ele cria a própria senha.</p>
@@ -7296,7 +7735,7 @@ function AmEquipe({ t, dados, salvar }) {
         </div>
         <AmBotao t={t} className="mt-3" onClick={criar}><KeyRound size={16} /> Gerar código de acesso</AmBotao>
       </AmCard>
-      {acessos.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>Nenhum músico com acesso ainda.</p></AmCard>}
+      {acessos.length === 0 && <AmVazio t={t}>Nenhum músico com acesso ainda.</AmVazio>}
       {acessos.map((a) => (
         <AmCard t={t} key={a.id}>
           <div className="flex items-start justify-between gap-2">
@@ -7306,12 +7745,13 @@ function AmEquipe({ t, dados, salvar }) {
               <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
               <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
             </div>
-            <button aria-label="Excluir músico" onClick={() => excluir(a.id)} className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+            <button aria-label="Excluir músico" onClick={() => excluir(a)} className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
-            {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" })}>Zerar senha</AmBotao>}
-            <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false })}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
+            <a href={`https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
+            {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" }, `Senha zerada: ${a.nome}`)}>Zerar senha</AmBotao>}
+            <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false }, `${a.ativo === false ? "Código reativado" : "Código desativado"}: ${a.nome}`)}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
           </div>
         </AmCard>
       ))}
@@ -7320,72 +7760,173 @@ function AmEquipe({ t, dados, salvar }) {
 }
 
 /* ---------- D) Patrimônio (líder) ---------- */
+const AM_PAT_VAZIO = { nome: "", numero: "", local: "", aquisicao: "", status: "Operacional", obs: "" };
 function AmPatrimonio({ t, dados, salvar }) {
-  const [f, setF] = useState({ nome: "", status: "Operacional", obs: "" });
+  const [f, setF] = useState(AM_PAT_VAZIO);
   const [edit, setEdit] = useState(null);
+  const [manut, setManut] = useState({});
   const itens = dados.patrimonio || [];
   const cor = (s) => (s === "Operacional" ? "#2E7D4F" : s === "Defeito" ? "#B03428" : "#B7791F");
-  const criar = () => { if (!f.nome.trim()) return; salvar({ ...dados, patrimonio: [...itens, { id: uid(), nome: f.nome.trim(), status: f.status, obs: f.obs.trim() }] }); setF({ nome: "", status: "Operacional", obs: "" }); };
-  const upd = (id, patch) => salvar({ ...dados, patrimonio: itens.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  const bolinha = (s) => (s === "Operacional" ? "🟢" : s === "Defeito" ? "🔴" : "🟡");
+  const criar = () => { if (!f.nome.trim()) return; salvar(amAud({ ...dados, patrimonio: [...itens, { id: uid(), ...f, nome: f.nome.trim(), manutencoes: [] }] }, `Patrimônio cadastrado: ${f.nome.trim()}`)); setF(AM_PAT_VAZIO); };
+  const upd = (i, patch, acao) => salvar(amAud({ ...dados, patrimonio: itens.map((x) => (x.id === i.id ? { ...x, ...patch } : x)) }, acao || `Patrimônio alterado: ${i.nome}`));
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Patrimônio</p>
       <AmCard t={t}>
         <p className="font-display font-bold" style={{ color: t.ink }}>Novo item</p>
-        <div className="grid sm:grid-cols-3 gap-2 mt-3">
+        <div className="grid sm:grid-cols-2 gap-2 mt-3">
           <AmInput t={t} placeholder="Item (ex: Bateria, Violão, Cabos)" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+          <AmInput t={t} placeholder="Nº patrimonial (opcional)" value={f.numero} onChange={(e) => setF({ ...f, numero: e.target.value })} />
+          <AmInput t={t} placeholder="Localização (ex: Sala de instrumentos)" value={f.local} onChange={(e) => setF({ ...f, local: e.target.value })} />
+          <AmInput t={t} type="date" aria-label="Data de aquisição" value={f.aquisicao} onChange={(e) => setF({ ...f, aquisicao: e.target.value })} />
           <AmSelect t={t} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{AM_STATUS_PATRIMONIO.map((s) => <option key={s}>{s}</option>)}</AmSelect>
-          <AmInput t={t} placeholder="Observação (opcional)" value={f.obs} onChange={(e) => setF({ ...f, obs: e.target.value })} />
+          <AmInput t={t} placeholder="Observações (opcional)" value={f.obs} onChange={(e) => setF({ ...f, obs: e.target.value })} />
         </div>
         <AmBotao t={t} className="mt-3" onClick={criar}><Plus size={16} /> Adicionar</AmBotao>
       </AmCard>
-      {itens.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>Nenhum item cadastrado.</p></AmCard>}
-      {itens.map((i) => (
-        <AmCard t={t} key={i.id}>
-          {edit && edit.id === i.id ? (
-            <div className="space-y-2">
-              <AmInput t={t} value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} />
-              <AmInput t={t} placeholder="Observação" value={edit.obs} onChange={(e) => setEdit({ ...edit, obs: e.target.value })} />
-              <div className="flex gap-2">
-                <AmBotao t={t} onClick={() => { upd(i.id, { nome: edit.nome.trim() || i.nome, obs: edit.obs }); setEdit(null); }}><Save size={16} /> Salvar</AmBotao>
-                <AmBotao t={t} tom="suave" onClick={() => setEdit(null)}>Cancelar</AmBotao>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold" style={{ color: t.ink }}>{i.nome}</p>
-                  {i.obs && <p className="text-xs mt-0.5" style={{ color: t.dim }}>{i.obs}</p>}
-                  <span className="inline-block mt-2 text-xs font-bold rounded-full px-3 py-1 text-white" style={{ background: cor(i.status) }}>{i.status}</span>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <button aria-label="Editar" onClick={() => setEdit({ id: i.id, nome: i.nome, obs: i.obs || "" })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
-                  <button aria-label="Excluir" onClick={() => salvar({ ...dados, patrimonio: itens.filter((x) => x.id !== i.id) })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+      {itens.length === 0 && <AmVazio t={t}>Nenhum equipamento cadastrado.</AmVazio>}
+      {itens.map((i) => {
+        const mn = manut[i.id] || { data: "", texto: "" };
+        return (
+          <AmCard t={t} key={i.id}>
+            {edit && edit.id === i.id ? (
+              <div className="space-y-2">
+                <AmInput t={t} value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} />
+                <AmInput t={t} placeholder="Nº patrimonial" value={edit.numero} onChange={(e) => setEdit({ ...edit, numero: e.target.value })} />
+                <AmInput t={t} placeholder="Localização" value={edit.local} onChange={(e) => setEdit({ ...edit, local: e.target.value })} />
+                <AmInput t={t} type="date" aria-label="Data de aquisição" value={edit.aquisicao} onChange={(e) => setEdit({ ...edit, aquisicao: e.target.value })} />
+                <AmInput t={t} placeholder="Observações" value={edit.obs} onChange={(e) => setEdit({ ...edit, obs: e.target.value })} />
+                <div className="flex gap-2">
+                  <AmBotao t={t} onClick={() => { upd(i, { nome: edit.nome.trim() || i.nome, numero: edit.numero, local: edit.local, aquisicao: edit.aquisicao, obs: edit.obs }); setEdit(null); }}><Save size={16} /> Salvar</AmBotao>
+                  <AmBotao t={t} tom="suave" onClick={() => setEdit(null)}>Cancelar</AmBotao>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                {AM_STATUS_PATRIMONIO.map((s) => (
-                  <button key={s} onClick={() => upd(i.id, { status: s })} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: i.status === s ? cor(s) : t.card2, color: i.status === s ? "#fff" : t.ink }}>{s}</button>
-                ))}
-              </div>
-            </>
-          )}
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold" style={{ color: t.ink }}>{i.nome}{i.numero ? <span className="font-mono text-xs ml-2" style={{ color: t.dim }}>Nº {i.numero}</span> : null}</p>
+                    <p className="text-xs mt-0.5" style={{ color: t.dim }}>{[i.local, i.aquisicao ? `adquirido em ${fmtDate(i.aquisicao)}` : ""].filter(Boolean).join(" · ") || "Localização a definir"}</p>
+                    {i.obs && <p className="text-xs mt-0.5" style={{ color: t.dim }}>{i.obs}</p>}
+                    <span className="inline-block mt-2 text-xs font-bold rounded-full px-3 py-1 text-white" style={{ background: cor(i.status) }}>{bolinha(i.status)} {i.status}</span>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button aria-label="Editar" onClick={() => setEdit({ id: i.id, nome: i.nome, numero: i.numero || "", local: i.local || "", aquisicao: i.aquisicao || "", obs: i.obs || "" })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
+                    <button aria-label="Excluir" onClick={() => salvar(amAud({ ...dados, patrimonio: itens.filter((x) => x.id !== i.id) }, `Patrimônio excluído: ${i.nome}`))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {AM_STATUS_PATRIMONIO.map((s) => (
+                    <button key={s} onClick={() => upd(i, { status: s }, `Patrimônio ${i.nome}: status → ${s}`)} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: i.status === s ? cor(s) : t.card2, color: i.status === s ? "#fff" : t.ink }}>{s}</button>
+                  ))}
+                </div>
+                <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Histórico de manutenção</p>
+                <div className="mt-1 space-y-1">
+                  {(i.manutencoes || []).length === 0 && <p className="text-xs" style={{ color: t.dim }}>Nenhuma manutenção registrada.</p>}
+                  {(i.manutencoes || []).map((m) => (
+                    <div key={m.id} className="rounded-xl px-3 py-2 flex items-center justify-between gap-2" style={{ background: t.card2 }}>
+                      <span className="text-sm" style={{ color: t.ink }}><span className="font-mono text-xs" style={{ color: t.dim }}>{fmtDate(m.data)}</span> · {m.texto}</span>
+                      <button aria-label="Apagar registro" onClick={() => upd(i, { manutencoes: i.manutencoes.filter((x) => x.id !== m.id) }, `Manutenção apagada de ${i.nome}`)} className="w-9 h-9 flex items-center justify-center shrink-0" style={{ color: "#D0473A" }}><X size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-[130px_1fr_auto] gap-2 mt-2">
+                  <AmInput t={t} type="date" aria-label="Data da manutenção" value={mn.data} onChange={(e) => setManut({ ...manut, [i.id]: { ...mn, data: e.target.value } })} />
+                  <AmInput t={t} placeholder="O que foi feito" value={mn.texto} onChange={(e) => setManut({ ...manut, [i.id]: { ...mn, texto: e.target.value } })} />
+                  <AmBotao t={t} tom="suave" onClick={() => { if (!mn.texto.trim()) return; upd(i, { manutencoes: [...(i.manutencoes || []), { id: uid(), data: mn.data || new Date().toISOString().slice(0, 10), texto: mn.texto.trim() }] }, `Manutenção registrada em ${i.nome}`); setManut({ ...manut, [i.id]: { data: "", texto: "" } }); }}><Plus size={16} /></AmBotao>
+                </div>
+              </>
+            )}
+          </AmCard>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Histórico ---------- */
+function AmHistorico({ t, dados, musico, lider }) {
+  const passados = amEventosPassados(dados.eventos);
+  const nomeDe = (id) => ((dados.acessos || []).find((a) => a.id === id) || {}).nome || "(removido)";
+  if (!musico) {
+    return (
+      <div className="space-y-4">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Histórico da equipe</p>
+        {passados.length === 0 && <AmVazio t={t}>Ainda não há eventos passados.</AmVazio>}
+        {passados.map((ev) => (
+          <AmCard t={t} key={ev.id}>
+            <p className="font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo} <span className="text-xs font-normal" style={{ color: t.dim }}>· {ev.tipo} · {amDataHora(ev)}</span></p>
+            <p className="text-sm mt-1" style={{ color: t.ink }}>{(ev.escalados || []).length === 0 ? "Sem músicos escalados." : (ev.escalados || []).map((x) => `${nomeDe(x.musicoId)} (${x.instrumento || "—"})`).join(", ")}</p>
+            {(ev.musicas || []).length > 0 && <p className="text-xs mt-1" style={{ color: t.dim }}>Repertório: {(ev.musicas || []).map((id) => ((dados.acervo || []).find((m) => m.id === id) || {}).titulo || "(removida)").join(" · ")}</p>}
+          </AmCard>
+        ))}
+        <AmCard t={t}>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Registro de alterações</p>
+          <p className="text-xs" style={{ color: t.dim }}>O que a liderança mudou no app (últimas 40 ações).</p>
+          <div className="mt-2 space-y-1">
+            {(dados.auditoria || []).length === 0 && <p className="text-sm" style={{ color: t.dim }}>Nenhuma alteração registrada ainda.</p>}
+            {(dados.auditoria || []).slice(0, 40).map((a) => <p key={a.id} className="text-xs rounded-lg px-3 py-2" style={{ background: t.card2, color: t.ink }}><span style={{ color: t.dim }}>{fmtDateTime(a.em)}</span> · {a.acao}</p>)}
+          </div>
+        </AmCard>
+      </div>
+    );
+  }
+  const meus = passados.filter((e) => (e.escalados || []).some((x) => x.musicoId === musico.id));
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Meu histórico</p>
+      {meus.length === 0 && <AmVazio t={t}>Você ainda não possui nenhuma escala no histórico.</AmVazio>}
+      {meus.map((ev) => (
+        <AmCard t={t} key={ev.id}>
+          <p className="font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
+          <p className="text-xs" style={{ color: t.dim }}>{amDataHora(ev)} · {ev.tipo} · {(ev.escalados.find((x) => x.musicoId === musico.id) || {}).instrumento || "instrumento a definir"}</p>
         </AmCard>
       ))}
     </div>
   );
 }
 
-/* ---------- E) Estúdio: afinador (tom de referência) + metrônomo ---------- */
+/* ---------- E) Estúdio: afinador (microfone real + tons de referência) + metrônomo ---------- */
 const AM_NOTAS = [["E2", 82.41, "Mi (6ª)"], ["A2", 110.0, "Lá (5ª)"], ["D3", 146.83, "Ré (4ª)"], ["G3", 196.0, "Sol (3ª)"], ["B3", 246.94, "Si (2ª)"], ["E4", 329.63, "Mi (1ª)"], ["A4", 440.0, "Lá 440"]];
+const AM_NOMES_NOTA = ["Dó", "Dó#", "Ré", "Ré#", "Mi", "Fá", "Fá#", "Sol", "Sol#", "Lá", "Lá#", "Si"];
+function amNotaDaFreq(f) {
+  const n = 12 * Math.log2(f / 440) + 69; const r = Math.round(n);
+  return { nome: AM_NOMES_NOTA[((r % 12) + 12) % 12], oitava: Math.floor(r / 12) - 1, cents: Math.round((n - r) * 100) };
+}
+// Detecção de altura por autocorrelação: devolve a frequência em Hz, ou -1 se não houver som claro.
+function amDetectarFrequencia(buf, sr) {
+  const n = buf.length; let rms = 0;
+  for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / n);
+  if (rms < 0.01) return -1;
+  const minLag = Math.floor(sr / 1000); const maxLag = Math.min(Math.floor(sr / 60), Math.floor(n / 2));
+  const corr = new Float32Array(maxLag + 2); let max = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let s = 0; for (let i = 0; i < n - lag; i++) s += buf[i] * buf[i + lag];
+    corr[lag] = s; if (s > max) max = s;
+  }
+  if (max <= 0) return -1;
+  let melhor = -1;
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (corr[lag] >= 0.9 * max && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) { melhor = lag; break; }
+  }
+  if (melhor < 0) return -1;
+  const a = corr[melhor - 1]; const b = corr[melhor]; const c = corr[melhor + 1];
+  const den = a - 2 * b + c; const delta = den !== 0 ? (0.5 * (a - c)) / den : 0;
+  return sr / (melhor + delta);
+}
 function AmAfinador({ t }) {
   const [tocando, setTocando] = useState(null);
+  const [ouvindo, setOuvindo] = useState(false);
+  const [leitura, setLeitura] = useState(null); // { nome, oitava, cents, freq }
+  const [erro, setErro] = useState("");
   const ctxRef = useRef(null); const oscRef = useRef(null);
+  const micRef = useRef({ stream: null, ctx: null, id: null });
   const parar = () => { try { oscRef.current && oscRef.current.stop(); } catch (e) { /* já parado */ } oscRef.current = null; setTocando(null); };
   const tocar = (nome, freq) => {
     if (tocando === nome) { parar(); return; }
-    parar();
+    pararMic(); parar();
     try {
       ctxRef.current = ctxRef.current || new (window.AudioContext || window.webkitAudioContext)();
       const ctx = ctxRef.current; const osc = ctx.createOscillator(); const g = ctx.createGain();
@@ -7394,16 +7935,63 @@ function AmAfinador({ t }) {
       oscRef.current = osc; setTocando(nome);
     } catch (e) { /* navegador sem áudio */ }
   };
-  useEffect(() => () => { try { oscRef.current && oscRef.current.stop(); } catch (e) { /* ok */ } }, []);
+  function pararMic() {
+    const m = micRef.current;
+    if (m.id) clearInterval(m.id);
+    try { m.stream && m.stream.getTracks().forEach((x) => x.stop()); } catch (e) { /* ok */ }
+    try { m.ctx && m.ctx.close(); } catch (e) { /* ok */ }
+    micRef.current = { stream: null, ctx: null, id: null };
+    setOuvindo(false); setLeitura(null);
+  }
+  const ligarMic = async () => {
+    setErro(""); parar();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const an = ctx.createAnalyser(); an.fftSize = 4096;
+      ctx.createMediaStreamSource(stream).connect(an); // só analisa — nunca toca no alto-falante
+      const buf = new Float32Array(an.fftSize); const recentes = [];
+      const id = setInterval(() => {
+        an.getFloatTimeDomainData(buf);
+        const f = amDetectarFrequencia(buf, ctx.sampleRate);
+        if (f < 0) { recentes.length = 0; setLeitura(null); return; }
+        recentes.push(f); if (recentes.length > 4) recentes.shift();
+        const media = recentes.reduce((x, y) => x + y, 0) / recentes.length;
+        setLeitura({ ...amNotaDaFreq(media), freq: media });
+      }, 120);
+      micRef.current = { stream, ctx, id };
+      setOuvindo(true);
+    } catch (e) {
+      setErro("Não foi possível usar o microfone. Permita o acesso nas configurações do navegador e tente de novo.");
+    }
+  };
+  useEffect(() => () => { pararMic(); try { oscRef.current && oscRef.current.stop(); } catch (e) { /* ok */ } }, []);
+  const c = leitura ? leitura.cents : 0;
+  const afinado = leitura && Math.abs(c) <= 5;
+  const cor = !leitura ? t.line : afinado ? "#2E7D4F" : Math.abs(c) <= 20 ? "#B7791F" : "#B03428";
   return (
     <AmCard t={t}>
       <p className="font-display font-bold" style={{ color: t.ink }}>Afinador</p>
-      <p className="text-xs mt-0.5" style={{ color: t.dim }}>Toque na nota para ouvir o tom de referência e afine de ouvido. A leitura pelo microfone entra numa próxima versão.</p>
-      <div className="mt-4 mx-auto w-40 h-40 rounded-full flex flex-col items-center justify-center" style={{ border: `6px solid ${tocando ? t.accent : t.line}`, background: t.card2 }}>
-        <p className="font-mono text-4xl font-bold" style={{ color: t.accent }}>{tocando || "—"}</p>
-        <p className="text-xs mt-1" style={{ color: t.dim }}>{tocando ? `${AM_NOTAS.find((n) => n[0] === tocando)[1]} Hz` : "em silêncio"}</p>
+      <p className="text-xs mt-0.5" style={{ color: t.dim }}>Toque o instrumento perto do aparelho: o afinador escuta pelo microfone e mostra a nota. Se preferir, ouça um tom de referência.</p>
+      <div className="mt-4 mx-auto w-44 h-44 rounded-full flex flex-col items-center justify-center" style={{ border: `6px solid ${ouvindo ? cor : tocando ? t.accent : t.line}`, background: t.card2 }}>
+        {ouvindo ? (
+          leitura ? (<><p className="font-mono text-4xl font-bold" style={{ color: t.accent }}>{leitura.nome}<span className="text-lg">{leitura.oitava}</span></p><p className="text-xs mt-1" style={{ color: t.dim }}>{leitura.freq.toFixed(1)} Hz</p></>) : <p className="text-sm text-center px-4" style={{ color: t.dim }}>Toque uma corda...</p>
+        ) : (<><p className="font-mono text-4xl font-bold" style={{ color: t.accent }}>{tocando || "—"}</p><p className="text-xs mt-1" style={{ color: t.dim }}>{tocando ? `${AM_NOTAS.find((n) => n[0] === tocando)[1]} Hz` : "em silêncio"}</p></>)}
       </div>
-      <div className="grid grid-cols-4 gap-2 mt-4">
+      {ouvindo && (
+        <div className="mt-4" aria-live="polite">
+          <div className="relative h-3 rounded-full" style={{ background: t.card2 }}>
+            <span className="absolute top-[-4px] bottom-[-4px] left-1/2 w-0.5" style={{ background: t.dim }} />
+            {leitura && <span className="absolute top-[-5px] w-5 h-5 rounded-full -translate-x-1/2 transition-all" style={{ left: `${50 + Math.max(-50, Math.min(50, c)) * 0.9}%`, background: cor }} />}
+          </div>
+          <div className="flex justify-between text-[10px] mt-1" style={{ color: t.dim }}><span>♭ grave</span><span>afinado</span><span>agudo ♯</span></div>
+          <p className="text-center text-sm font-semibold mt-2" style={{ color: leitura ? cor : t.dim }}>{!leitura ? "Aguardando som..." : afinado ? "Afinado ✓" : c < 0 ? `Abaixo (${c} cents) — aperte a corda` : `Acima (+${c} cents) — afrouxe a corda`}</p>
+        </div>
+      )}
+      {erro && <p className="text-xs mt-3" style={{ color: "#D0473A" }}>{erro}</p>}
+      <AmBotao t={t} className="w-full mt-4" tom={ouvindo ? "suave" : "cheio"} onClick={ouvindo ? pararMic : ligarMic}><Mic size={16} /> {ouvindo ? "Parar de ouvir" : "Ouvir pelo microfone"}</AmBotao>
+      <p className="text-xs font-bold uppercase tracking-wide mt-5" style={{ color: t.dim }}>Tons de referência</p>
+      <div className="grid grid-cols-4 gap-2 mt-2">
         {AM_NOTAS.map(([n, f, r]) => (
           <button key={n} onClick={() => tocar(n, f)} className="min-h-[56px] rounded-xl flex flex-col items-center justify-center" style={{ background: tocando === n ? t.accent : t.card2, color: tocando === n ? t.onAccent : t.ink }}>
             <span className="font-mono font-bold">{n}</span><span className="text-[10px]">{r}</span>
@@ -7415,9 +8003,11 @@ function AmAfinador({ t }) {
 }
 function AmMetronomo({ t }) {
   const [bpm, setBpm] = useState(96);
+  const [vol, setVol] = useState(60);
   const [tocando, setTocando] = useState(false);
   const [batida, setBatida] = useState(-1);
-  const ctxRef = useRef(null);
+  const ctxRef = useRef(null); const volRef = useRef(60); const toquesRef = useRef([]);
+  volRef.current = vol;
   useEffect(() => {
     if (!tocando) { setBatida(-1); return undefined; }
     let b = -1;
@@ -7427,7 +8017,8 @@ function AmMetronomo({ t }) {
         ctxRef.current = ctxRef.current || new (window.AudioContext || window.webkitAudioContext)();
         const ctx = ctxRef.current; const osc = ctx.createOscillator(); const g = ctx.createGain();
         osc.frequency.value = b === 0 ? 1200 : 880;
-        g.gain.setValueAtTime(0.18, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        const pico = Math.max(0.001, (volRef.current / 100) * 0.4);
+        g.gain.setValueAtTime(pico, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
         osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.08);
       } catch (e) { /* só visual */ }
     };
@@ -7435,6 +8026,13 @@ function AmMetronomo({ t }) {
     const id = setInterval(tick, 60000 / bpm);
     return () => clearInterval(id);
   }, [tocando, bpm]);
+  // Tap tempo: média dos últimos toques; zera se passar de 2 s sem tocar.
+  const tap = () => {
+    const agora = Date.now(); let l = toquesRef.current;
+    if (l.length && agora - l[l.length - 1] > 2000) l = [];
+    l = [...l, agora].slice(-6); toquesRef.current = l;
+    if (l.length >= 2) { const media = (l[l.length - 1] - l[0]) / (l.length - 1); setBpm(Math.max(40, Math.min(220, Math.round(60000 / media)))); }
+  };
   return (
     <AmCard t={t}>
       <p className="font-display font-bold" style={{ color: t.ink }}>Metrônomo</p>
@@ -7449,7 +8047,29 @@ function AmMetronomo({ t }) {
       <div className="flex justify-center gap-3 mt-4">
         {[0, 1, 2, 3].map((i) => <span key={i} className="w-5 h-5 rounded-full transition" style={{ background: batida === i ? t.accent : t.card2, transform: batida === i ? "scale(1.35)" : "scale(1)" }} />)}
       </div>
+      <AmBotao t={t} tom="suave" className="w-full mt-4" onClick={tap}>TAP TEMPO — toque no ritmo</AmBotao>
+      <div className="mt-4">
+        <p className="text-xs font-semibold" style={{ color: t.dim }}>Volume do clique: {vol}%</p>
+        <input aria-label="Volume do metrônomo" type="range" min="0" max="100" value={vol} onChange={(e) => setVol(Number(e.target.value))} className="w-full mt-1" />
+      </div>
     </AmCard>
+  );
+}
+
+/* ---------- Ícones musicais ao redor do app (só telas grandes) ---------- */
+function AmDecoracao({ t }) {
+  const itens = [
+    [Music, "2%", "9%", 54, -12], [Music3, "9%", "20%", 40, 14], [Mic, "3%", "33%", 48, -8], [Music2, "10%", "46%", 44, 10],
+    [Headphones, "2%", "60%", 56, -10], [Music4, "9%", "73%", 42, 12], [Music, "3%", "86%", 46, -14],
+    [Music2, "93%", "8%", 50, 12], [Mic, "86%", "21%", 42, -10], [Music, "94%", "34%", 56, 8], [Headphones, "87%", "47%", 46, -12],
+    [Music3, "93%", "61%", 44, 10], [Music4, "86%", "74%", 52, -8], [Music2, "94%", "87%", 42, 14],
+  ];
+  return (
+    <div aria-hidden="true" className="hidden xl:block fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+      {itens.map(([Ic, x, y, s, r], i) => (
+        <span key={i} className="absolute" style={{ left: x, top: y, transform: `rotate(${r}deg)`, color: t.accent, opacity: 0.14 }}><Ic size={s} strokeWidth={1.6} /></span>
+      ))}
+    </div>
   );
 }
 
@@ -7459,60 +8079,74 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const lider = adminMode || operatorMode;
   const [escuro, setEscuro] = useState(false);
   const [tela, setTela] = useState("inicio");
+  const [culto, setCulto] = useState(null);
   const [sessaoId, setSessaoId] = useState(() => { try { return sessionStorage.getItem("am-sessao") || ""; } catch (e) { return ""; } });
   const entrar = (id) => { setSessaoId(id); try { sessionStorage.setItem("am-sessao", id); } catch (e) { /* sem storage */ } };
   const sair = () => { setSessaoId(""); setTela("inicio"); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } };
   const musico = (dados.acessos || []).find((a) => a.id === sessaoId && a.ativo !== false) || null;
   const logado = lider || !!musico;
   const t = amTema(escuro);
-  const abas = [
-    { k: "inicio", r: "Início", i: HomeIcon },
-    { k: "acervo", r: "Acervo", i: Library },
-    ...(lider ? [{ k: "escalas", r: "Escalas", i: Calendar }, { k: "equipe", r: "Equipe", i: Users }, { k: "patrimonio", r: "Patrimônio", i: Package }] : []),
-    { k: "estudio", r: "Estúdio", i: Settings2 },
-    { k: "grupo", r: "Grupo", i: Music },
-  ];
+  // Monta a equipe sozinho na primeira vez que o líder abre o app (uma vez só): traz os músicos
+  // do Grupo, gera o código de cada um e deixa Wládia e Marcos de fora.
+  useEffect(() => {
+    if (!lider || dados.equipeImportada || !musicos || musicos.length === 0) return;
+    const { novos } = amImportarEquipe(dados, musicos);
+    saveMusicApp(amAud({ ...dados, acessos: [...(dados.acessos || []), ...novos], equipeImportada: true }, novos.length ? `Equipe montada a partir do Grupo: ${novos.map((n) => n.nome).join(", ")}` : "Equipe verificada (nada a importar)"));
+  }, [lider, dados.equipeImportada, musicos]);
+  const abas = musico && !lider
+    ? [{ k: "inicio", r: "Início", i: HomeIcon }, { k: "escala", r: "Escala", i: Calendar }, { k: "acervo", r: "Acervo", i: Library }, { k: "estudio", r: "Estúdio", i: Settings2 }, { k: "historico", r: "Histórico", i: History }, { k: "grupo", r: "Grupo", i: Music }]
+    : [{ k: "inicio", r: "Painel", i: HomeIcon }, { k: "escalas", r: "Escalas", i: Calendar }, { k: "equipe", r: "Equipe", i: Users }, { k: "acervo", r: "Acervo", i: Library }, { k: "patrimonio", r: "Patrimônio", i: Package }, { k: "estudio", r: "Estúdio", i: Settings2 }, { k: "historico", r: "Histórico", i: History }, { k: "grupo", r: "Grupo", i: Music }];
+  const abrirCulto = (ev) => setCulto(ev);
+  const musicasCulto = culto ? (culto.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean) : [];
+  const userKey = musico ? musico.id : "lider";
   return (
-    <div className="min-h-screen font-body pb-24" style={{ background: t.bg, color: t.ink }}>
-      <div className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 sm:px-8 py-2.5" style={{ background: "#4A1270" }}>
-        <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> Voltar ao site</button>
-        <div className="flex items-center gap-2">
-          <Music size={17} color="#E8C875" />
-          <span className="font-display text-sm font-bold text-white hidden sm:inline">Avivar Music</span>
+    <div className="min-h-screen font-body pb-10 relative" style={{ background: t.bg, color: t.ink }}>
+      <AmDecoracao t={t} />
+      <div className="sticky top-0 z-40">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-8 py-2.5" style={{ background: "#4A1270" }}>
+          <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> Voltar ao site</button>
+          <div className="flex items-center gap-2">
+            <Music size={17} color="#E8C875" />
+            <span className="font-display text-sm font-bold text-white hidden sm:inline">Avivar Music</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
+            {musico && !lider && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
-          {musico && !lider && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
-        </div>
+        {logado && (
+          <nav className="flex gap-1.5 overflow-x-auto px-3 py-2 lg:justify-center" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }} aria-label="Menu do Avivar Music">
+            {abas.map((a) => (
+              <button key={a.k} onClick={() => setTela(a.k)} aria-current={tela === a.k ? "page" : undefined} className="shrink-0 min-h-[44px] px-3.5 rounded-full inline-flex items-center gap-1.5 text-xs font-semibold focus:outline-none focus:ring-2" style={{ background: tela === a.k ? t.accent : t.card2, color: tela === a.k ? t.onAccent : t.ink }}>
+                <a.i size={16} />{a.r}
+              </button>
+            ))}
+          </nav>
+        )}
       </div>
 
-      {!logado ? (
-        <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />
-      ) : (
-        <div className="mx-auto max-w-3xl px-4 sm:px-8 pt-6">
-          {tela === "inicio" && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={lider} irPara={setTela} />}
-          {tela === "acervo" && <AmAcervo t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} />}
-          {tela === "escalas" && lider && <AmEscalas t={t} dados={dados} salvar={saveMusicApp} />}
-          {tela === "equipe" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} />}
-          {tela === "patrimonio" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
-          {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
-          {tela === "grupo" && (
-            <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
-              <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {logado && (
-        <nav className="fixed bottom-0 inset-x-0 z-40 flex overflow-x-auto" style={{ background: t.card, borderTop: `1px solid ${t.line}` }}>
-          {abas.map((a) => (
-            <button key={a.k} onClick={() => setTela(a.k)} className="flex-1 min-w-[68px] min-h-[60px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold focus:outline-none" style={{ color: tela === a.k ? t.accent : t.dim }}>
-              <a.i size={20} />{a.r}
-            </button>
-          ))}
-        </nav>
-      )}
+      <div className="relative" style={{ zIndex: 10 }}>
+        {!logado ? (
+          <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />
+        ) : (
+          <div className="mx-auto max-w-3xl px-4 sm:px-8 pt-6">
+            {tela === "inicio" && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico && !lider ? musico : null} lider={lider} irPara={setTela} abrirCulto={abrirCulto} />}
+            {tela === "escala" && musico && <AmEscalaMusico t={t} dados={dados} salvar={saveMusicApp} musico={musico} abrirCulto={abrirCulto} />}
+            {tela === "acervo" && <AmAcervo t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} />}
+            {tela === "escalas" && lider && <AmEscalas t={t} dados={dados} salvar={saveMusicApp} />}
+            {tela === "equipe" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} />}
+            {tela === "patrimonio" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
+            {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
+            {tela === "historico" && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
+            {tela === "grupo" && (
+              <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
+                <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {culto && musicasCulto.length > 0 && <AmModoCulto evento={culto} musicas={musicasCulto} onSair={() => setCulto(null)} />}
     </div>
   );
 }
