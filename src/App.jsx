@@ -3802,6 +3802,7 @@ const LOJA_FIELDS = [
   { key: "linkPdf", label: "Link de pagamento do PDF (Mercado Pago)", type: "url" },
   { key: "precoFisico", label: "Preço do exemplar físico (ex: R$ 49,90)" },
   { key: "linkFisico", label: "Link de pagamento do Físico (Mercado Pago)", type: "url" },
+  { key: "pdfUrl", label: "URL do PDF completo — o miolo (liberado pro leitor só depois do pagamento confirmado)", type: "url" },
   { key: "previewUrl", label: "URL de amostra/prévia (opcional)", type: "url" },
   { key: "capaVendaUrl", label: "URL da capa na página de venda (se vazio, usa a mesma da vitrine)", type: "url" },
   { key: "pdfNaoLiberado", label: "PDF ainda não liberado (mostra 'em breve' em vez do preço/download)", type: "select", options: ["Não", "Sim"] },
