@@ -334,6 +334,18 @@ const DEFAULT_MANCHETE = {
   modo: "auto",
 };
 
+// Banner de boas-vindas aos Visitantes do Dia — quando há nomes cadastrados (e o
+// admin não "parou" a exibição), este banner toma o lugar da Escala de Serviço no
+// topo da Home (a escala continua normalmente na sua própria seção). Cada nome
+// pulsa, com uma mensagem de boas-vindas e, opcionalmente, um áudio de fundo.
+const DEFAULT_VISITANTES_DIA = {
+  nomes: [], // [{ id, nome }]
+  exibir: true, // admin "parar exibição de visitantes"
+  exibirEscala: true, // admin "parar exibição de escala" (na Home — a seção própria continua)
+  mensagem: "Sejam muito bem-vindos(as), amados irmãos e irmãs em Cristo Jesus! É uma alegria recebê-los hoje entre nós. Agradecemos a Deus pela sua presença, em nome de Jesus Cristo e do Ministério Avivar do Espírito.",
+  audioUrl: "",
+};
+
 /* ---------------------------------------------------------------- */
 /* PIX Copia e Cola (BR Code / EMV) — gerado localmente, sem API externa */
 /* ---------------------------------------------------------------- */
@@ -453,8 +465,12 @@ function Field({ label, children }) {
 
 const inputCls = "w-full rounded-md border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2";
 
-function DynamicForm({ fields, accent = C.gold, onSubmit, submitLabel = "Adicionar" }) {
-  const empty = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, ""])), [fields]);
+function DynamicForm({ fields, accent = C.gold, onSubmit, submitLabel = "Adicionar", initial }) {
+  const empty = useMemo(
+    () => Object.fromEntries(fields.map((f) => [f.key, initial && initial[f.key] != null ? String(initial[f.key]) : ""])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fields]
+  );
   const [vals, setVals] = useState(empty);
   const set = (k, v) => setVals((s) => ({ ...s, [k]: v }));
   return (
@@ -807,9 +823,6 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     color: "#fff",
     border: `1px solid ${active ? C.goldBright : "#ffffff80"}`,
   });
-  // Fileira de cima (NAV) — mesmo estilo de pill da fileira de baixo; a fonte
-  // PhotographSignature foi retirada daqui (voltou pra fonte padrão do site).
-  const topPillStyle = (active) => pillStyle(active);
   return (
     <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
       {/* Toggle mobile — fora do fluxo do grupo alinhado de pills, para não empurrar o
@@ -842,29 +855,40 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </div>
       </div>
 
-      {/* Fileira de cima: o botão RESTRITO agora mora nesta MESMA linha, coladinho à
-          esquerda, na mesma margem da logo/ícone da loja lá em cima. Os pills do NAV
-          vêm logo depois dele (afastados à direita, com um respiro no meio), e ficam
-          unidos entre si (gap curto), em vez de espalhados pela largura toda. */}
-      <div className="hidden lg:flex items-center gap-4 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+      {/* Fileira de cima: o botão RESTRITO agora fica em posição absoluta, preso à
+          mesma margem esquerda da logo lá em cima (não importa se o texto muda entre
+          "RESTRITO" e "SAIR DO ADMIN", a posição não se move). Um bloco invisível,
+          do mesmo tamanho exato da logo+nome lá em cima, empurra os pills do NAV
+          pra começarem exatamente alinhados com o ícone da loja. */}
+      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5 relative" style={{ background: C.violetDeep }}>
         <button
           onClick={onAdminClick}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
+          className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
           style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
         >
           {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
           {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
         </button>
-        {/* flex-1 + justify-between: o 1º pill (Início) fica logo após o RESTRITO, e o
-            último (Doações) encosta na borda direita — mesma borda da barra de baixo,
-            então os dois últimos botões das duas fileiras ficam sempre alinhados. */}
+        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3 rounded-md p-1" style={{ height: 0, overflow: "hidden" }}>
+          <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
+          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
+            <span className="block">Avivar</span>
+            <span className="block">do</span>
+            <span className="block">Espírito</span>
+          </span>
+        </div>
+        {/* flex-1 + justify-between: o 1º pill (Início) fica logo após o bloco
+            invisível (ou seja, alinhado com o ícone da loja), e o último (Doações)
+            encosta na borda direita — mesma borda da barra de baixo, então os dois
+            últimos botões das duas fileiras ficam sempre alinhados. Todos os pills
+            desta fileira agora ficam vermelhos, a pedido do Marcos. */}
         <nav className="flex-1 flex items-center justify-between">
           {NAV.map((n) => (
             <button
               key={n.key}
               onClick={() => go(n.key)}
               className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-1 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2"
-              style={n.red ? { background: C.liveRed, color: "#fff", border: `1px solid ${page === n.key ? C.goldBright : C.liveRed}` } : topPillStyle(page === n.key)}
+              style={{ background: C.liveRed, color: "#fff", border: `1px solid ${page === n.key ? C.goldBright : C.liveRed}` }}
             >
               {n.label}
             </button>
@@ -872,20 +896,12 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </nav>
       </div>
 
-      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas); o
-          1º botão fica invisível (mesmo tamanho do RESTRITO lá em cima, só pra
-          "empurrar" o grupo de pills exatamente pro mesmo ponto onde o NAV pills
-          começa) — assim "Escala" cai alinhado embaixo de "Início", e o último pill
-          cai alinhado embaixo de "Doações", igual pedido. */}
+      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas). O
+          espaçador invisível do RESTRITO foi removido: agora o grupo de pills começa
+          direto na margem da própria linha (px-4/px-6), que é a MESMA posição do
+          botão RESTRITO (também preso a essa margem) — assim "Escala" cai alinhado
+          embaixo do RESTRITO, igual pedido. Cores e estilo desta fileira não mudam. */}
       <div className="hidden lg:flex items-center gap-4 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
-        <button
-          aria-hidden="true"
-          tabIndex={-1}
-          className="invisible shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide"
-        >
-          <Lock size={13} />
-          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
-        </button>
         <div className="flex-1 flex items-center justify-between">
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
@@ -1568,13 +1584,68 @@ function PedidoOracaoCard({ onClick, compact }) {
   );
 }
 
+// Banner de boas-vindas aos Visitantes do Dia — toma o lugar da Escala de Serviço
+// no topo da Home, com cada nome pulsando e, se cadastrado, um áudio de fundo
+// inspirador. A reprodução automática com som pode ser bloqueada pelo navegador
+// até o visitante interagir com a página — por isso o botão "tocar música" surge
+// como alternativa sempre que o autoplay falhar.
+function VisitantesDiaBanner({ vd }) {
+  const audioRef = useRef(null);
+  const [bloqueado, setBloqueado] = useState(false);
+  useEffect(() => {
+    if (!vd.audioUrl || !audioRef.current) return;
+    audioRef.current.volume = 0.5;
+    const p = audioRef.current.play();
+    if (p && p.catch) p.catch(() => setBloqueado(true));
+  }, [vd.audioUrl]);
+  return (
+    <div className="w-full rounded-lg border-2 overflow-hidden p-4 sm:p-5" style={{ borderColor: C.gold, background: `linear-gradient(135deg, ${C.violetDeep}, ${C.indigoDeep})` }}>
+      <div className="flex items-center gap-2 mb-2">
+        <HandHeart size={15} color={C.goldBright} />
+        <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.goldBright }}>Visitantes de hoje</span>
+      </div>
+      <p className="text-sm sm:text-base leading-relaxed" style={{ color: "#ffffffee" }}>{vd.mensagem || DEFAULT_VISITANTES_DIA.mensagem}</p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {(vd.nomes || []).map((v, i) => (
+          <span
+            key={v.id}
+            className="visitante-pulse px-3 py-1.5 rounded-full text-sm font-display font-semibold"
+            style={{ background: C.goldBright, color: C.violetDeep, animationDelay: `${(i % 6) * 0.2}s` }}
+          >
+            {v.nome}
+          </span>
+        ))}
+      </div>
+      {vd.audioUrl && (
+        <>
+          <audio ref={audioRef} src={vd.audioUrl} loop />
+          {bloqueado && (
+            <button
+              onClick={() => { audioRef.current?.play(); setBloqueado(false); }}
+              className="text-[11px] underline mt-3 flex items-center gap-1"
+              style={{ color: C.goldBright }}
+            >
+              <Music size={12} /> tocar música de fundo
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
+  const [editingVisitantes, setEditingVisitantes] = useState(false);
+  const [novoNomeVisitante, setNovoNomeVisitante] = useState("");
+
+  const vd = { ...DEFAULT_VISITANTES_DIA, ...(visitantesDoDia || {}) };
+  const temVisitantesHoje = vd.exibir && (vd.nomes || []).length > 0;
 
   const m = { ...DEFAULT_MANCHETE, ...(manchete || {}) };
   const modo = m.modo || "auto";
@@ -1632,7 +1703,8 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
     temAcao = !!m.link;
   }
 
-  if (!dataEscalaDestaque && !m.ativo && !adminMode) return null;
+  if (!temVisitantesHoje && !dataEscalaDestaque && !m.ativo && !adminMode) return null;
+  const mostrarEscalaNaHome = dataEscalaDestaque && vd.exibirEscala && !temVisitantesHoje;
 
   // Monta as 3 colunas de postos (3 funções cada) na ordem fixa de exibição, igual à
   // tabela-resumo da Escala de Obreiros — função em CAIXA ALTA, nome como cadastrado.
@@ -1653,7 +1725,9 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-      {dataEscalaDestaque ? (
+      {temVisitantesHoje ? (
+        <VisitantesDiaBanner vd={vd} />
+      ) : mostrarEscalaNaHome ? (
         <div className="w-full rounded-lg border-2 overflow-hidden grid grid-cols-2 sm:grid-cols-4" style={{ borderColor: C.gold }}>
           <div className="p-3 flex flex-col justify-center col-span-2 sm:col-span-1" style={{ background: C.violet, color: "#fff" }}>
             <span className="text-[9px] font-mono uppercase tracking-wider opacity-80">Escala de Serviço</span>
@@ -1704,6 +1778,68 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
                 <Btn onClick={() => { save(draft); setEditing(false); }}>Salvar</Btn>
                 <button onClick={() => { setDraft(m); setEditing(false); }} className="text-xs underline" style={{ color: C.stone }}>cancelar</button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+      {adminMode && (
+        <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
+          {!editingVisitantes ? (
+            <button onClick={() => setEditingVisitantes(true)} className="underline" style={{ color: C.stone }}>ADMIN · Visitantes do Dia</button>
+          ) : (
+            <div className="mt-2 space-y-3">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!vd.exibir} onChange={(e) => saveVisitantesDoDia({ ...vd, exibir: e.target.checked })} />
+                  Exibir banner de visitantes (se desmarcado, a escala volta a aparecer aqui)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!vd.exibirEscala} onChange={(e) => saveVisitantesDoDia({ ...vd, exibirEscala: e.target.checked })} />
+                  Exibir escala aqui na Home (a seção própria de Escala continua sempre)
+                </label>
+              </div>
+              <Field label="Mensagem de boas-vindas">
+                <textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={vd.mensagem} onChange={(e) => saveVisitantesDoDia({ ...vd, mensagem: e.target.value })} />
+              </Field>
+              <Field label="URL de áudio de fundo inspirador (opcional — mp3)">
+                <input className={inputCls} style={{ borderColor: C.line }} value={vd.audioUrl} onChange={(e) => saveVisitantesDoDia({ ...vd, audioUrl: e.target.value })} />
+              </Field>
+              <div>
+                <p className="text-xs font-mono mb-1.5" style={{ color: C.stone }}>Visitantes de hoje</p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(vd.nomes || []).length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Nenhum visitante cadastrado ainda.</span>}
+                  {(vd.nomes || []).map((v) => (
+                    <span key={v.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: C.gold + "33", color: C.ink }}>
+                      {v.nome}
+                      <button onClick={() => saveVisitantesDoDia({ ...vd, nomes: vd.nomes.filter((n) => n.id !== v.id) })}><X size={11} /></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    placeholder="Nome do visitante"
+                    value={novoNomeVisitante}
+                    onChange={(e) => setNovoNomeVisitante(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" || !novoNomeVisitante.trim()) return;
+                      saveVisitantesDoDia({ ...vd, nomes: [...(vd.nomes || []), { id: uid(), nome: novoNomeVisitante.trim() }] });
+                      setNovoNomeVisitante("");
+                    }}
+                    className={`${inputCls} max-w-xs`}
+                    style={{ borderColor: C.line }}
+                  />
+                  <Btn
+                    onClick={() => {
+                      if (!novoNomeVisitante.trim()) return;
+                      saveVisitantesDoDia({ ...vd, nomes: [...(vd.nomes || []), { id: uid(), nome: novoNomeVisitante.trim() }] });
+                      setNovoNomeVisitante("");
+                    }}
+                  >
+                    Adicionar
+                  </Btn>
+                </div>
+              </div>
+              <button onClick={() => setEditingVisitantes(false)} className="text-xs underline" style={{ color: C.stone }}>fechar</button>
             </div>
           )}
         </div>
@@ -1779,12 +1915,12 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} />
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
         {/* Coluna 1 — Ministério: nome, logo e um breve histórico. O nome/logo é
             clicável e leva para a página "Nossa História" (histórico completo,
@@ -1892,10 +2028,15 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
         {celulas && celulas.coordenador && (
           <p className="text-sm mb-5" style={{ color: C.stone }}>Coordenador das Células Avivar: <strong style={{ color: C.ink }}>{celulas.coordenador}</strong></p>
         )}
-        <div className={GRID3}>
+        {/* Grid própria das Células (não usa GRID3): no celular, 1 card por linha —
+            cada card se divide em logo (topo) + dados (abaixo), senão a logo fixa ao
+            lado espremia demais o texto quando duas células ficavam lado a lado.
+            A partir do "sm" volta ao layout horizontal (logo à esquerda) em 3 colunas. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
           {CELULA_KEYS.map((chave) => (
             <CelulaCard key={chave} chave={chave} celula={(celulas && celulas[chave]) || CELULA_VAZIA(chave)} onOpen={() => onOpenCelula(chave)} />
           ))}
+          <CelulaFuturaCard />
         </div>
       </section>
     </div>
@@ -1910,11 +2051,14 @@ function CelulaCard({ chave, celula, onOpen }) {
   const nParticipantes = (celula.participantes || "").split("\n").map((s) => s.trim()).filter(Boolean).length;
   const ultimoEncontro = [...(celula.encontros || [])].sort((a, b) => new Date(b.data) - new Date(a.data))[0];
   return (
-    // Layout horizontal a pedido do Marcos: logo à esquerda (ocupando a
-    // altura inteira do card), histórico à direita, alinhado no topo e na
-    // base da imagem da logo.
-    <button onClick={onOpen} className="text-left rounded-2xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 hover:opacity-95 flex items-stretch" style={{ borderColor: cor, background: "#fff" }}>
-      <div className="w-28 sm:w-32 shrink-0 flex items-center justify-center" style={{ background: cor + "1a" }}>
+    // Layout a pedido do Marcos: no celular, logo em cima (altura fixa, largura
+    // total) e os dados embaixo — evita o card ficar gigante na vertical e o texto
+    // ser espremido/encoberto do lado da logo. Do "sm" em diante, volta ao layout
+    // horizontal (logo à esquerda, ocupando a altura inteira, histórico ao lado).
+    // h-full + justify-between no texto faz os cards da mesma linha terminarem
+    // alinhados na base, mesmo com históricos de tamanhos diferentes.
+    <button onClick={onOpen} className="text-left rounded-2xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 hover:opacity-95 flex flex-col sm:flex-row sm:items-stretch h-full" style={{ borderColor: cor, background: "#fff" }}>
+      <div className="w-full h-28 sm:h-auto sm:w-28 lg:w-32 shrink-0 flex items-center justify-center" style={{ background: cor + "1a" }}>
         <ImgOrPlaceholder url={celula.logoUrl} alt={celula.nome} className="h-full w-full object-contain p-3" ph="Logo — a enviar" />
       </div>
       <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
@@ -1932,6 +2076,28 @@ function CelulaCard({ chave, celula, onOpen }) {
         <span className="text-xs underline mt-3 inline-block" style={{ color: C.violet }}>Ver célula →</span>
       </div>
     </button>
+  );
+}
+
+// Espaço reservado para uma futura Célula Avivar — mesmo visual dos cards reais
+// (borda tracejada pra indicar "ainda não é uma célula"), com uma palavra bíblica
+// sobre congregar/comunhão enquanto a vaga não é preenchida.
+function CelulaFuturaCard() {
+  return (
+    <div className="text-left rounded-2xl overflow-hidden border-2 border-dashed shadow-md flex flex-col sm:flex-row sm:items-stretch h-full" style={{ borderColor: C.line, background: "#fff" }}>
+      <div className="w-full h-28 sm:h-auto sm:w-28 lg:w-32 shrink-0 flex items-center justify-center" style={{ background: C.gold + "1a" }}>
+        <Plus size={30} style={{ color: C.gold }} />
+      </div>
+      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
+        <div>
+          <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Uma nova Célula Avivar</h3>
+          <p className="text-xs mt-1.5 leading-relaxed italic" style={{ color: C.stone }}>
+            "Não deixemos de congregar-nos, como é costume de alguns, mas exortemo-nos uns aos outros; e tanto mais quanto vedes que se aproxima aquele Dia." — Hebreus 10:25
+          </p>
+        </div>
+        <span className="text-xs mt-3 inline-block italic" style={{ color: C.stone }}>Em breve, mais um espaço para congregar.</span>
+      </div>
+    </div>
   );
 }
 
@@ -3722,6 +3888,10 @@ function Loja({ items, save, adminMode, operatorMode, onRequestOperator, doacoes
   const [editandoPrecoId, setEditandoPrecoId] = useState(null);
   const [precoPdfEdit, setPrecoPdfEdit] = useState("");
   const [precoFisicoEdit, setPrecoFisicoEdit] = useState("");
+  // Edição completa do produto (nome, sinopse, imagem da capa, preços...) — permite
+  // ao admin corrigir qualquer item já publicado (ex: encurtar uma sinopse comprida
+  // ou trocar a URL da capa se ela não aparecer) sem precisar excluir e recadastrar.
+  const [editandoProdutoId, setEditandoProdutoId] = useState(null);
 
   const abrirProduto = (id) => {
     setProdutoAbertoId(id);
@@ -4014,6 +4184,31 @@ function Loja({ items, save, adminMode, operatorMode, onRequestOperator, doacoes
                         <ShoppingBag size={13} /> Comprar
                       </Btn>
                     </>
+                  )}
+
+                  {adminMode && (
+                    <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: C.ember, background: "#00000006" }}>
+                      {editandoProdutoId === produtoAberto.id ? (
+                        <div>
+                          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · editar produto (nome, sinopse, capa, preços...)</p>
+                          <DynamicForm
+                            fields={LOJA_FIELDS}
+                            initial={produtoAberto}
+                            accent={C.ember}
+                            submitLabel="Salvar alterações"
+                            onSubmit={(v) => {
+                              save(items.map((i) => (i.id === produtoAberto.id ? { ...i, ...v } : i)));
+                              setEditandoProdutoId(null);
+                            }}
+                          />
+                          <button onClick={() => setEditandoProdutoId(null)} className="text-xs underline mt-2" style={{ color: C.stone }}>cancelar</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setEditandoProdutoId(produtoAberto.id)} className="text-xs underline flex items-center gap-1" style={{ color: C.ember }}>
+                          <Pencil size={12} /> editar produto completo
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {adminMode && produtoAberto.categoria === "Códigos Avivar" && (
@@ -6640,6 +6835,7 @@ export default function App() {
   const [colaboradores, setColaboradores] = useState([]);
   const [avivarKids, setAvivarKids] = useState([]);
   const [lideranca, setLideranca] = useState(DEFAULT_LIDERANCA);
+  const [visitantesDoDia, setVisitantesDoDia] = useState(DEFAULT_VISITANTES_DIA);
   const [estudos, setEstudos] = useState([]);
   const [avivarNews, setAvivarNews] = useState([]);
   const [visitantes, setVisitantes] = useState([]);
@@ -6724,6 +6920,7 @@ export default function App() {
       setColaboradores(await loadKey("avivar:colaboradores", []));
       setAvivarKids(await loadKey("avivar:avivarkids", []));
       setLideranca(await loadKey("avivar:lideranca", DEFAULT_LIDERANCA));
+      setVisitantesDoDia(await loadKey("avivar:visitantesdodia", DEFAULT_VISITANTES_DIA));
       setEstudos(await loadKey("avivar:estudos", []));
       setAvivarNews(await loadKey("avivar:avivarnews", []));
       setVisitantes(await loadKey("avivar:visitantes", []));
@@ -7417,13 +7614,26 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             linkCompra: "",
             linkCartao: "",
             destino: "loja",
-            descricao: "Deus escreveu dois livros: a Bíblia e o universo. Nesta obra inédita — Volume IX da Série Códigos Avivar, Revelações dos Últimos Tempos — Marcos Fagner S. Alves mostra como as descobertas mais impressionantes da física quântica (o campo quântico, o efeito do observador, o enlaçamento e a incerteza) ressoam com o que as Escrituras já revelavam há milênios sobre a presença, o poder e a soberania do Criador. Deus não é o campo quântico — Ele o criou. Um convite a enxergar, na estrutura mais profunda do universo, as marcas de Quem o projetou, unindo ciência, fé e revelação em uma leitura que fortalece a adoração e a intimidade com o Espírito Santo.",
+            descricao: "Deus escreveu dois livros: a Bíblia e o universo. Nesta obra inédita — Volume IX da Série Códigos Avivar — Marcos Fagner S. Alves mostra como as descobertas da física quântica ressoam com o que as Escrituras já revelavam sobre a presença e a soberania do Criador. Um convite a enxergar, na estrutura mais profunda do universo, as marcas de Quem o projetou.",
           },
         ];
         setLoja(lojaW);
         saveKey("avivar:loja", lojaW);
       }
       todo.lancamentoEnergiaCriador1 = true;
+    }
+    // Correção: Marcos pediu pra reduzir a sinopse de "A Energia do Criador" (estava
+    // comprida demais). Como o seed acima já tinha rodado pra quem já abriu o site,
+    // esta correção força a atualização do texto já salvo no Supabase.
+    if (!seeds.sinopseEnergiaCriadorCurta1) {
+      const sinopseCurta = "Deus escreveu dois livros: a Bíblia e o universo. Nesta obra inédita — Volume IX da Série Códigos Avivar — Marcos Fagner S. Alves mostra como as descobertas da física quântica ressoam com o que as Escrituras já revelavam sobre a presença e a soberania do Criador. Um convite a enxergar, na estrutura mais profunda do universo, as marcas de Quem o projetou.";
+      const precisaEncurtar = lojaW.some((p) => p.seedId === "lancamento-energia-criador" && p.descricao !== sinopseCurta);
+      if (precisaEncurtar) {
+        lojaW = lojaW.map((p) => (p.seedId === "lancamento-energia-criador" ? { ...p, descricao: sinopseCurta } : p));
+        setLoja(lojaW);
+        saveKey("avivar:loja", lojaW);
+      }
+      todo.sinopseEnergiaCriadorCurta1 = true;
     }
     if (!seeds.hagInVitrineCodigos1) {
       const idsBib = ["bib-palavra","bib-aguias","bib-setepassos","bib-familia","bib-uncao","bib-nomejesus","bib-alimentofe","bib-cursofe","bib2-dons","bib2-elshaddai","bib2-sofram","bib2-duelo","bib2-autoridade","bib2-naoculpe","bib2-casamento"];
@@ -8015,6 +8225,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
     avivarKids: (v) => { setAvivarKids(v); saveKey("avivar:avivarkids", v); },
     lideranca: (v) => { setLideranca(v); saveKey("avivar:lideranca", v); },
+    visitantesDoDia: (v) => { setVisitantesDoDia(v); saveKey("avivar:visitantesdodia", v); },
     estudos: (v) => { setEstudos(v); saveKey("avivar:estudos", v); },
     avivarNews: (v) => { setAvivarNews(v); saveKey("avivar:avivarnews", v); },
     visitantes: (v) => { setVisitantes(v); saveKey("avivar:visitantes", v); },
@@ -8184,6 +8395,9 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(225,77,58,0.6); } 50% { box-shadow: 0 0 0 8px rgba(225,77,58,0); } }
         .live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
+        @keyframes visitantePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.06); } }
+        .visitante-pulse { animation: visitantePulse 1.8s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .visitante-pulse { animation: none; } }
         .font-display { font-family: 'Playfair Display', serif; }
         .font-script { font-family: 'Playfair Display', serif; font-weight: 700; }
         .font-body { font-family: 'Public Sans', sans-serif; }
@@ -8192,7 +8406,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         .marquee-track { animation: marquee 14s linear infinite; }
         @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
         @keyframes noticiasMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .noticias-marquee { animation: noticiasMarquee 30s linear infinite; width: max-content; }
+        .noticias-marquee { animation: noticiasMarquee 90s linear infinite; width: max-content; }
         .noticias-marquee:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) { .noticias-marquee { animation: none; } }
       `}</style>
@@ -8202,7 +8416,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
 
       <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} forumPosts={forumPosts} addForumPost={(p) => persist.forum([...forumPosts, p])} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
