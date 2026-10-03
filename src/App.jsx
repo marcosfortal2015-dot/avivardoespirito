@@ -852,7 +852,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           tem a mesma largura fixa (NAV_LEFT_W), então "Início" cai exatamente em
           cima de "Escala"; e como os dois grupos de pills vão até a mesma borda
           direita, "Células Avivar" cai em cima de "Visitantes". */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end gap-3 pt-3 pb-1.5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end gap-3 pt-3 pb-1.5" style={{ background: C.violetDeep }}>
         <div className="flex items-end gap-3 shrink-0 lg:w-[208px]">
           <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
             <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
@@ -5101,8 +5101,23 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
   const semLideranca = items.filter((i) => !semAcento(i.nome).includes("marcos") && !semAcento(i.nome).includes("wladia"));
   // Lista separada em dois grupos, pedido do Marcos: os colaboradores que já
   // existiam (sem a marca "novo") primeiro, e os recém-cadastrados depois.
-  const antigos = semLideranca.filter((i) => i.grupo !== "novo").sort(porNome);
-  const novos = semLideranca.filter((i) => i.grupo === "novo").sort(porNome);
+  let antigos = semLideranca.filter((i) => i.grupo !== "novo").sort(porNome);
+  let novos = semLideranca.filter((i) => i.grupo === "novo").sort(porNome);
+  // Pedido do Marcos: a Ir. Vitória Dimas aparece sempre logo ao lado da Ir. Vitória
+  // Castro — no mesmo grupo dela, imediatamente depois, com o mesmo estilo de foto.
+  const ehDimas = (c) => semAcento(c.nome).includes("vitoria dimas");
+  const ehCastro = (c) => semAcento(c.nome).includes("vitoria castro");
+  const dimas = semLideranca.find(ehDimas);
+  if (dimas && semLideranca.some(ehCastro)) {
+    const aoLado = (lista) => {
+      const semDimas = lista.filter((c) => !ehDimas(c));
+      const idx = semDimas.findIndex(ehCastro);
+      if (idx === -1) return semDimas;
+      return [...semDimas.slice(0, idx + 1), dimas, ...semDimas.slice(idx + 1)];
+    };
+    antigos = aoLado(antigos);
+    novos = aoLado(novos);
+  }
 
   const addKid = (v) => saveKids([...(kidsItems || []), { id: uid(), ...v }]);
   const delKid = (id) => saveKids((kidsItems || []).filter((i) => i.id !== id));
@@ -8444,7 +8459,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           font-display: swap;
         }
         html { scroll-behavior: smooth; }
-        @keyframes navPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(107,47,165,0.55); } 50% { box-shadow: 0 0 0 6px rgba(107,47,165,0); } }
+        @keyframes navPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.75); } 50% { box-shadow: 0 0 0 5px rgba(255,255,255,0); } }
         .nav-pulse { animation: navPulse 2.4s ease-in-out infinite; }
         .nav-pulse:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) { .nav-pulse { animation: none; } }
