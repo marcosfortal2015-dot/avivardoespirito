@@ -988,7 +988,7 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
           <KeyRound size={20} />
           <h3 className="font-display text-lg font-semibold">Acesso restrito</h3>
         </div>
-        <p className="text-xs mb-4" style={{ color: C.stone }}>Peça o código de acesso à administração da igreja (portaria, RH, ou equivalente).</p>
+        <p className="text-xs mb-4" style={{ color: C.stone }}>Digite o código que a administração da igreja lhe entregou. Um mesmo código abre todas as áreas em que você serve.</p>
         <Field label="Código de acesso">
           <input type="password" autoFocus value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
         </Field>
@@ -1001,7 +1001,8 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
                 onSuccess({ nome: "Administração", setores: ["todos"] });
                 return;
               }
-              const match = operatorCodes.find((o) => o.codigo === code);
+              const digitado = code.trim().toLowerCase();
+              const match = operatorCodes.find((o) => String(o.codigo || "").trim().toLowerCase() === digitado);
               if (match) {
                 onSuccess({ nome: match.nome, setores: parseSetoresOperador(match.setores) });
                 return;
@@ -1043,15 +1044,67 @@ const SETORES_OPERADOR = [
   { key: "escala", label: "Escala de Obreiros" },
   { key: "loja", label: "Loja (calcular frete)" },
 ];
+// Apelidos aceitos no campo "setores" de um código — o admin pode escrever do jeito
+// que fala no dia a dia (ex: "recepção"), com ou sem acento, que cai no setor certo.
+const SETOR_APELIDOS = {
+  recepcao: "visitantes", portaria: "visitantes", visitante: "visitantes",
+  oracao: "oracoes", "oracao nos lares": "oracoes", lares: "oracoes",
+  music: "avivarmusic", musica: "avivarmusic", louvor: "avivarmusic", "avivar music": "avivarmusic",
+  membro: "membros", secretaria: "membros",
+  escalas: "escala", obreiros: "escala",
+  frete: "loja", tudo: "todos",
+};
 function parseSetoresOperador(texto) {
-  const lista = String(texto || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-  return lista.length ? lista : ["todos"];
+  const lista = String(texto || "").split(/[,;]/).map((s) => semAcento(s.trim())).filter(Boolean).map((s) => SETOR_APELIDOS[s] || s);
+  return lista.length ? [...new Set(lista)] : ["todos"];
+}
+// Onde fica cada setor no site (id da seção) — usado pelos atalhos da barra de acesso.
+const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitantes: "visitantes", membros: "membros", escala: "escala", loja: "loja" };
+
+// Barra de acesso do servidor — aparece no topo de cada seção que aceita código de
+// função (recepção, secretaria, louvor...). Sem código: botão pra entrar. Com código:
+// mostra quem entrou e um atalho pra CADA seção que aquele código libera.
+function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPara }) {
+  if (adminMode) return null;
+  const info = SETORES_OPERADOR.find((x) => x.key === setor) || { label: setor };
+  const liberados = operatorAuth
+    ? (operatorAuth.setores.includes("todos") ? SETORES_OPERADOR.filter((x) => x.key !== "todos").map((x) => x.key) : operatorAuth.setores.filter((k) => SETOR_DESTINO[k]))
+    : [];
+  const temEste = liberados.includes(setor);
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3">
+      <div className="rounded-lg border px-3 py-2 flex flex-wrap items-center gap-2 text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
+        {!operatorAuth ? (
+          <>
+            <KeyRound size={14} color={C.purple} />
+            <span style={{ color: C.stone }}>Serve nesta área ({info.label})?</span>
+            <Btn color={C.purple} className="!py-1 !px-3 text-xs" onClick={onEntrar}><Unlock size={13} /> Entrar com código de acesso</Btn>
+          </>
+        ) : (
+          <>
+            <ShieldCheck size={14} color="#2E7D4F" />
+            <span style={{ color: C.ink }}>
+              <b>{operatorAuth.nome}</b> — {temEste ? "acesso liberado nesta área." : "seu código não libera esta área."}
+            </span>
+            {liberados.length > 0 && <span style={{ color: C.stone }}>Suas áreas:</span>}
+            {liberados.map((k) => (
+              <button key={k} onClick={() => irPara(SETOR_DESTINO[k])} className="px-2 py-0.5 rounded-full border font-semibold" style={{ borderColor: C.purple, color: k === setor ? "#fff" : C.purple, background: k === setor ? C.purple : "transparent" }}>
+                {(SETORES_OPERADOR.find((x) => x.key === k) || { label: k }).label}
+              </button>
+            ))}
+            {!temEste && <button onClick={onEntrar} className="underline" style={{ color: C.purple }}>usar outro código</button>}
+            <button onClick={onSair} className="underline ml-auto" style={{ color: C.stone }}>sair</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const OPERADOR_FIELDS = [
   { key: "nome", label: "Nome da pessoa ou função (ex: Portaria, RH — Maria)" },
   { key: "codigo", label: "Código de acesso" },
-  { key: "setores", label: "Setores liberados — separe por vírgula (deixe em branco ou 'todos' pra liberar tudo): oracoes, avivarmusic, visitantes, membros, escala, loja" },
+  { key: "setores", label: "Setores liberados — separe por vírgula (em branco ou 'todos' libera tudo): oracoes, avivarmusic, visitantes (ou recepção), membros, escala, loja" },
 ];
 
 function OperadoresAdmin({ codes, save, adminMode }) {
@@ -1633,7 +1686,7 @@ function VisitantesDiaBanner({ vd }) {
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
@@ -1778,10 +1831,10 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
           )}
         </div>
       )}
-      {adminMode && (
+      {(adminMode || podeVisitantesDia) && (
         <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
           {!editingVisitantes ? (
-            <button onClick={() => setEditingVisitantes(true)} className="underline" style={{ color: C.stone }}>ADMIN · Visitantes do Dia</button>
+            <button onClick={() => setEditingVisitantes(true)} className="underline" style={{ color: C.stone }}>{adminMode ? "ADMIN" : "RECEPÇÃO"} · Visitantes do Dia</button>
           ) : (
             <div className="mt-2 space-y-3">
               <div className="flex flex-wrap gap-4">
@@ -1911,12 +1964,12 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} />
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} podeVisitantesDia={podeVisitantesDia} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
         {/* Coluna 1 — Ministério: nome, logo e um breve histórico. O nome/logo é
             clicável e leva para a página "Nossa História" (histórico completo,
@@ -6785,132 +6838,681 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 // resto do site de propósito (vira app independente mais pra frente).
 const AM = { bg: "#FBF7F0", card: "#FFFFFF", card2: "#F1E9F7", accent: "#6A1B9A", accentDeep: "#4A1270", ink: "#2B1A3A", dim: "#6B5A7A", line: "rgba(43,26,58,.1)" };
 
-// Metrônomo simples — BPM ajustável, play/pause, pulso visual + beep (Web
-// Audio API). Ferramenta de estúdio independente, sem precisar de backend.
-function MetronomoEstudio({ onFechar }) {
-  const [bpm, setBpm] = useState(96);
-  const [tocando, setTocando] = useState(false);
-  const [batida, setBatida] = useState(0);
-  const timerRef = useRef(null);
-  const audioCtxRef = useRef(null);
-
-  function beep(forte) {
-    try {
-      audioCtxRef.current = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
-      const ctx = audioCtxRef.current;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = forte ? 1200 : 880;
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 0.08);
-    } catch { /* navegador sem suporte — segue só visual */ }
+/* ================================================================ */
+/* AVIVAR MUSIC — mini-app (módulo portátil)                          */
+/* ---------------------------------------------------------------- */
+/* Tudo o que é do mini-app mora neste bloco e num único registro de  */
+/* dados (`avivar:musicapp`), pra sair do site como app independente. */
+/* Formato dos dados (equivale às tabelas do app futuro):             */
+/*   acessos:    [{ id, nome, instrumento, email, codigo, senhaHash,  */
+/*                 ativo, criadoEm }]              -> musicians        */
+/*   acervo:     [{ id, titulo, tomIgreja, tomOriginal, bpm,          */
+/*                 youtubeUrl, cifra }]            -> songs            */
+/*   eventos:    [{ id, tipo, titulo, data, hora,                     */
+/*                 escalados: [{ musicoId, instrumento }],            */
+/*                 musicas: [songId] }]            -> events           */
+/*   disponibilidade: [{ musicoId, eventoId, pode }] -> availability  */
+/*   patrimonio: [{ id, nome, status, obs }]       -> equipment        */
+/* ================================================================ */
+const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], patrimonio: [] };
+const AM_TIPOS_EVENTO = ["Culto", "Ensaio", "Treinamento"];
+const AM_STATUS_PATRIMONIO = ["Operacional", "Defeito", "Em Manutenção"];
+const AM_ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const amGerarCodigo = () => { let s = ""; for (let i = 0; i < 6; i++) s += AM_ALFABETO[Math.floor(Math.random() * AM_ALFABETO.length)]; return "AM-" + s; };
+// A senha nunca é guardada em texto: guarda-se só o resumo (SHA-256) dela com o código.
+async function amHashSenha(codigo, senha) {
+  const texto = `avivar-music|${String(codigo).toUpperCase()}|${senha}`;
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    let h = 5381; for (let i = 0; i < texto.length; i++) h = ((h << 5) + h + texto.charCodeAt(i)) >>> 0;
+    return "f" + h.toString(16);
   }
+}
+const amTema = (escuro) => escuro
+  ? { bg: "#120B1A", card: "#1E1429", card2: "#2A1D3A", accent: "#B97BE0", accentDeep: "#2B0F42", ink: "#F3EAFB", dim: "#B7A6C8", line: "rgba(255,255,255,.12)", onAccent: "#1A0B26" }
+  : { ...AM, onAccent: "#FFFFFF" };
+const amDataHora = (ev) => `${fmtDate(ev.data)}${ev.hora ? " · " + ev.hora : ""}`;
+const amEventosFuturos = (eventos) => {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  return [...(eventos || [])].filter((e) => e.data && new Date(e.data + "T00:00:00") >= hoje).sort((a, b) => (a.data + (a.hora || "")).localeCompare(b.data + (b.hora || "")));
+};
 
-  function alternar() {
-    if (tocando) { clearInterval(timerRef.current); setTocando(false); setBatida(0); return; }
-    setTocando(true);
-    let b = 0;
-    beep(true); setBatida(0);
-    timerRef.current = setInterval(() => {
-      b = (b + 1) % 4;
-      setBatida(b);
-      beep(b === 0);
-    }, 60000 / bpm);
-  }
-  useEffect(() => () => clearInterval(timerRef.current), []);
-  useEffect(() => { if (tocando) { clearInterval(timerRef.current); timerRef.current = setInterval(() => { setBatida((b) => { const nb = (b + 1) % 4; beep(nb === 0); return nb; }); }, 60000 / bpm); } }, [bpm]); // eslint-disable-line react-hooks/exhaustive-deps
+function AmBotao({ t, children, onClick, tom = "cheio", className = "", ...rest }) {
+  const estilo = tom === "cheio" ? { background: t.accent, color: t.onAccent } : tom === "perigo" ? { background: "transparent", color: "#D0473A", border: "1px solid #D0473A66" } : { background: t.card2, color: t.ink };
+  return <button onClick={onClick} className={`min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 focus:outline-none focus:ring-2 ${className}`} style={estilo} {...rest}>{children}</button>;
+}
+function AmCard({ t, children, className = "" }) {
+  return <div className={`rounded-2xl p-4 sm:p-5 shadow-sm ${className}`} style={{ background: t.card, border: `1px solid ${t.line}` }}>{children}</div>;
+}
+function AmInput({ t, ...rest }) {
+  return <input {...rest} className="w-full min-h-[48px] rounded-xl px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />;
+}
+function AmSelect({ t, children, ...rest }) {
+  return <select {...rest} className="w-full min-h-[48px] rounded-xl px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }}>{children}</select>;
+}
 
+/* ---------- Login fechado: código + senha (sem "criar conta" pública) ---------- */
+function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
+  const [modo, setModo] = useState("entrar"); // entrar | primeiro | lider
+  const [ident, setIdent] = useState("");
+  const [senha, setSenha] = useState("");
+  const [senha2, setSenha2] = useState("");
+  const [erro, setErro] = useState("");
+  const achar = (v) => {
+    const x = v.trim().toLowerCase();
+    return (dados.acessos || []).find((a) => a.ativo !== false && (a.codigo.toLowerCase() === x || (a.email && a.email.trim().toLowerCase() === x)));
+  };
+  const entrar = async () => {
+    setErro("");
+    if (modo === "lider") { if (!tentarCodigoLider(ident)) setErro("Código de liderança inválido."); return; }
+    const a = achar(ident);
+    if (!a) { setErro("Código não encontrado ou desativado. Peça ao líder do louvor."); return; }
+    if (modo === "primeiro") {
+      if (a.senhaHash) { setErro("Este código já tem senha cadastrada. Use \"Já tenho senha\"."); return; }
+      if (senha.length < 6) { setErro("A senha precisa ter pelo menos 6 caracteres."); return; }
+      if (senha !== senha2) { setErro("As duas senhas não são iguais."); return; }
+      const senhaHash = await amHashSenha(a.codigo, senha);
+      salvar({ ...dados, acessos: dados.acessos.map((x) => (x.id === a.id ? { ...x, senhaHash } : x)) });
+      onEntrar(a.id);
+      return;
+    }
+    if (!a.senhaHash) { setErro("Este código ainda não tem senha. Use \"Primeiro acesso\"."); return; }
+    if ((await amHashSenha(a.codigo, senha)) !== a.senhaHash) { setErro("Senha incorreta."); return; }
+    onEntrar(a.id);
+  };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000080" }} onClick={onFechar}>
-      <div className="w-full max-w-xs rounded-2xl p-6 flex flex-col items-center gap-4" style={{ background: AM.card }} onClick={(e) => e.stopPropagation()}>
-        <p className="font-display font-semibold text-lg" style={{ color: AM.ink }}>Metrônomo</p>
-        <p className="text-4xl font-mono font-bold tabular-nums" style={{ color: AM.accent }}>{bpm}</p>
-        <div className="flex items-center gap-4">
-          <button onClick={() => setBpm((v) => Math.max(40, v - 4))} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: AM.card2, color: AM.accent }}><Minus size={16} /></button>
-          <button onClick={alternar} className="w-16 h-16 rounded-full flex items-center justify-center text-white" style={{ background: AM.accent }}>
-            {tocando ? <Pause size={24} /> : <Play size={24} />}
-          </button>
-          <button onClick={() => setBpm((v) => Math.min(220, v + 4))} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: AM.card2, color: AM.accent }}><Plus size={16} /></button>
-        </div>
-        <div className="flex gap-2.5">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="w-3 h-3 rounded-full transition" style={{ background: tocando && batida === i ? AM.accent : AM.card2, transform: tocando && batida === i ? "scale(1.3)" : "scale(1)" }} />
+    <div className="mx-auto max-w-sm px-4 pt-10 pb-16">
+      <AmCard t={t}>
+        <div className="flex items-center gap-2" style={{ color: t.accent }}><Lock size={18} /><p className="font-display font-bold text-lg" style={{ color: t.ink }}>Acesso dos músicos</p></div>
+        <p className="text-xs mt-1" style={{ color: t.dim }}>O acesso é fechado: o líder do louvor gera um código para cada músico.</p>
+        <div className="grid grid-cols-3 gap-1.5 mt-4">
+          {[["entrar", "Já tenho senha"], ["primeiro", "Primeiro acesso"], ["lider", "Sou líder"]].map(([k, r]) => (
+            <button key={k} onClick={() => { setModo(k); setErro(""); }} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: modo === k ? t.accent : t.card2, color: modo === k ? t.onAccent : t.ink }}>{r}</button>
           ))}
         </div>
-        <button onClick={onFechar} className="text-xs underline mt-1" style={{ color: AM.dim }}>Fechar</button>
+        <div className="mt-4 space-y-3">
+          <AmInput t={t} placeholder={modo === "lider" ? "Código de liderança" : modo === "primeiro" ? "Código de acesso (ex: AM-7K42QX)" : "Código de acesso ou e-mail"} value={ident} onChange={(e) => setIdent(e.target.value)} type={modo === "lider" ? "password" : "text"} />
+          {modo !== "lider" && <AmInput t={t} type="password" placeholder={modo === "primeiro" ? "Crie sua senha pessoal" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} />}
+          {modo === "primeiro" && <AmInput t={t} type="password" placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
+          {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+          <AmBotao t={t} className="w-full" onClick={entrar}><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
+        </div>
+      </AmCard>
+    </div>
+  );
+}
+
+/* ---------- A) Dashboard pessoal ---------- */
+function AmDashboard({ t, dados, salvar, musico, lider, irPara }) {
+  const futuros = amEventosFuturos(dados.eventos);
+  const meus = musico ? futuros.filter((e) => (e.escalados || []).some((x) => x.musicoId === musico.id)) : futuros;
+  const proximo = meus[0] || null;
+  const meuInstrumento = proximo && musico ? (proximo.escalados.find((x) => x.musicoId === musico.id) || {}).instrumento : "";
+  const dispDe = (evId) => (dados.disponibilidade || []).find((d) => d.musicoId === musico?.id && d.eventoId === evId);
+  const marcar = (evId, pode) => {
+    const resto = (dados.disponibilidade || []).filter((d) => !(d.musicoId === musico.id && d.eventoId === evId));
+    salvar({ ...dados, disponibilidade: [...resto, { musicoId: musico.id, eventoId: evId, pode }] });
+  };
+  const musicasDe = (ev) => (ev.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean);
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>{musico ? `Olá, ${musico.nome.split(" ")[0]}` : "Painel do líder"}</p>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: `linear-gradient(135deg, #6A1B9A, #4A1270)` }}>
+        <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próxima escala</span>
+        {proximo ? (
+          <>
+            <p className="font-display text-2xl font-bold mt-3">{proximo.titulo || proximo.tipo}</p>
+            <p className="text-sm text-white/85 mt-0.5">{proximo.tipo} · {amDataHora(proximo)}</p>
+            {meuInstrumento && <p className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2 text-sm font-semibold"><Music size={15} /> Você toca: {meuInstrumento}</p>}
+            {musicasDe(proximo).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {musicasDe(proximo).map((m) => <span key={m.id} className="text-xs bg-white/15 rounded-full px-2.5 py-1">{m.titulo}{m.tomIgreja ? ` (${m.tomIgreja})` : ""}</span>)}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-white/90 mt-3">{musico ? "Você ainda não está em nenhuma escala futura." : "Nenhum evento futuro cadastrado."}</p>
+        )}
+      </div>
+
+      {musico && (
+        <AmCard t={t}>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Minha disponibilidade</p>
+          <p className="text-xs mt-0.5" style={{ color: t.dim }}>Avise se pode ou não tocar em cada data. O líder vê sua resposta ao montar a escala.</p>
+          {futuros.length === 0 && <p className="text-sm mt-3" style={{ color: t.dim }}>Nenhuma data futura cadastrada.</p>}
+          <div className="mt-3 space-y-2">
+            {futuros.map((ev) => {
+              const d = dispDe(ev.id);
+              return (
+                <div key={ev.id} className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between" style={{ background: t.card2 }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
+                    <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:w-56">
+                    <button onClick={() => marcar(ev.id, true)} className="min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: d?.pode === true ? "#2E7D4F" : t.card, color: d?.pode === true ? "#fff" : t.ink, border: `1px solid ${t.line}` }}>Posso</button>
+                    <button onClick={() => marcar(ev.id, false)} className="min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: d?.pode === false ? "#B03428" : t.card, color: d?.pode === false ? "#fff" : t.ink, border: `1px solid ${t.line}` }}>Não posso</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </AmCard>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("acervo")}><Library size={20} /> Acervo de louvores</AmBotao>
+        <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("estudio")}><Settings2 size={20} /> Estúdio</AmBotao>
+        {lider && <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("escalas")}><Calendar size={20} /> Escalas</AmBotao>}
+        {lider && <AmBotao t={t} tom="suave" className="flex-col !items-start py-4 h-auto" onClick={() => irPara("patrimonio")}><Package size={20} /> Patrimônio</AmBotao>}
       </div>
     </div>
   );
 }
 
-function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar }) {
-  const [metronomoAberto, setMetronomoAberto] = useState(false);
-  const painelRef = useRef(null);
-
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const futuros = [...(repertorio || [])].filter((c) => c.data && new Date(c.data) >= hoje).sort((a, b) => new Date(a.data) - new Date(b.data));
-  const passados = [...(repertorio || [])].filter((c) => !c.data || new Date(c.data) < hoje).sort((a, b) => new Date(b.data) - new Date(a.data));
-  const proximo = futuros[0] || passados[0] || null;
-  const diasAte = proximo?.data ? Math.round((new Date(proximo.data).setHours(0, 0, 0, 0) - hoje.getTime()) / 86400000) : null;
-  const rotuloData = diasAte === 0 ? "Hoje" : diasAte === 1 ? "Amanhã" : diasAte > 1 ? `Em ${diasAte} dias` : proximo ? fmtDate(proximo.data) : "";
-
+/* ---------- B) Acervo + tela da cifra ---------- */
+function AmCifra({ musica, onFechar, escuroInicial }) {
+  const [escuro, setEscuro] = useState(escuroInicial);
+  const [fonte, setFonte] = useState(16);
+  const [rolando, setRolando] = useState(false);
+  const [vel, setVel] = useState(2);
+  const areaRef = useRef(null);
+  const t = amTema(escuro);
+  useEffect(() => {
+    if (!rolando) return undefined;
+    const id = setInterval(() => {
+      const el = areaRef.current;
+      if (!el) return;
+      el.scrollTop += vel;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) setRolando(false);
+    }, 60);
+    return () => clearInterval(id);
+  }, [rolando, vel]);
   return (
-    <div className="min-h-screen font-body" style={{ background: AM.bg, color: AM.ink }}>
-      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-8 py-3.5" style={{ background: AM.accentDeep }}>
-        <button onClick={onVoltar} className="flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md">
-          <ArrowLeft size={16} /> Voltar ao site
-        </button>
-        <div className="flex items-center gap-2">
-          <Music size={17} color="#E8C875" />
-          <span className="font-display text-sm font-bold text-white">Avivar Music</span>
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: t.bg, color: t.ink }}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }}>
+        <button onClick={onFechar} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: t.ink }}><ArrowLeft size={16} /> Acervo</button>
+        <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>{escuro ? "Modo claro" : "Modo escuro (altar)"}</button>
       </div>
-
-      {/* Dobra 1 — painel inicial, pensado pra caber sem rolar */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-8 pt-8 pb-6 lg:min-h-[calc(100vh-280px)] flex flex-col justify-center">
-        <p className="font-display text-sm font-semibold" style={{ color: AM.accent }}>Grupo de louvor</p>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold mt-1" style={{ color: AM.ink }}>Avivar Music</h1>
-
-        <div className="rounded-2xl p-5 sm:p-6 mt-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${AM.accent}, ${AM.accentDeep})` }}>
-          {proximo ? (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próxima apresentação</span>
-                {rotuloData && <span className="text-[10px] font-bold bg-white/20 rounded-full px-3 py-1">{rotuloData}</span>}
+      <div ref={areaRef} className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-display text-2xl font-bold">{musica.titulo}</h2>
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {[["Tom da igreja", musica.tomIgreja], ["Tom original", musica.tomOriginal], ["BPM", musica.bpm]].map(([r, v]) => (
+              <div key={r} className="rounded-xl p-3 text-center" style={{ background: t.card2 }}>
+                <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: t.dim }}>{r}</p>
+                <p className="font-mono text-xl font-bold mt-0.5" style={{ color: t.accent }}>{v || "—"}</p>
               </div>
-              <p className="font-display text-xl font-bold">{proximo.titulo}</p>
-              <p className="text-sm text-white/85 mt-0.5">{proximo.musicas?.length || 0} música(s) no repertório</p>
-            </>
+            ))}
+          </div>
+          {musica.youtubeUrl && (
+            <div className="aspect-video rounded-2xl overflow-hidden bg-black mt-4">
+              <iframe title={`Referência — ${musica.titulo}`} src={getEmbedUrl(musica.youtubeUrl)} className="w-full h-full" allowFullScreen />
+            </div>
+          )}
+          {musica.cifra ? (
+            <pre className="mt-5 whitespace-pre-wrap font-mono leading-relaxed pb-40" style={{ fontSize: fonte, color: t.ink }}>{musica.cifra}</pre>
           ) : (
-            <p className="text-sm text-white/90 py-3 text-center">Nenhum culto cadastrado no repertório ainda.</p>
+            <p className="mt-5 text-sm" style={{ color: t.dim }}>Cifra ainda não cadastrada para esta música.</p>
           )}
         </div>
+      </div>
+      <div className="px-3 py-2 flex items-center justify-center gap-2 flex-wrap" style={{ background: t.card, borderTop: `1px solid ${t.line}` }}>
+        <button aria-label="Diminuir letra" onClick={() => setFonte((f) => Math.max(11, f - 2))} className="w-12 h-12 rounded-xl font-bold" style={{ background: t.card2, color: t.ink }}>A−</button>
+        <button aria-label="Aumentar letra" onClick={() => setFonte((f) => Math.min(34, f + 2))} className="w-12 h-12 rounded-xl font-bold text-lg" style={{ background: t.card2, color: t.ink }}>A+</button>
+        <button onClick={() => setRolando((v) => !v)} className="h-12 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2" style={{ background: t.accent, color: t.onAccent }}>{rolando ? <Pause size={16} /> : <Play size={16} />} Rolagem</button>
+        <button aria-label="Rolagem mais lenta" onClick={() => setVel((v) => Math.max(1, v - 1))} className="w-12 h-12 rounded-xl" style={{ background: t.card2, color: t.ink }}><Minus size={16} className="mx-auto" /></button>
+        <span className="text-xs font-mono w-6 text-center" style={{ color: t.dim }}>{vel}x</span>
+        <button aria-label="Rolagem mais rápida" onClick={() => setVel((v) => Math.min(8, v + 1))} className="w-12 h-12 rounded-xl" style={{ background: t.card2, color: t.ink }}><Plus size={16} className="mx-auto" /></button>
+      </div>
+    </div>
+  );
+}
 
-        <div className="grid grid-cols-2 gap-3 mt-5">
-          <button
-            onClick={() => painelRef.current?.scrollIntoView({ behavior: "smooth" })}
-            className="flex flex-col items-start gap-2 rounded-2xl p-4 shadow-sm"
-            style={{ background: AM.card }}
-          >
-            <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: AM.accent }}><Library size={18} /></span>
-            <span className="text-sm font-semibold" style={{ color: AM.ink }}>Repertório, músicos e álbuns</span>
+const AM_MUSICA_VAZIA = { titulo: "", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: "" };
+function AmAcervo({ t, dados, salvar, lider, repertorio, escuro }) {
+  const [busca, setBusca] = useState("");
+  const [aberta, setAberta] = useState(null);
+  const [form, setForm] = useState(null); // null | objeto em edição
+  // Músicas do repertório antigo (por culto) entram no acervo só para consulta.
+  const doAcervo = dados.acervo || [];
+  const titulos = new Set(doAcervo.map((m) => semAcento(m.titulo).trim()));
+  const antigas = [];
+  (repertorio || []).forEach((c) => (c.musicas || []).forEach((m) => {
+    const k = semAcento(m.titulo).trim();
+    if (k && !titulos.has(k)) { titulos.add(k); antigas.push({ id: "rep-" + m.id, titulo: m.titulo, tomIgreja: m.tom || "", tomOriginal: "", bpm: "", youtubeUrl: m.youtubeUrl || "", cifra: m.cifra || m.letra || "", doRepertorio: true }); }
+  }));
+  const todas = [...doAcervo, ...antigas].sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
+  const filtradas = todas.filter((m) => semAcento(m.titulo).includes(semAcento(busca)));
+  const gravar = () => {
+    if (!form.titulo.trim()) return;
+    const limpo = { ...form, titulo: form.titulo.trim() }; delete limpo.doRepertorio;
+    const existe = doAcervo.some((m) => m.id === form.id);
+    salvar({ ...dados, acervo: existe ? doAcervo.map((m) => (m.id === form.id ? limpo : m)) : [...doAcervo, { ...limpo, id: uid() }] });
+    setForm(null);
+  };
+  const excluir = (id) => salvar({ ...dados, acervo: doAcervo.filter((m) => m.id !== id), eventos: (dados.eventos || []).map((e) => ({ ...e, musicas: (e.musicas || []).filter((x) => x !== id) })) });
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Acervo de louvores</p>
+        {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MUSICA_VAZIA })}><Plus size={16} /> Nova</AmBotao>}
+      </div>
+      <AmInput t={t} placeholder="Pesquisar música..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+      {form && (
+        <AmCard t={t}>
+          <p className="font-display font-bold mb-3" style={{ color: t.ink }}>{doAcervo.some((m) => m.id === form.id) ? "Editar música" : "Nova música"}</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2"><AmInput t={t} placeholder="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} /></div>
+            <AmInput t={t} placeholder="Tom da igreja (ex: G)" value={form.tomIgreja} onChange={(e) => setForm({ ...form, tomIgreja: e.target.value })} />
+            <AmInput t={t} placeholder="Tom original (ex: A)" value={form.tomOriginal} onChange={(e) => setForm({ ...form, tomOriginal: e.target.value })} />
+            <AmInput t={t} placeholder="BPM (ex: 72)" inputMode="numeric" value={form.bpm} onChange={(e) => setForm({ ...form, bpm: e.target.value })} />
+            <AmInput t={t} placeholder="Link do YouTube (referência de arranjo)" value={form.youtubeUrl} onChange={(e) => setForm({ ...form, youtubeUrl: e.target.value })} />
+            <div className="sm:col-span-2">
+              <textarea rows={10} placeholder="Cifra (cole aqui, com os acordes sobre a letra)" value={form.cifra} onChange={(e) => setForm({ ...form, cifra: e.target.value })} className="w-full rounded-xl p-3 text-sm font-mono focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <AmBotao t={t} onClick={gravar}><Save size={16} /> Salvar</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => setForm(null)}>Cancelar</AmBotao>
+          </div>
+        </AmCard>
+      )}
+      {filtradas.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>{todas.length === 0 ? "Nenhuma música no acervo ainda." : "Nenhuma música encontrada."}</p></AmCard>}
+      <div className="space-y-2">
+        {filtradas.map((m) => (
+          <div key={m.id} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+            <button onClick={() => setAberta(m)} className="flex-1 text-left p-4 min-h-[64px] focus:outline-none focus:ring-2">
+              <p className="font-semibold" style={{ color: t.ink }}>{m.titulo}</p>
+              <p className="text-xs mt-0.5" style={{ color: t.dim }}>
+                {m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.youtubeUrl ? " · vídeo" : ""}
+              </p>
+            </button>
+            {lider && (
+              <div className="flex items-center gap-1 pr-2">
+                <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
+                {!m.doRepertorio && <button aria-label="Excluir" onClick={() => excluir(m.id)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {aberta && <AmCifra musica={aberta} onFechar={() => setAberta(null)} escuroInicial={escuro} />}
+    </div>
+  );
+}
+
+/* ---------- C) Gestão de escalas (líder) ---------- */
+function AmEscalas({ t, dados, salvar }) {
+  const hoje = new Date();
+  const [mes, setMes] = useState({ a: hoje.getFullYear(), m: hoje.getMonth() });
+  const [dia, setDia] = useState(null); // "AAAA-MM-DD"
+  const [novo, setNovo] = useState({ tipo: "Culto", titulo: "", hora: "" });
+  const [addMusico, setAddMusico] = useState({});
+  const eventos = dados.eventos || [];
+  const iso = (d) => `${mes.a}-${String(mes.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const primeiro = new Date(mes.a, mes.m, 1).getDay();
+  const nDias = new Date(mes.a, mes.m + 1, 0).getDate();
+  const nomeMes = new Date(mes.a, mes.m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const mudar = (delta) => { const d = new Date(mes.a, mes.m + delta, 1); setMes({ a: d.getFullYear(), m: d.getMonth() }); setDia(null); };
+  const upd = (id, patch) => salvar({ ...dados, eventos: eventos.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
+  const criar = () => {
+    if (!dia) return;
+    salvar({ ...dados, eventos: [...eventos, { id: uid(), tipo: novo.tipo, titulo: novo.titulo.trim() || novo.tipo, data: dia, hora: novo.hora, escalados: [], musicas: [] }] });
+    setNovo({ tipo: "Culto", titulo: "", hora: "" });
+  };
+  const excluir = (id) => salvar({ ...dados, eventos: eventos.filter((e) => e.id !== id), disponibilidade: (dados.disponibilidade || []).filter((d) => d.eventoId !== id) });
+  const doDia = dia ? eventos.filter((e) => e.data === dia) : [];
+  const ativos = (dados.acessos || []).filter((a) => a.ativo !== false);
+  const disp = (evId, mid) => (dados.disponibilidade || []).find((d) => d.eventoId === evId && d.musicoId === mid);
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Escalas</p>
+      <AmCard t={t}>
+        <div className="flex items-center justify-between">
+          <button aria-label="Mês anterior" onClick={() => mudar(-1)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><ChevronLeft size={18} /></button>
+          <p className="font-display font-bold capitalize" style={{ color: t.ink }}>{nomeMes}</p>
+          <button aria-label="Próximo mês" onClick={() => mudar(1)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><ChevronRight size={18} /></button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 mt-3 text-center">
+          {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <span key={i} className="text-[10px] font-bold" style={{ color: t.dim }}>{d}</span>)}
+          {Array.from({ length: primeiro }).map((_, i) => <span key={"v" + i} />)}
+          {Array.from({ length: nDias }).map((_, i) => {
+            const d = i + 1; const k = iso(d); const n = eventos.filter((e) => e.data === k).length; const sel = dia === k;
+            return (
+              <button key={k} onClick={() => setDia(k)} className="aspect-square rounded-xl text-sm font-semibold flex flex-col items-center justify-center" style={{ background: sel ? t.accent : n ? t.card2 : "transparent", color: sel ? t.onAccent : t.ink, border: `1px solid ${t.line}` }}>
+                {d}
+                {n > 0 && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: sel ? t.onAccent : t.accent }} />}
+              </button>
+            );
+          })}
+        </div>
+      </AmCard>
+
+      {!dia && <p className="text-sm" style={{ color: t.dim }}>Toque em um dia do calendário para ver ou criar eventos.</p>}
+      {dia && (
+        <AmCard t={t}>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Novo evento em {fmtDate(dia)}</p>
+          <div className="grid sm:grid-cols-3 gap-2 mt-3">
+            <AmSelect t={t} value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>{AM_TIPOS_EVENTO.map((x) => <option key={x}>{x}</option>)}</AmSelect>
+            <AmInput t={t} placeholder="Nome (ex: Culto de Domingo)" value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} />
+            <AmInput t={t} type="time" value={novo.hora} onChange={(e) => setNovo({ ...novo, hora: e.target.value })} />
+          </div>
+          <AmBotao t={t} className="mt-3" onClick={criar}><Plus size={16} /> Criar evento</AmBotao>
+        </AmCard>
+      )}
+
+      {doDia.map((ev) => {
+        const sel = addMusico[ev.id] || { musicoId: "", instrumento: "" };
+        const livres = ativos.filter((a) => !(ev.escalados || []).some((x) => x.musicoId === a.id));
+        const musLivres = (dados.acervo || []).filter((m) => !(ev.musicas || []).includes(m.id));
+        return (
+          <AmCard t={t} key={ev.id}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-display font-bold text-lg" style={{ color: t.ink }}>{ev.titulo}</p>
+                <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}</p>
+              </div>
+              <button aria-label="Excluir evento" onClick={() => excluir(ev.id)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+            </div>
+
+            <p className="text-xs font-bold uppercase tracking-wide mt-4" style={{ color: t.dim }}>Músicos</p>
+            <div className="mt-2 space-y-1.5">
+              {(ev.escalados || []).length === 0 && <p className="text-sm" style={{ color: t.dim }}>Ninguém escalado ainda.</p>}
+              {(ev.escalados || []).map((x) => {
+                const a = (dados.acessos || []).find((y) => y.id === x.musicoId); const d = disp(ev.id, x.musicoId);
+                return (
+                  <div key={x.musicoId} className="rounded-xl px-3 py-2 flex items-center justify-between gap-2" style={{ background: t.card2 }}>
+                    <span className="text-sm" style={{ color: t.ink }}><b>{x.instrumento || "—"}</b> · {a ? a.nome : "(removido)"}{d ? (d.pode ? " · confirmou" : " · avisou que não pode") : ""}</span>
+                    <button aria-label="Tirar da escala" onClick={() => upd(ev.id, { escalados: ev.escalados.filter((y) => y.musicoId !== x.musicoId) })} style={{ color: "#D0473A" }}><X size={16} /></button>
+                  </div>
+                );
+              })}
+            </div>
+            {livres.length > 0 && (
+              <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 mt-2">
+                <AmSelect t={t} value={sel.musicoId} onChange={(e) => { const a = ativos.find((y) => y.id === e.target.value); setAddMusico({ ...addMusico, [ev.id]: { musicoId: e.target.value, instrumento: a ? a.instrumento || "" : "" } }); }}>
+                  <option value="">Escolher músico...</option>
+                  {livres.map((a) => { const d = disp(ev.id, a.id); return <option key={a.id} value={a.id}>{a.nome}{a.instrumento ? ` (${a.instrumento})` : ""}{d ? (d.pode ? " — disponível" : " — NÃO pode") : ""}</option>; })}
+                </AmSelect>
+                <AmInput t={t} placeholder="Instrumento neste evento" value={sel.instrumento} onChange={(e) => setAddMusico({ ...addMusico, [ev.id]: { ...sel, instrumento: e.target.value } })} />
+                <AmBotao t={t} onClick={() => { if (!sel.musicoId) return; upd(ev.id, { escalados: [...(ev.escalados || []), { musicoId: sel.musicoId, instrumento: sel.instrumento }] }); setAddMusico({ ...addMusico, [ev.id]: { musicoId: "", instrumento: "" } }); }}><Plus size={16} /> Escalar</AmBotao>
+              </div>
+            )}
+            {ativos.length === 0 && <p className="text-xs mt-2" style={{ color: t.dim }}>Cadastre os músicos na aba Equipe para poder escalar.</p>}
+
+            <p className="text-xs font-bold uppercase tracking-wide mt-5" style={{ color: t.dim }}>Músicas do evento</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(ev.musicas || []).length === 0 && <p className="text-sm" style={{ color: t.dim }}>Nenhuma música escolhida.</p>}
+              {(ev.musicas || []).map((id) => { const m = (dados.acervo || []).find((y) => y.id === id); return (
+                <span key={id} className="text-xs rounded-full pl-3 pr-1 py-1 inline-flex items-center gap-1" style={{ background: t.card2, color: t.ink }}>
+                  {m ? m.titulo : "(removida)"}{m && m.tomIgreja ? ` (${m.tomIgreja})` : ""}
+                  <button aria-label="Tirar música" onClick={() => upd(ev.id, { musicas: ev.musicas.filter((y) => y !== id) })} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ color: "#D0473A" }}><X size={13} /></button>
+                </span>
+              ); })}
+            </div>
+            {musLivres.length > 0 && (
+              <div className="mt-2">
+                <AmSelect t={t} value="" onChange={(e) => e.target.value && upd(ev.id, { musicas: [...(ev.musicas || []), e.target.value] })}>
+                  <option value="">Adicionar música do acervo...</option>
+                  {musLivres.map((m) => <option key={m.id} value={m.id}>{m.titulo}</option>)}
+                </AmSelect>
+              </div>
+            )}
+          </AmCard>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Equipe: o líder gera o código de acesso de cada músico ---------- */
+function AmEquipe({ t, dados, salvar }) {
+  const [f, setF] = useState({ nome: "", instrumento: "", email: "" });
+  const [copiado, setCopiado] = useState("");
+  const acessos = dados.acessos || [];
+  const criar = () => {
+    if (!f.nome.trim()) return;
+    let codigo = amGerarCodigo();
+    while (acessos.some((a) => a.codigo === codigo)) codigo = amGerarCodigo();
+    salvar({ ...dados, acessos: [...acessos, { id: uid(), nome: f.nome.trim(), instrumento: f.instrumento.trim(), email: f.email.trim(), codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString() }] });
+    setF({ nome: "", instrumento: "", email: "" });
+  };
+  const upd = (id, patch) => salvar({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
+  const excluir = (id) => salvar({ ...dados, acessos: acessos.filter((a) => a.id !== id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== id) });
+  const copiar = (c) => { try { navigator.clipboard.writeText(c); } catch (e) { /* sem área de transferência */ } setCopiado(c); };
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Equipe e códigos de acesso</p>
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Novo músico</p>
+        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Ao salvar, o sistema gera um código único. Entregue o código ao músico: no primeiro acesso ele cria a própria senha.</p>
+        <div className="grid sm:grid-cols-3 gap-2 mt-3">
+          <AmInput t={t} placeholder="Nome" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+          <AmInput t={t} placeholder="Instrumento principal" value={f.instrumento} onChange={(e) => setF({ ...f, instrumento: e.target.value })} />
+          <AmInput t={t} type="email" placeholder="E-mail (opcional)" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        </div>
+        <AmBotao t={t} className="mt-3" onClick={criar}><KeyRound size={16} /> Gerar código de acesso</AmBotao>
+      </AmCard>
+      {acessos.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>Nenhum músico com acesso ainda.</p></AmCard>}
+      {acessos.map((a) => (
+        <AmCard t={t} key={a.id}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold" style={{ color: t.ink }}>{a.nome}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{a.email ? ` · ${a.email}` : ""}</p>
+              <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
+            </div>
+            <button aria-label="Excluir músico" onClick={() => excluir(a.id)} className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
+            {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" })}>Zerar senha</AmBotao>}
+            <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false })}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
+          </div>
+        </AmCard>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- D) Patrimônio (líder) ---------- */
+function AmPatrimonio({ t, dados, salvar }) {
+  const [f, setF] = useState({ nome: "", status: "Operacional", obs: "" });
+  const [edit, setEdit] = useState(null);
+  const itens = dados.patrimonio || [];
+  const cor = (s) => (s === "Operacional" ? "#2E7D4F" : s === "Defeito" ? "#B03428" : "#B7791F");
+  const criar = () => { if (!f.nome.trim()) return; salvar({ ...dados, patrimonio: [...itens, { id: uid(), nome: f.nome.trim(), status: f.status, obs: f.obs.trim() }] }); setF({ nome: "", status: "Operacional", obs: "" }); };
+  const upd = (id, patch) => salvar({ ...dados, patrimonio: itens.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Patrimônio</p>
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Novo item</p>
+        <div className="grid sm:grid-cols-3 gap-2 mt-3">
+          <AmInput t={t} placeholder="Item (ex: Bateria, Violão, Cabos)" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+          <AmSelect t={t} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{AM_STATUS_PATRIMONIO.map((s) => <option key={s}>{s}</option>)}</AmSelect>
+          <AmInput t={t} placeholder="Observação (opcional)" value={f.obs} onChange={(e) => setF({ ...f, obs: e.target.value })} />
+        </div>
+        <AmBotao t={t} className="mt-3" onClick={criar}><Plus size={16} /> Adicionar</AmBotao>
+      </AmCard>
+      {itens.length === 0 && <AmCard t={t}><p className="text-sm" style={{ color: t.dim }}>Nenhum item cadastrado.</p></AmCard>}
+      {itens.map((i) => (
+        <AmCard t={t} key={i.id}>
+          {edit && edit.id === i.id ? (
+            <div className="space-y-2">
+              <AmInput t={t} value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} />
+              <AmInput t={t} placeholder="Observação" value={edit.obs} onChange={(e) => setEdit({ ...edit, obs: e.target.value })} />
+              <div className="flex gap-2">
+                <AmBotao t={t} onClick={() => { upd(i.id, { nome: edit.nome.trim() || i.nome, obs: edit.obs }); setEdit(null); }}><Save size={16} /> Salvar</AmBotao>
+                <AmBotao t={t} tom="suave" onClick={() => setEdit(null)}>Cancelar</AmBotao>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold" style={{ color: t.ink }}>{i.nome}</p>
+                  {i.obs && <p className="text-xs mt-0.5" style={{ color: t.dim }}>{i.obs}</p>}
+                  <span className="inline-block mt-2 text-xs font-bold rounded-full px-3 py-1 text-white" style={{ background: cor(i.status) }}>{i.status}</span>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button aria-label="Editar" onClick={() => setEdit({ id: i.id, nome: i.nome, obs: i.obs || "" })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
+                  <button aria-label="Excluir" onClick={() => salvar({ ...dados, patrimonio: itens.filter((x) => x.id !== i.id) })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {AM_STATUS_PATRIMONIO.map((s) => (
+                  <button key={s} onClick={() => upd(i.id, { status: s })} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: i.status === s ? cor(s) : t.card2, color: i.status === s ? "#fff" : t.ink }}>{s}</button>
+                ))}
+              </div>
+            </>
+          )}
+        </AmCard>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- E) Estúdio: afinador (tom de referência) + metrônomo ---------- */
+const AM_NOTAS = [["E2", 82.41, "Mi (6ª)"], ["A2", 110.0, "Lá (5ª)"], ["D3", 146.83, "Ré (4ª)"], ["G3", 196.0, "Sol (3ª)"], ["B3", 246.94, "Si (2ª)"], ["E4", 329.63, "Mi (1ª)"], ["A4", 440.0, "Lá 440"]];
+function AmAfinador({ t }) {
+  const [tocando, setTocando] = useState(null);
+  const ctxRef = useRef(null); const oscRef = useRef(null);
+  const parar = () => { try { oscRef.current && oscRef.current.stop(); } catch (e) { /* já parado */ } oscRef.current = null; setTocando(null); };
+  const tocar = (nome, freq) => {
+    if (tocando === nome) { parar(); return; }
+    parar();
+    try {
+      ctxRef.current = ctxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = ctxRef.current; const osc = ctx.createOscillator(); const g = ctx.createGain();
+      osc.type = "sine"; osc.frequency.value = freq; g.gain.value = 0.2;
+      osc.connect(g); g.connect(ctx.destination); osc.start();
+      oscRef.current = osc; setTocando(nome);
+    } catch (e) { /* navegador sem áudio */ }
+  };
+  useEffect(() => () => { try { oscRef.current && oscRef.current.stop(); } catch (e) { /* ok */ } }, []);
+  return (
+    <AmCard t={t}>
+      <p className="font-display font-bold" style={{ color: t.ink }}>Afinador</p>
+      <p className="text-xs mt-0.5" style={{ color: t.dim }}>Toque na nota para ouvir o tom de referência e afine de ouvido. A leitura pelo microfone entra numa próxima versão.</p>
+      <div className="mt-4 mx-auto w-40 h-40 rounded-full flex flex-col items-center justify-center" style={{ border: `6px solid ${tocando ? t.accent : t.line}`, background: t.card2 }}>
+        <p className="font-mono text-4xl font-bold" style={{ color: t.accent }}>{tocando || "—"}</p>
+        <p className="text-xs mt-1" style={{ color: t.dim }}>{tocando ? `${AM_NOTAS.find((n) => n[0] === tocando)[1]} Hz` : "em silêncio"}</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2 mt-4">
+        {AM_NOTAS.map(([n, f, r]) => (
+          <button key={n} onClick={() => tocar(n, f)} className="min-h-[56px] rounded-xl flex flex-col items-center justify-center" style={{ background: tocando === n ? t.accent : t.card2, color: tocando === n ? t.onAccent : t.ink }}>
+            <span className="font-mono font-bold">{n}</span><span className="text-[10px]">{r}</span>
           </button>
-          <button onClick={() => setMetronomoAberto(true)} className="flex flex-col items-start gap-2 rounded-2xl p-4 shadow-sm" style={{ background: AM.card }}>
-            <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: AM.accent }}><Settings2 size={18} /></span>
-            <span className="text-sm font-semibold" style={{ color: AM.ink }}>Estúdio — Metrônomo</span>
-          </button>
+        ))}
+      </div>
+    </AmCard>
+  );
+}
+function AmMetronomo({ t }) {
+  const [bpm, setBpm] = useState(96);
+  const [tocando, setTocando] = useState(false);
+  const [batida, setBatida] = useState(-1);
+  const ctxRef = useRef(null);
+  useEffect(() => {
+    if (!tocando) { setBatida(-1); return undefined; }
+    let b = -1;
+    const tick = () => {
+      b = (b + 1) % 4; setBatida(b);
+      try {
+        ctxRef.current = ctxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = ctxRef.current; const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.frequency.value = b === 0 ? 1200 : 880;
+        g.gain.setValueAtTime(0.18, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.08);
+      } catch (e) { /* só visual */ }
+    };
+    tick();
+    const id = setInterval(tick, 60000 / bpm);
+    return () => clearInterval(id);
+  }, [tocando, bpm]);
+  return (
+    <AmCard t={t}>
+      <p className="font-display font-bold" style={{ color: t.ink }}>Metrônomo</p>
+      <p className="text-center font-mono text-6xl font-bold tabular-nums mt-3" style={{ color: t.accent }}>{bpm}</p>
+      <p className="text-center text-xs" style={{ color: t.dim }}>BPM</p>
+      <input aria-label="BPM" type="range" min="40" max="220" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="w-full mt-3" />
+      <div className="flex items-center justify-center gap-3 mt-3">
+        <button aria-label="Menos 1 BPM" onClick={() => setBpm((v) => Math.max(40, v - 1))} className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Minus size={20} /></button>
+        <button aria-label={tocando ? "Pausar" : "Tocar"} onClick={() => setTocando((v) => !v)} className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: t.accent, color: t.onAccent }}>{tocando ? <Pause size={30} /> : <Play size={30} />}</button>
+        <button aria-label="Mais 1 BPM" onClick={() => setBpm((v) => Math.min(220, v + 1))} className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Plus size={20} /></button>
+      </div>
+      <div className="flex justify-center gap-3 mt-4">
+        {[0, 1, 2, 3].map((i) => <span key={i} className="w-5 h-5 rounded-full transition" style={{ background: batida === i ? t.accent : t.card2, transform: batida === i ? "scale(1.35)" : "scale(1)" }} />)}
+      </div>
+    </AmCard>
+  );
+}
+
+/* ---------- Casca do mini-app ---------- */
+function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider }) {
+  const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
+  const lider = adminMode || operatorMode;
+  const [escuro, setEscuro] = useState(false);
+  const [tela, setTela] = useState("inicio");
+  const [sessaoId, setSessaoId] = useState(() => { try { return sessionStorage.getItem("am-sessao") || ""; } catch (e) { return ""; } });
+  const entrar = (id) => { setSessaoId(id); try { sessionStorage.setItem("am-sessao", id); } catch (e) { /* sem storage */ } };
+  const sair = () => { setSessaoId(""); setTela("inicio"); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } };
+  const musico = (dados.acessos || []).find((a) => a.id === sessaoId && a.ativo !== false) || null;
+  const logado = lider || !!musico;
+  const t = amTema(escuro);
+  const abas = [
+    { k: "inicio", r: "Início", i: HomeIcon },
+    { k: "acervo", r: "Acervo", i: Library },
+    ...(lider ? [{ k: "escalas", r: "Escalas", i: Calendar }, { k: "equipe", r: "Equipe", i: Users }, { k: "patrimonio", r: "Patrimônio", i: Package }] : []),
+    { k: "estudio", r: "Estúdio", i: Settings2 },
+    { k: "grupo", r: "Grupo", i: Music },
+  ];
+  return (
+    <div className="min-h-screen font-body pb-24" style={{ background: t.bg, color: t.ink }}>
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 sm:px-8 py-2.5" style={{ background: "#4A1270" }}>
+        <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> Voltar ao site</button>
+        <div className="flex items-center gap-2">
+          <Music size={17} color="#E8C875" />
+          <span className="font-display text-sm font-bold text-white hidden sm:inline">Avivar Music</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
+          {musico && !lider && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
         </div>
       </div>
 
-      {/* Conteúdo já existente (músicos, álbuns, repertório) — reaproveitado tal como já
-          funcionava, só reposicionado pra baixo da nova dobra inicial. */}
-      <div ref={painelRef} style={{ background: C.parchment }}>
-        <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
-      </div>
+      {!logado ? (
+        <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />
+      ) : (
+        <div className="mx-auto max-w-3xl px-4 sm:px-8 pt-6">
+          {tela === "inicio" && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={lider} irPara={setTela} />}
+          {tela === "acervo" && <AmAcervo t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} />}
+          {tela === "escalas" && lider && <AmEscalas t={t} dados={dados} salvar={saveMusicApp} />}
+          {tela === "equipe" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} />}
+          {tela === "patrimonio" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
+          {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
+          {tela === "grupo" && (
+            <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
+              <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
+            </div>
+          )}
+        </div>
+      )}
 
-      {metronomoAberto && <MetronomoEstudio onFechar={() => setMetronomoAberto(false)} />}
+      {logado && (
+        <nav className="fixed bottom-0 inset-x-0 z-40 flex overflow-x-auto" style={{ background: t.card, borderTop: `1px solid ${t.line}` }}>
+          {abas.map((a) => (
+            <button key={a.k} onClick={() => setTela(a.k)} className="flex-1 min-w-[68px] min-h-[60px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold focus:outline-none" style={{ color: tela === a.k ? t.accent : t.dim }}>
+              <a.i size={20} />{a.r}
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
@@ -7053,6 +7655,7 @@ export default function App() {
   const [repertorio, setRepertorio] = useState([]);
   const [musicos, setMusicos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
+  const [musicApp, setMusicApp] = useState(DEFAULT_MUSICAPP);
   const [escala, setEscala] = useState(DEFAULT_ESCALA_OBREIROS);
   const [biblioteca, setBiblioteca] = useState([]);
   const [manchete, setManchete] = useState(DEFAULT_MANCHETE);
@@ -7138,6 +7741,7 @@ export default function App() {
       setRepertorio(await loadKey("avivar:repertorio", []));
       setMusicos(await loadKey("avivar:musicos", []));
       setAlbuns(await loadKey("avivar:albuns", []));
+      setMusicApp(await loadKey("avivar:musicapp", DEFAULT_MUSICAPP));
       setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
       setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
       setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
@@ -8517,6 +9121,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
     albuns: (v) => { setAlbuns(v); saveKey("avivar:albuns", v); },
+    musicApp: (v) => { setMusicApp(v); saveKey("avivar:musicapp", v); },
     escala: (v) => { setEscala(v); saveKey("avivar:escalaObreiros", v); },
     manchete: (v) => { setManchete(v); saveKey("avivar:manchete", v); },
     pedidosOracao: (v) => { setPedidosOracao(v); saveKey("avivar:pedidosOracao", v); },
@@ -8648,6 +9253,18 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         albuns={albuns} saveAlbuns={persist.albuns}
         adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)}
         onVoltar={() => setPaginaAvivarMusicOpen(false)}
+        musicApp={musicApp} saveMusicApp={persist.musicApp}
+        tentarCodigoLider={(codigo) => {
+          const digitado = String(codigo || "").trim().toLowerCase();
+          if (!digitado) return false;
+          if (String(codigo).trim() === MASTER_ADMIN_PASSWORD) { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
+          const m = operatorCodes.find((o) => String(o.codigo || "").trim().toLowerCase() === digitado);
+          if (!m) return false;
+          const setores = parseSetoresOperador(m.setores);
+          if (!setores.includes("todos") && !setores.includes("avivarmusic")) return false;
+          setOperatorAuth({ nome: m.nome, setores });
+          return true;
+        }}
       />
     );
   }
@@ -8696,19 +9313,19 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
 
       <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} forumPosts={forumPosts} addForumPost={(p) => persist.forum([...forumPosts, p])} /></section>
-        <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
+        <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="loja" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
         <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} kidsItems={avivarKids} saveKids={persist.avivarKids} lideranca={lideranca} saveLideranca={persist.lideranca} /></section>
-        <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="escala" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="visitantes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
+        <section id="visitantes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
-        <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
         <section id="operadores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
