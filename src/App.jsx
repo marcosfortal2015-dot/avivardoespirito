@@ -833,7 +833,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           {open ? <X /> : <Menu />}
         </button>
       </div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end justify-between gap-3 py-3">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end justify-between gap-3 pt-3 pb-1">
         <div className="flex items-end gap-3">
           <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
             <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
@@ -855,20 +855,16 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </div>
       </div>
 
-      {/* Fileira de cima: o botão RESTRITO agora fica em posição absoluta, preso à
-          mesma margem esquerda da logo lá em cima (não importa se o texto muda entre
-          "RESTRITO" e "SAIR DO ADMIN", a posição não se move). Um bloco invisível,
-          do mesmo tamanho exato da logo+nome lá em cima, empurra os pills do NAV
-          pra começarem exatamente alinhados com o ícone da loja. */}
-      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5 relative" style={{ background: C.violetDeep }}>
-        <button
-          onClick={onAdminClick}
-          className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
-          style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
-        >
-          {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
-          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
-        </button>
+      {/* Fileira de cima (NAV): sobe logo abaixo da logo (menos respiro que antes) e
+          começa com um bloco invisível do MESMO tamanho da logo+nome lá em cima —
+          isso empurra o RESTRITO pra pousar exatamente onde o ícone da loja está, e
+          os pills do NAV vêm na sequência, já depois do ícone. Como a fileira de
+          baixo usa o mesmo truque (bloco invisível + um clone invisível do RESTRITO,
+          do mesmo tamanho), "Início" cai alinhado em cima de "Escala", e como as
+          duas listas de pills terminam encostadas na mesma borda direita, "Contato"
+          cai alinhado em cima de "Visitantes". Todos os pills desta fileira ficam
+          vermelhos, a pedido do Marcos. */}
+      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 pt-0.5 pb-1.5" style={{ background: C.violetDeep }}>
         <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3 rounded-md p-1" style={{ height: 0, overflow: "hidden" }}>
           <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
           <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
@@ -877,11 +873,14 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <span className="block">Espírito</span>
           </span>
         </div>
-        {/* flex-1 + justify-between: o 1º pill (Início) fica logo após o bloco
-            invisível (ou seja, alinhado com o ícone da loja), e o último (Doações)
-            encosta na borda direita — mesma borda da barra de baixo, então os dois
-            últimos botões das duas fileiras ficam sempre alinhados. Todos os pills
-            desta fileira agora ficam vermelhos, a pedido do Marcos. */}
+        <button
+          onClick={onAdminClick}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
+          style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
+        >
+          {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
+          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
+        </button>
         <nav className="flex-1 flex items-center justify-between">
           {NAV.map((n) => (
             <button
@@ -896,12 +895,28 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </nav>
       </div>
 
-      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas). O
-          espaçador invisível do RESTRITO foi removido: agora o grupo de pills começa
-          direto na margem da própria linha (px-4/px-6), que é a MESMA posição do
-          botão RESTRITO (também preso a essa margem) — assim "Escala" cai alinhado
-          embaixo do RESTRITO, igual pedido. Cores e estilo desta fileira não mudam. */}
-      <div className="hidden lg:flex items-center gap-4 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas). Usa
+          o MESMO bloco invisível (logo+nome) da fileira de cima, seguido de um
+          clone invisível do RESTRITO (mesmo tamanho) — assim o grupo de pills começa
+          exatamente no mesmo x onde o RESTRITO real começa, e "Escala" cai alinhado
+          embaixo de "Início". Cores e estilo desta fileira não mudam. */}
+      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
+        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3 rounded-md p-1" style={{ height: 0, overflow: "hidden" }}>
+          <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
+          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
+            <span className="block">Avivar</span>
+            <span className="block">do</span>
+            <span className="block">Espírito</span>
+          </span>
+        </div>
+        <button
+          aria-hidden="true"
+          tabIndex={-1}
+          className="invisible shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide"
+        >
+          <Lock size={13} />
+          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
+        </button>
         <div className="flex-1 flex items-center justify-between">
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
