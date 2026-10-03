@@ -93,6 +93,10 @@ const CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES = "/76-codigos-artigo-refidim-maos-mois
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+// Compara nomes ignorando acento e maiúscula/minúscula — usado pra achar o
+// Pastor Marcos e a Pastora Wládia entre os colaboradores sem depender de
+// como o nome foi digitado.
+const semAcento = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const nowISO = () => new Date().toISOString();
 const fmtDateTime = (iso) => {
   const d = new Date(iso);
@@ -655,7 +659,9 @@ const NAV = [
   { key: "aovivo", label: "Avivar News TV", icon: Tv, red: true },
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
   { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen, red: true },
-  { key: "contato", label: "Contato", icon: Mail },
+  // Era "Contato" — como já existe o botão de WhatsApp pra isso, virou atalho
+  // direto pra seção das Células Avivar (dentro da Home), a pedido do Marcos.
+  { key: "celulas", label: "Células Avivar", icon: Layers },
 ];
 // "Escala" primeiro (pra alinhar embaixo de "Início", o 1º botão da barra de
 // cima — ver o espaçador invisível na NavBar); "Biblioteca" (nome encurtado) e
@@ -823,6 +829,13 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     color: "#fff",
     border: `1px solid ${active ? C.goldBright : "#ffffff80"}`,
   });
+  // Botões do menu no celular — fundo branco, letra preta, a pedido do Marcos
+  // (diferente do estilo "pill" roxo/transparente usado no menu de telas grandes).
+  const mobilePillStyle = (active) => ({
+    background: "#fff",
+    color: "#000",
+    border: `1px solid ${active ? C.gold : "#00000022"}`,
+  });
   return (
     <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
       {/* Toggle mobile — fora do fluxo do grupo alinhado de pills, para não empurrar o
@@ -855,24 +868,16 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </div>
       </div>
 
-      {/* Fileira de cima (NAV): sobe logo abaixo da logo (menos respiro que antes) e
-          começa com um bloco invisível do MESMO tamanho da logo+nome lá em cima —
-          isso empurra o RESTRITO pra pousar exatamente onde o ícone da loja está, e
-          os pills do NAV vêm na sequência, já depois do ícone. Como a fileira de
-          baixo usa o mesmo truque (bloco invisível + um clone invisível do RESTRITO,
-          do mesmo tamanho), "Início" cai alinhado em cima de "Escala", e como as
-          duas listas de pills terminam encostadas na mesma borda direita, "Contato"
-          cai alinhado em cima de "Visitantes". Todos os pills desta fileira ficam
-          vermelhos, a pedido do Marcos. */}
+      {/* Fileira de cima (NAV): sobe logo abaixo da logo (menos respiro que antes). O
+          RESTRITO fica em fluxo normal, preso na mesma margem esquerda da logo (não
+          se move). Logo depois dele vem um bloco invisível — réplica exata da
+          logo+nome +ícone da loja lá em cima — que empurra os pills do NAV pra
+          começarem exatamente depois do ícone, como pedido. A fileira de baixo usa
+          ESSE MESMO bloco invisível (mesma largura), então "Início" cai alinhado
+          em cima de "Escala"; e como as duas listas de pills terminam encostadas na
+          mesma borda direita, "Células Avivar" cai alinhado em cima de "Visitantes".
+          Todos os pills desta fileira ficam vermelhos, a pedido do Marcos. */}
       <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 pt-0.5 pb-1.5" style={{ background: C.violetDeep }}>
-        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3 rounded-md p-1" style={{ height: 0, overflow: "hidden" }}>
-          <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
-          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
-            <span className="block">Avivar</span>
-            <span className="block">do</span>
-            <span className="block">Espírito</span>
-          </span>
-        </div>
         <button
           onClick={onAdminClick}
           className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
@@ -881,6 +886,19 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
           {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
         </button>
+        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3" style={{ height: 0, overflow: "hidden" }}>
+          <span className="flex items-end gap-3 p-1">
+            <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
+            <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
+              <span className="block">Avivar</span>
+              <span className="block">do</span>
+              <span className="block">Espírito</span>
+            </span>
+          </span>
+          <span className="p-1 rounded-full">
+            <ShoppingBag size={28} />
+          </span>
+        </div>
         <nav className="flex-1 flex items-center justify-between">
           {NAV.map((n) => (
             <button
@@ -896,27 +914,24 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
       </div>
 
       {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas). Usa
-          o MESMO bloco invisível (logo+nome) da fileira de cima, seguido de um
-          clone invisível do RESTRITO (mesmo tamanho) — assim o grupo de pills começa
-          exatamente no mesmo x onde o RESTRITO real começa, e "Escala" cai alinhado
-          embaixo de "Início". Cores e estilo desta fileira não mudam. */}
+          o MESMO bloco invisível (logo+nome+ícone) da fileira de cima — sem precisar
+          de um clone do RESTRITO — pra que o grupo de pills comece exatamente no
+          mesmo x que "Início", e "Escala" caia alinhado embaixo dele. Cores e estilo
+          desta fileira não mudam. */}
       <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
-        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3 rounded-md p-1" style={{ height: 0, overflow: "hidden" }}>
-          <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
-          <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
-            <span className="block">Avivar</span>
-            <span className="block">do</span>
-            <span className="block">Espírito</span>
+        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3" style={{ height: 0, overflow: "hidden" }}>
+          <span className="flex items-end gap-3 p-1">
+            <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
+            <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
+              <span className="block">Avivar</span>
+              <span className="block">do</span>
+              <span className="block">Espírito</span>
+            </span>
+          </span>
+          <span className="p-1 rounded-full">
+            <ShoppingBag size={28} />
           </span>
         </div>
-        <button
-          aria-hidden="true"
-          tabIndex={-1}
-          className="invisible shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide"
-        >
-          <Lock size={13} />
-          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
-        </button>
         <div className="flex-1 flex items-center justify-between">
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
@@ -943,12 +958,13 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
 
       {open && (
         <div className="lg:hidden border-t px-3 py-3" style={{ borderColor: C.gold + "33", background: C.black }}>
-          {/* No celular, botões menores e em 2 colunas — cabe mais menu na tela sem
-              precisar rolar tanto pra achar o item que se quer. */}
-          <div className="grid grid-cols-2 gap-1.5">
+          {/* No celular, botões ainda menores, em 2 colunas, fundo branco e letra
+              preta (a pedido do Marcos) — cabe mais menu na tela sem precisar rolar
+              tanto pra achar o item que se quer. */}
+          <div className="grid grid-cols-2 gap-1">
             {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
-              <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-1.5 text-[11px] rounded-full flex items-center gap-1.5 truncate" style={pillStyle(page === n.key)}>
-                {n.icon && <n.icon size={13} className="shrink-0" />} <span className="truncate">{n.label}</span>
+              <button key={n.key} onClick={() => go(n.key)} className="text-left px-1.5 py-1 text-[10px] rounded-full flex items-center gap-1 truncate" style={mobilePillStyle(page === n.key)}>
+                {n.icon && <n.icon size={11} className="shrink-0" />} <span className="truncate">{n.label}</span>
               </button>
             ))}
           </div>
@@ -2037,7 +2053,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
         <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-16">
+      <section id="celulas" className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 scroll-mt-24">
         <Eyebrow><Layers size={12} className="inline mr-1" />Comunhão em pequenos grupos</Eyebrow>
         <SectionTitle>Células Avivar</SectionTitle>
         {celulas && celulas.coordenador && (
@@ -5043,7 +5059,10 @@ const DEFAULT_LIDERANCA = {
 function LiderancaCard({ pessoa, onChange, adminMode }) {
   return (
     <div className="rounded-xl border-2 overflow-hidden flex flex-col sm:flex-row" style={{ borderColor: C.gold, background: "#fff" }}>
-      <ImgOrPlaceholder url={pessoa.fotoUrl} alt={pessoa.nome} className="w-full sm:w-40 h-56 sm:h-auto object-contain bg-[#F1E7D3] p-2 shrink-0" ph={pessoa.nome} />
+      {/* Altura fixa em todas as telas (não só no celular) — garante que a foto do
+          Pastor Marcos e da Pastora Wládia fiquem sempre do MESMO tamanho, não
+          importa se o texto ao lado de cada um tem um tamanho diferente. */}
+      <ImgOrPlaceholder url={pessoa.fotoUrl} alt={pessoa.nome} className="w-full sm:w-40 h-56 object-contain bg-[#F1E7D3] p-2 shrink-0" ph={pessoa.nome} />
       <div className="p-4 flex items-center">
         <p className="text-sm leading-relaxed" style={{ color: C.ink }}>{pessoa.texto}</p>
       </div>
@@ -5110,10 +5129,15 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
   const add = (v) => save([...items, { id: uid(), ...v }]);
   const del = (id) => save(items.filter((i) => i.id !== id));
   const porNome = (a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+  // Pastor Marcos e Pastora Wládia ficam SÓ no bloco de destaque no topo (Lideranca
+  // Destaque) — nunca na lista comum de colaboradores, mesmo que sejam recadastrados
+  // de novo por engano. Esse filtro roda toda vez que a tela é montada (não só uma
+  // vez, como o seed de migração), então eles nunca voltam a aparecer duplicados.
+  const semLideranca = items.filter((i) => !semAcento(i.nome).includes("marcos") && !semAcento(i.nome).includes("wladia"));
   // Lista separada em dois grupos, pedido do Marcos: os colaboradores que já
   // existiam (sem a marca "novo") primeiro, e os recém-cadastrados depois.
-  const antigos = items.filter((i) => i.grupo !== "novo").sort(porNome);
-  const novos = items.filter((i) => i.grupo === "novo").sort(porNome);
+  const antigos = semLideranca.filter((i) => i.grupo !== "novo").sort(porNome);
+  const novos = semLideranca.filter((i) => i.grupo === "novo").sort(porNome);
 
   const addKid = (v) => saveKids([...(kidsItems || []), { id: uid(), ...v }]);
   const delKid = (id) => saveKids((kidsItems || []).filter((i) => i.id !== id));
@@ -5126,7 +5150,7 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
 
       <LiderancaDestaque data={lideranca} save={saveLideranca} adminMode={adminMode} />
 
-      {items.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
+      {semLideranca.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
       {antigos.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
           {antigos.map((c) => (
@@ -8182,7 +8206,6 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     // feitos pelo próprio admin antes desta atualização, e aproveita a foto
     // que já estava cadastrada neles.
     if (!seeds.liderancaDestaque1) {
-      const semAcento = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
       const marcosEntry = colaboradoresW.find((c) => semAcento(c.nome).includes("marcos"));
       const wladiaEntry = colaboradoresW.find((c) => semAcento(c.nome).includes("wladia"));
       let liderancaNova = { ...DEFAULT_LIDERANCA, ...liderancaW };
