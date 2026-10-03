@@ -2453,6 +2453,73 @@ const CODIGOS_VITRINE_FIELDS = [
 
 // Os 3 níveis de assinatura de Códigos Avivar, na ordem da hierarquia angélica
 // usada (do acesso básico ao mais pleno, mais próximo do "trono").
+/* ================================================================ */
+/* CUPONS DE DESCONTO — Códigos Avivar (módulo portátil)             */
+/* ---------------------------------------------------------------- */
+/* Tudo o que é regra de cupom está aqui, em funções puras, sem React */
+/* e sem depender do resto do site: recebem dados, devolvem dados.    */
+/* Os cupons moram em `codigos.cupons` (JSON simples). Pra levar ao   */
+/* app independente de Códigos Avivar basta copiar este bloco e a     */
+/* lista `cupons`; lá, a validação deve rodar no servidor.            */
+/*                                                                    */
+/* Formato de um cupom:                                               */
+/*   { id, codigo, percentual (100|50|20), limiteUsos (0 = sem        */
+/*     limite), usos, ativo, validade ("AAAA-MM-DD" ou ""), nota,     */
+/*     criadoEm (ISO), resgates: [{ nome, email, plano, data }] }     */
+/* ================================================================ */
+const CUPOM_PERCENTUAIS = [100, 50, 20];
+// Sem 0/O/1/I pra ninguém errar ao digitar.
+const CUPOM_ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const gerarCodigoCupom = (percentual) => {
+  let sufixo = "";
+  for (let i = 0; i < 6; i++) sufixo += CUPOM_ALFABETO[Math.floor(Math.random() * CUPOM_ALFABETO.length)];
+  return `AVIVAR${percentual}-${sufixo}`;
+};
+const novoCupom = ({ percentual, limiteUsos = 1, validade = "", nota = "" }) => ({
+  id: uid(),
+  codigo: gerarCodigoCupom(percentual),
+  percentual: Number(percentual),
+  limiteUsos: Math.max(0, parseInt(limiteUsos, 10) || 0),
+  usos: 0,
+  ativo: true,
+  validade: validade || "",
+  nota: nota || "",
+  criadoEm: new Date().toISOString(),
+  resgates: [],
+});
+const normalizarCodigoCupom = (c) => (c || "").trim().toUpperCase().replace(/\s+/g, "");
+// Devolve { ok, cupom, motivo } — nunca lança erro.
+const validarCupom = (cupons, codigoDigitado, agora = new Date()) => {
+  const codigo = normalizarCodigoCupom(codigoDigitado);
+  if (!codigo) return { ok: false, cupom: null, motivo: "Digite o código do cupom." };
+  const cupom = (cupons || []).find((c) => normalizarCodigoCupom(c.codigo) === codigo);
+  if (!cupom) return { ok: false, cupom: null, motivo: "Cupom não encontrado." };
+  if (!cupom.ativo) return { ok: false, cupom, motivo: "Este cupom foi desativado." };
+  if (cupom.validade && new Date(cupom.validade + "T23:59:59") < agora) return { ok: false, cupom, motivo: "Este cupom já venceu." };
+  if (cupom.limiteUsos > 0 && (cupom.usos || 0) >= cupom.limiteUsos) return { ok: false, cupom, motivo: "Este cupom já foi totalmente utilizado." };
+  return { ok: true, cupom, motivo: "" };
+};
+// Registra um uso e devolve a NOVA lista de cupons (não altera a original).
+const registrarUsoCupom = (cupons, cupomId, resgate) =>
+  (cupons || []).map((c) =>
+    c.id === cupomId ? { ...c, usos: (c.usos || 0) + 1, resgates: [...(c.resgates || []), { ...resgate, data: new Date().toISOString() }] } : c
+  );
+// "R$ 49,90" + 50 -> "R$ 24,95". Devolve "" se o preço ainda não foi definido.
+const aplicarDescontoCupom = (precoTexto, percentual) => {
+  const limpo = String(precoTexto || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const valor = parseFloat(limpo);
+  if (isNaN(valor)) return "";
+  const final = Math.max(0, valor * (1 - Number(percentual) / 100));
+  return "R$ " + final.toFixed(2).replace(".", ",");
+};
+const statusCupom = (c, agora = new Date()) => {
+  if (!c.ativo) return "desativado";
+  if (c.validade && new Date(c.validade + "T23:59:59") < agora) return "vencido";
+  if (c.limiteUsos > 0 && (c.usos || 0) >= c.limiteUsos) return "esgotado";
+  return "ativo";
+};
+/* ===================== fim do módulo de cupons ===================== */
+
 const PLANO_TIERS = [
   { key: "anjo", nome: "Anjo", tagline: "Acesso básico — porta de entrada", gratis: true, icon: Feather, cor: "#9BB6D8" },
   { key: "querubim", nome: "Querubim", tagline: "Acesso intermediário", gratis: false, icon: Gem, cor: C.violet },
@@ -2589,9 +2656,39 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
   const [leadWhats, setLeadWhats] = useState("");
   const [leadPlano, setLeadPlano] = useState("Anjo (grátis)");
   const [leadEnviado, setLeadEnviado] = useState(false);
+  // Cupons de desconto (regras no módulo "CUPONS DE DESCONTO", acima).
+  const [leadCupom, setLeadCupom] = useState("");
+  const [leadCupomErro, setLeadCupomErro] = useState("");
+  const [showCupons, setShowCupons] = useState(false);
+  const [cupomPct, setCupomPct] = useState(100);
+  const [cupomLimite, setCupomLimite] = useState("1");
+  const [cupomValidade, setCupomValidade] = useState("");
+  const [cupomNota, setCupomNota] = useState("");
+  const [cupomCopiado, setCupomCopiado] = useState("");
+  const cupons = data.cupons || [];
+  const cupomCheck = leadCupom.trim() ? validarCupom(cupons, leadCupom) : null;
+  const planoKeyDoLead = leadPlano === "Querubim" ? "querubim" : leadPlano === "Serafim" ? "serafim" : null;
+  const precoPlanoLead = planoKeyDoLead ? ((data.planos || {})[planoKeyDoLead] || {}).precoSemestral : "";
+  const precoComCupom = cupomCheck && cupomCheck.ok && precoPlanoLead ? aplicarDescontoCupom(precoPlanoLead, cupomCheck.cupom.percentual) : "";
+  const criarCupom = () => save({ ...data, cupons: [novoCupom({ percentual: cupomPct, limiteUsos: cupomLimite, validade: cupomValidade, nota: cupomNota }), ...cupons] });
+  const toggleCupom = (id) => save({ ...data, cupons: cupons.map((c) => (c.id === id ? { ...c, ativo: !c.ativo } : c)) });
+  const delCupom = (id) => save({ ...data, cupons: cupons.filter((c) => c.id !== id) });
+  const copiarCupom = (codigo) => {
+    try { navigator.clipboard.writeText(codigo); } catch (e) { /* sem área de transferência */ }
+    setCupomCopiado(codigo);
+  };
 
   const enviarInteresse = () => {
     if (!leadNome.trim() || !leadEmail.trim()) return;
+    let cuponsAtualizados = cupons;
+    let cupomDoLead = null;
+    if (leadCupom.trim()) {
+      const r = validarCupom(cupons, leadCupom);
+      if (!r.ok) { setLeadCupomErro(r.motivo); return; }
+      cupomDoLead = { codigo: r.cupom.codigo, percentual: r.cupom.percentual };
+      cuponsAtualizados = registrarUsoCupom(cupons, r.cupom.id, { nome: leadNome.trim(), email: leadEmail.trim(), plano: leadPlano });
+    }
+    setLeadCupomErro("");
     const novoLead = {
       id: uid(),
       nome: leadNome.trim(),
@@ -2600,9 +2697,10 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
       plano: leadPlano,
       data: new Date().toISOString(),
       contatado: false,
+      cupom: cupomDoLead,
     };
-    save({ ...data, leads: [...(data.leads || []), novoLead] });
-    setLeadNome(""); setLeadEmail(""); setLeadWhats("");
+    save({ ...data, leads: [...(data.leads || []), novoLead], cupons: cuponsAtualizados });
+    setLeadNome(""); setLeadEmail(""); setLeadWhats(""); setLeadCupom("");
     setLeadEnviado(true);
   };
   const toggleLeadContatado = (id) => save({ ...data, leads: (data.leads || []).map((l) => (l.id === id ? { ...l, contatado: !l.contatado } : l)) });
@@ -2718,6 +2816,17 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                       <option>Serafim</option>
                       <option>Ainda não sei — quero saber mais</option>
                     </select>
+                    <input placeholder="Cupom de desconto (se tiver)" value={leadCupom} onChange={(e) => { setLeadCupom(e.target.value); setLeadCupomErro(""); }} className="w-full rounded-md px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2" />
+                    {cupomCheck && cupomCheck.ok && (
+                      <p className="text-xs px-2 py-1.5 rounded-md" style={{ background: "#2E7D4F33", color: "#A9E4BE" }}>
+                        <CheckCircle2 size={12} className="inline mr-1" />
+                        Cupom válido: {cupomCheck.cupom.percentual}% de desconto{cupomCheck.cupom.percentual === 100 ? " — assinatura gratuita" : ""}.
+                        {precoComCupom && cupomCheck.cupom.percentual < 100 ? ` O plano ${leadPlano} sai por ${precoComCupom} / semestre.` : ""}
+                      </p>
+                    )}
+                    {((cupomCheck && !cupomCheck.ok) || leadCupomErro) && (
+                      <p className="text-xs" style={{ color: "#F2A6A6" }}>{leadCupomErro || cupomCheck.motivo}</p>
+                    )}
                     <Btn color={C.goldBright} className="w-full justify-center" onClick={enviarInteresse}>
                       <Send size={14} /> Quero assinar
                     </Btn>
@@ -2743,6 +2852,9 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                 <div className="mt-6 flex flex-col items-center gap-1.5">
                   <button onClick={() => setShowAccessMgmt(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
                     Gerenciar códigos de acesso (admin)
+                  </button>
+                  <button onClick={() => setShowCupons(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
+                    Gerar cupons de desconto (admin) — {cupons.length}
                   </button>
                   <button onClick={() => setShowLeadsAdmin(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
                     Ver interessados em assinar (admin) — {(data.leads || []).length}
@@ -2875,6 +2987,78 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
           </div>
         )}
 
+        {showCupons && adminMode && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
+            <div className="w-full max-w-2xl rounded-xl p-6 max-h-[85vh] overflow-y-auto" style={{ background: C.cream }}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Cupons de desconto — Códigos Avivar</h3>
+                <button onClick={() => setShowCupons(false)}><X size={18} /></button>
+              </div>
+              <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>DESCONTO</p>
+                <div className="flex gap-2">
+                  {CUPOM_PERCENTUAIS.map((pct) => (
+                    <button key={pct} onClick={() => setCupomPct(pct)} className="flex-1 py-2 rounded-md font-display font-bold text-lg border-2" style={{ borderColor: C.violet, background: cupomPct === pct ? C.violet : "#fff", color: cupomPct === pct ? "#fff" : C.violet }}>
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                  <Field label="Quantas pessoas podem usar (0 = sem limite)">
+                    <input type="number" min="0" className={inputCls} style={{ borderColor: C.line }} value={cupomLimite} onChange={(e) => setCupomLimite(e.target.value)} />
+                  </Field>
+                  <Field label="Válido até (opcional)">
+                    <input type="date" className={inputCls} style={{ borderColor: C.line }} value={cupomValidade} onChange={(e) => setCupomValidade(e.target.value)} />
+                  </Field>
+                </div>
+                <div className="mt-3">
+                  <Field label="Anotação — pra quem é / motivo (opcional)">
+                    <input className={inputCls} style={{ borderColor: C.line }} value={cupomNota} onChange={(e) => setCupomNota(e.target.value)} />
+                  </Field>
+                </div>
+                <Btn color={C.violet} className="mt-3" onClick={() => { criarCupom(); setCupomNota(""); }}>
+                  <Plus size={16} /> Gerar cupom de {cupomPct}%
+                </Btn>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {cupons.length === 0 && <Empty text="Nenhum cupom gerado ainda." />}
+                {cupons.map((c) => {
+                  const st = statusCupom(c);
+                  return (
+                    <div key={c.id} className="p-3 rounded-md text-sm" style={{ background: C.parchment }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-mono font-semibold break-all" style={{ color: C.ink }}>{c.codigo}</p>
+                          <p className="text-xs mt-0.5" style={{ color: C.stone }}>
+                            <b style={{ color: C.ember }}>{c.percentual}% de desconto</b> · usado {c.usos || 0}{c.limiteUsos > 0 ? ` de ${c.limiteUsos}` : " (sem limite)"}
+                            {c.validade ? ` · válido até ${fmtDate(c.validade)}` : ""}
+                          </p>
+                          {c.nota && <p className="text-xs mt-0.5 italic" style={{ color: C.stone }}>{c.nota}</p>}
+                          {(c.resgates || []).map((r, i) => (
+                            <p key={i} className="text-[11px] mt-0.5" style={{ color: C.stone }}>↳ {r.nome} ({r.email}) — {r.plano} · {new Date(r.data).toLocaleDateString("pt-BR")}</p>
+                          ))}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: st === "ativo" ? "#2E7D4F22" : "#B0342822", color: st === "ativo" ? "#2E7D4F" : "#B03428" }}>{st}</span>
+                          <button onClick={() => copiarCupom(c.codigo)} className="text-xs underline flex items-center gap-1" style={{ color: C.violet }}>
+                            <Copy size={11} /> {cupomCopiado === c.codigo ? "copiado!" : "copiar"}
+                          </button>
+                          <button onClick={() => toggleCupom(c.id)} className="text-xs underline" style={{ color: C.violet }}>{c.ativo ? "desativar" : "reativar"}</button>
+                          <button onClick={() => delCupom(c.id)} className="text-xs underline" style={{ color: C.ember }}>excluir</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs italic mt-4" style={{ color: C.stone }}>
+                Os cupons valem só para a assinatura de Códigos Avivar. A pessoa digita o código no formulário "Quero assinar"; o uso fica registrado aqui e na lista de interessados.
+              </p>
+            </div>
+          </div>
+        )}
+
         {showLeadsAdmin && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
             <div className="w-full max-w-2xl rounded-xl p-6 max-h-[80vh] overflow-y-auto" style={{ background: C.cream }}>
@@ -2893,6 +3077,7 @@ function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setP
                           <p className="font-semibold" style={{ color: C.ink }}>{l.nome}</p>
                           <p className="text-xs" style={{ color: C.stone }}>{l.email}{l.whatsapp ? " · " + l.whatsapp : ""}</p>
                           <p className="text-xs mt-0.5" style={{ color: C.stone }}>Interesse: <b>{l.plano}</b> · {new Date(l.data).toLocaleDateString("pt-BR")}</p>
+                          {l.cupom && <p className="text-xs mt-0.5 font-mono" style={{ color: C.ember }}>Cupom {l.cupom.codigo} — {l.cupom.percentual}% de desconto</p>}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           <button onClick={() => toggleLeadContatado(l.id)} className="text-xs px-2 py-0.5 rounded-full" style={{ background: l.contatado ? "#2E7D4F22" : "#00000011", color: l.contatado ? "#2E7D4F" : C.stone }}>
@@ -8276,6 +8461,26 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       setColaboradores(colaboradoresW);
       saveKey("avivar:colaboradores", colaboradoresW);
       todo.colaboradoraVitoriaDimas2 = true;
+    }
+    // Acesso pessoal do Marcos em Códigos Avivar — nome "Admin", nível Serafim
+    // (libera todo o conteúdo), pra entrar pelas credenciais sem usar o RESTRITO.
+    // Substitui o código provisório AVR-MF-7K42 da versão anterior.
+    if (!seeds.codigoAcessoMarcos2) {
+      const SENHA = "Impacto131310@";
+      const atuais = ((codigos && codigos.codes) || []).filter((c) => (c.code || "").toUpperCase() !== "AVR-MF-7K42" && c.code !== SENHA);
+      const novoCodigos = { ...codigos, codes: [...atuais, { id: uid(), holder: "Admin", code: SENHA, active: true, tier: "serafim" }] };
+      setCodigos(novoCodigos);
+      saveKey("avivar:codigos", novoCodigos);
+      todo.codigoAcessoMarcos2 = true;
+    }
+    // Avivar Kids — Ir. Isaac (foto enviada pelo Marcos).
+    if (!seeds.avivarKidsIsaac1) {
+      if (!avivarKidsW.some((k) => k.seedId === "kids-isaac" || semAcento(k.nome).includes("isaac"))) {
+        avivarKidsW = [...avivarKidsW, { id: uid(), seedId: "kids-isaac", nome: "Ir. Isaac", fotoUrl: "/112-avivar-kids-isaac.jpg" }];
+        setAvivarKids(avivarKidsW);
+        saveKey("avivar:avivarkids", avivarKidsW);
+      }
+      todo.avivarKidsIsaac1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
