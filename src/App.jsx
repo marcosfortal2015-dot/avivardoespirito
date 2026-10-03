@@ -846,8 +846,14 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           {open ? <X /> : <Menu />}
         </button>
       </div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end justify-between gap-3 pt-3 pb-1">
-        <div className="flex items-end gap-3">
+      {/* Linha 1 (fundo preto): logo + ícone da loja e, NA MESMA LINHA do ícone, os
+          pills do NAV (começando pertinho do ícone). Linha 2 (roxa): RESTRITO e, NA
+          MESMA LINHA dele, os pills do submenu. O bloco da esquerda das duas linhas
+          tem a mesma largura fixa (NAV_LEFT_W), então "Início" cai exatamente em
+          cima de "Escala"; e como os dois grupos de pills vão até a mesma borda
+          direita, "Células Avivar" cai em cima de "Visitantes". */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end gap-3 pt-3 pb-1.5">
+        <div className="flex items-end gap-3 shrink-0 lg:w-[208px]">
           <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
             <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
             <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px", color: C.goldBright }}>
@@ -866,40 +872,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <ShoppingBag size={28} />
           </button>
         </div>
-      </div>
-
-      {/* Fileira de cima (NAV): sobe logo abaixo da logo (menos respiro que antes). O
-          RESTRITO fica em fluxo normal, preso na mesma margem esquerda da logo (não
-          se move). Logo depois dele vem um bloco invisível — réplica exata da
-          logo+nome +ícone da loja lá em cima — que empurra os pills do NAV pra
-          começarem exatamente depois do ícone, como pedido. A fileira de baixo usa
-          ESSE MESMO bloco invisível (mesma largura), então "Início" cai alinhado
-          em cima de "Escala"; e como as duas listas de pills terminam encostadas na
-          mesma borda direita, "Células Avivar" cai alinhado em cima de "Visitantes".
-          Todos os pills desta fileira ficam vermelhos, a pedido do Marcos. */}
-      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 pt-0.5 pb-1.5" style={{ background: C.violetDeep }}>
-        <button
-          onClick={onAdminClick}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide focus:outline-none focus:ring-2"
-          style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
-        >
-          {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
-          {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
-        </button>
-        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3" style={{ height: 0, overflow: "hidden" }}>
-          <span className="flex items-end gap-3 p-1">
-            <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
-            <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
-              <span className="block">Avivar</span>
-              <span className="block">do</span>
-              <span className="block">Espírito</span>
-            </span>
-          </span>
-          <span className="p-1 rounded-full">
-            <ShoppingBag size={28} />
-          </span>
-        </div>
-        <nav className="flex-1 flex items-center justify-between">
+        <nav className="hidden lg:flex flex-1 items-center justify-between pb-1">
           {NAV.map((n) => (
             <button
               key={n.key}
@@ -913,24 +886,16 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         </nav>
       </div>
 
-      {/* Barra de submenu — logo abaixo, sem faixa extra entre as duas (unidas). Usa
-          o MESMO bloco invisível (logo+nome+ícone) da fileira de cima — sem precisar
-          de um clone do RESTRITO — pra que o grupo de pills comece exatamente no
-          mesmo x que "Início", e "Escala" caia alinhado embaixo dele. Cores e estilo
-          desta fileira não mudam. */}
       <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
-        <div aria-hidden="true" className="invisible shrink-0 flex items-end gap-3" style={{ height: 0, overflow: "hidden" }}>
-          <span className="flex items-end gap-3 p-1">
-            <img src={LOGO_ICON} alt="" className="h-12 w-auto" />
-            <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px" }}>
-              <span className="block">Avivar</span>
-              <span className="block">do</span>
-              <span className="block">Espírito</span>
-            </span>
-          </span>
-          <span className="p-1 rounded-full">
-            <ShoppingBag size={28} />
-          </span>
+        <div className="shrink-0 w-[208px]">
+          <button
+            onClick={onAdminClick}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide whitespace-nowrap focus:outline-none focus:ring-2"
+            style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
+          >
+            {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
+            {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
+          </button>
         </div>
         <div className="flex-1 flex items-center justify-between">
         {SUBMENU.map((n) => {
@@ -8240,6 +8205,62 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         saveKey("avivar:colaboradores", colaboradoresW);
       }
       todo.colaboradoraVitoriaDimas1 = true;
+    }
+    // Correções da Loja por NOME (não só por seedId): os livros "A Energia do
+    // Criador" e "A Grande Guerra dos Anjos" podem ter sido cadastrados à mão pelo
+    // admin (sem seedId), e aí as correções anteriores não os encontravam.
+    if (!seeds.lojaCorrecoesPorNome1) {
+      const sinopseEnergia = "Deus escreveu dois livros: a Bíblia e o universo. Nesta obra inédita — Volume IX da Série Códigos Avivar — Marcos Fagner S. Alves mostra como as descobertas da física quântica ressoam com o que as Escrituras já revelavam sobre a presença e a soberania do Criador. Um convite a enxergar, na estrutura mais profunda do universo, as marcas de Quem o projetou.";
+      // Encurta um texto mantendo frases inteiras, até caber no limite.
+      const encurtar = (txt, limite) => {
+        const t = (txt || "").trim();
+        if (t.length <= limite) return t;
+        const frases = t.match(/[^.!?]+[.!?]+["”)]*\s*/g) || [t];
+        let out = "";
+        for (const f of frases) {
+          if ((out + f).trim().length > limite) break;
+          out += f;
+        }
+        return (out.trim() || t.slice(0, limite).trim() + "…");
+      };
+      const nomeDe = (p) => semAcento(p.nome || p.titulo || "");
+      lojaW = lojaW.map((p) => {
+        const n = nomeDe(p);
+        if (p.seedId === "lancamento-energia-criador" || n.includes("energia do criador")) {
+          return { ...p, descricao: sinopseEnergia };
+        }
+        if (n.includes("grande guerra")) {
+          return {
+            ...p,
+            paraVenda: true,
+            imageUrl: "/1-livro-grande-guerra-dos-anjos-capa-recortada.png",
+            capaVendaUrl: "/1-livro-grande-guerra-dos-anjos-capa-recortada.png",
+            descricao: encurtar(p.descricao, sinopseEnergia.length + 20),
+          };
+        }
+        return p;
+      });
+      setLoja(lojaW);
+      saveKey("avivar:loja", lojaW);
+      todo.lojaCorrecoesPorNome1 = true;
+    }
+    // Ir. Vitória Dimas — garante o cadastro com a foto certa mesmo se o cadastro
+    // anterior foi apagado, duplicado ou feito à mão sem foto.
+    if (!seeds.colaboradoraVitoriaDimas2) {
+      const FOTO_VD = "/108-colaboradora-vitoria-dimas.jpg";
+      const ehVD = (c) => semAcento(c.nome).includes("vitoria dimas");
+      const existentes = colaboradoresW.filter(ehVD);
+      if (existentes.length === 0) {
+        colaboradoresW = [...colaboradoresW, { id: uid(), seedId: "colab-vitoria-dimas", nome: "Ir. Vitória Dimas", cargo: "", ministerio: "", telefone: "", fotoUrl: FOTO_VD, grupo: "novo" }];
+      } else {
+        const manter = existentes[0].id;
+        colaboradoresW = colaboradoresW
+          .filter((c) => !ehVD(c) || c.id === manter)
+          .map((c) => (c.id === manter ? { ...c, fotoUrl: FOTO_VD, grupo: "novo" } : c));
+      }
+      setColaboradores(colaboradoresW);
+      saveKey("avivar:colaboradores", colaboradoresW);
+      todo.colaboradoraVitoriaDimas2 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
