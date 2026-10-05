@@ -960,6 +960,29 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   );
 }
 
+// Campo de senha com "olhinho" para conferir a digitação antes de entrar.
+function SenhaInput({ value, onChange, autoFocus = false, onEnter, placeholder, className = "" }) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={ver ? "text" : "password"}
+        autoFocus={autoFocus}
+        value={value}
+        placeholder={placeholder}
+        onChange={onChange}
+        onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }}
+        className={`${inputCls} pr-10 ${className}`}
+        style={{ borderColor: C.line }}
+        autoComplete="off"
+      />
+      <button type="button" onClick={() => setVer((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" aria-label={ver ? "Ocultar senha" : "Mostrar senha"} title={ver ? "Ocultar senha" : "Mostrar senha"}>
+        {ver ? <EyeOff size={16} color="#6b6b6b" /> : <Eye size={16} color="#6b6b6b" />}
+      </button>
+    </div>
+  );
+}
+
 function AdminGateModal({ onClose, onSuccess }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -974,7 +997,7 @@ function AdminGateModal({ onClose, onSuccess }) {
           Protótipo de demonstração — em produção, isto exige autenticação real no backend.
         </p>
         <Field label="Senha master">
-          <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+          <SenhaInput autoFocus value={pw} onChange={(e) => setPw(e.target.value)} onEnter={() => { if (pw === MASTER_ADMIN_PASSWORD) onSuccess(); else setErr("Senha incorreta."); }} />
         </Field>
         {err && <p className="text-xs mt-2" style={{ color: "#F2A6A6" }}>{err}</p>}
         <div className="flex gap-2 mt-4">
@@ -999,6 +1022,20 @@ function AdminGateModal({ onClose, onSuccess }) {
 function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
+  const tentarEntrar = () => {
+    if (code === MASTER_ADMIN_PASSWORD) {
+      onSuccess({ nome: "Administração", setores: ["todos"] });
+      return;
+    }
+    const digitado = code.trim().toLowerCase();
+    const match = operatorCodes.find((o) => o.ativo !== false && String(o.codigo || "").trim().toLowerCase() === digitado);
+    if (match) {
+      onSuccess({ id: match.id, nome: match.nome, setores: parseSetoresOperador(match.setores) });
+      return;
+    }
+    const revogado = operatorCodes.some((o) => o.ativo === false && String(o.codigo || "").trim().toLowerCase() === digitado);
+    setErr(revogado ? "Este código foi revogado. Fale com a administração." : "Código inválido.");
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000088" }}>
       <div className="w-full max-w-sm rounded-xl p-6 border" style={{ background: "#fff", borderColor: C.line }}>
@@ -1008,26 +1045,11 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
         </div>
         <p className="text-xs mb-4" style={{ color: C.stone }}>Digite o código que a administração da igreja lhe entregou. Um mesmo código abre todas as áreas em que você serve.</p>
         <Field label="Código de acesso">
-          <input type="password" autoFocus value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} style={{ borderColor: C.line }} />
+          <SenhaInput autoFocus value={code} onChange={(e) => setCode(e.target.value)} onEnter={tentarEntrar} />
         </Field>
         {err && <p className="text-xs mt-2" style={{ color: "#B03428" }}>{err}</p>}
         <div className="flex gap-2 mt-4">
-          <Btn
-            color={C.purple}
-            onClick={() => {
-              if (code === MASTER_ADMIN_PASSWORD) {
-                onSuccess({ nome: "Administração", setores: ["todos"] });
-                return;
-              }
-              const digitado = code.trim().toLowerCase();
-              const match = operatorCodes.find((o) => String(o.codigo || "").trim().toLowerCase() === digitado);
-              if (match) {
-                onSuccess({ nome: match.nome, setores: parseSetoresOperador(match.setores) });
-                return;
-              }
-              setErr("Código inválido.");
-            }}
-          >
+          <Btn color={C.purple} onClick={tentarEntrar}>
             Entrar
           </Btn>
           <Btn variant="ghost" color={C.stone} onClick={onClose}>
@@ -1126,8 +1148,45 @@ const OPERADOR_FIELDS = [
 ];
 
 function OperadoresAdmin({ codes, save, adminMode }) {
-  const add = (v) => save([...codes, { id: uid(), ...v }]);
-  const del = (id) => save(codes.filter((c) => c.id !== id));
+  const [mostrarTodas, setMostrarTodas] = useState(false);
+  const [vistas, setVistas] = useState({}); // id -> senha visível
+  const [histAberto, setHistAberto] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [edit, setEdit] = useState({ nome: "", codigo: "", setores: "" });
+  const [busca, setBusca] = useState("");
+
+  const addHist = (c, evento) => ({ ...c, historico: [...(c.historico || []), { em: nowISO(), evento }].slice(-60) });
+  const add = (v) => save([...codes, { id: uid(), ...v, ativo: true, criadoEm: nowISO(), acessos: 0, historico: [{ em: nowISO(), evento: "Código criado" }] }]);
+  const del = (c) => { if (window.confirm(`Excluir o código de "${c.nome}"? O histórico dele também será apagado. (Para só bloquear o acesso, use "revogar".)`)) save(codes.filter((x) => x.id !== c.id)); };
+  const toggleAtivo = (c) => save(codes.map((x) => (x.id === c.id ? addHist({ ...x, ativo: x.ativo === false }, x.ativo === false ? "Código reativado" : "Código revogado") : x)));
+  const abrirEdicao = (c) => { setEditId(c.id); setEdit({ nome: c.nome || "", codigo: c.codigo || "", setores: c.setores || "" }); };
+  const salvarEdicao = (c) => {
+    if (!edit.nome.trim() || !edit.codigo.trim()) return;
+    const mudou = [];
+    if (edit.nome.trim() !== (c.nome || "")) mudou.push("nome");
+    if (edit.codigo.trim() !== (c.codigo || "")) mudou.push("senha");
+    if (edit.setores.trim() !== (c.setores || "")) mudou.push("funções");
+    save(codes.map((x) => (x.id === c.id ? addHist({ ...x, nome: edit.nome.trim(), codigo: edit.codigo.trim(), setores: edit.setores.trim() }, mudou.length ? `Alterado: ${mudou.join(", ")}` : "Editado (sem mudanças)") : x)));
+    setEditId(null);
+  };
+  const fmtData = (iso) => (iso ? fmtDateTime(iso) : "—");
+  const rotuloSetores = (c) => parseSetoresOperador(c.setores).map((s) => (SETORES_OPERADOR.find((x) => x.key === s) || { label: s }).label);
+
+  const baixarTabela = () => {
+    const esc = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+    const linhas = [["Nome / função", "Senha", "Funções liberadas", "Criado em", "Último acesso", "Nº de acessos", "Status", "Histórico"].map(esc).join(";")];
+    codes.forEach((c) => linhas.push([
+      c.nome, c.codigo, rotuloSetores(c).join(", "), fmtData(c.criadoEm), fmtData(c.ultimoAcesso), c.acessos || 0, c.ativo === false ? "revogado" : "ativo",
+      (c.historico || []).map((h) => `${fmtDateTime(h.em)} — ${h.evento}`).join(" | "),
+    ].map(esc).join(";")));
+    const blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `pessoas-autorizadas-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   if (!adminMode) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
@@ -1136,37 +1195,115 @@ function OperadoresAdmin({ codes, save, adminMode }) {
       </div>
     );
   }
+  const filtradas = codes.filter((c) => !busca.trim() || semAcento(`${c.nome} ${rotuloSetores(c).join(" ")}`.toLowerCase()).includes(semAcento(busca.trim().toLowerCase())));
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
-      <SectionTitle>Códigos de Operador</SectionTitle>
+      <SectionTitle>Pessoas autorizadas</SectionTitle>
       <p className="text-sm mb-4" style={{ color: C.stone }}>
-        Cada código dá acesso apenas aos setores marcados no cadastro (ex: só Oração nos Lares, ou só Avivar Music), sem liberar o resto da administração (Caixa, Bens, edição do site). Deixe "setores" em branco pra liberar tudo. Entregue um código diferente pra cada pessoa/função.
+        Cada código dá acesso apenas às funções marcadas no cadastro (ex: só Oração nos Lares, ou só Avivar Music), com poderes completos dentro delas, sem liberar o resto da administração (Caixa, Bens, edição do site). Deixe "funções" em branco pra liberar tudo. Entregue um código diferente pra cada pessoa. Esta tabela só aparece para o admin.
       </p>
-      <div className="space-y-2">
-        {codes.length === 0 && <Empty text="Nenhum código cadastrado ainda." />}
-        {codes.map((c) => {
-          const setores = parseSetoresOperador(c.setores);
-          return (
-            <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
-              <div>
-                <p className="font-medium">{c.nome}</p>
-                <p className="text-xs font-mono" style={{ color: C.stone }}>{c.codigo}</p>
-                <p className="text-[10px] mt-1 flex flex-wrap gap-1">
-                  {setores.map((s) => (
-                    <span key={s} className="px-1.5 py-0.5 rounded-full" style={{ background: C.parchment, color: C.ember }}>
-                      {(SETORES_OPERADOR.find((x) => x.key === s) || { label: s }).label}
-                    </span>
-                  ))}
-                </p>
-              </div>
-              <button onClick={() => del(c.id)}><Trash2 size={14} color={C.stone} /></button>
-            </div>
-          );
-        })}
+
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou função…" className={`${inputCls} max-w-xs text-xs`} style={{ borderColor: C.line }} />
+        <Btn variant="ghost" onClick={() => setMostrarTodas((v) => !v)}>{mostrarTodas ? <EyeOff size={14} /> : <Eye size={14} />} {mostrarTodas ? "Ocultar todas as senhas" : "Mostrar todas as senhas"}</Btn>
+        <Btn variant="ghost" color={C.goldDeep} onClick={baixarTabela}><FileText size={14} /> Baixar tabela</Btn>
+        <span className="text-xs font-mono" style={{ color: C.stone }}>{codes.length} pessoa{codes.length === 1 ? "" : "s"} · {codes.filter((c) => c.ativo !== false).length} ativa{codes.filter((c) => c.ativo !== false).length === 1 ? "" : "s"}</span>
       </div>
+
+      {codes.length === 0 ? (
+        <Empty text="Nenhuma pessoa autorizada cadastrada ainda." />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: C.line }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] font-mono uppercase" style={{ background: C.parchment, color: C.stone }}>
+                <th className="px-3 py-2">Nome / função</th>
+                <th className="px-3 py-2">Senha</th>
+                <th className="px-3 py-2">Funções liberadas</th>
+                <th className="px-3 py-2">Criado em</th>
+                <th className="px-3 py-2">Acessos</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtradas.map((c) => {
+                const visivel = mostrarTodas || vistas[c.id];
+                const emEdicao = editId === c.id;
+                return (
+                  <React.Fragment key={c.id}>
+                    <tr className="border-t align-top" style={{ borderColor: C.line, opacity: c.ativo === false ? 0.6 : 1 }}>
+                      <td className="px-3 py-2 font-medium">{c.nome}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className="font-mono text-xs">{visivel ? c.codigo : "•".repeat(Math.min(Math.max(String(c.codigo || "").length, 6), 12))}</span>
+                        <button onClick={() => setVistas((v) => ({ ...v, [c.id]: !v[c.id] }))} className="ml-2 align-middle" aria-label={visivel ? "Ocultar senha" : "Mostrar senha"} title={visivel ? "Ocultar senha" : "Mostrar senha"}>
+                          {visivel ? <EyeOff size={14} color={C.stone} /> : <Eye size={14} color={C.stone} />}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {rotuloSetores(c).map((r) => <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: C.parchment, color: C.ember }}>{r}</span>)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap" style={{ color: C.stone }}>{fmtData(c.criadoEm)}</td>
+                      <td className="px-3 py-2 text-xs" style={{ color: C.stone }}>
+                        {c.acessos || 0}
+                        <span className="block text-[10px]">último: {fmtData(c.ultimoAcesso)}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono" style={{ background: c.ativo === false ? "#B0342822" : "#2E7D4F22", color: c.ativo === false ? "#B03428" : "#2E7D4F" }}>{c.ativo === false ? "revogado" : "ativo"}</span>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">
+                        <button onClick={() => setHistAberto(histAberto === c.id ? null : c.id)} className="underline mr-2" style={{ color: C.violet }}>histórico ({(c.historico || []).length})</button>
+                        <button onClick={() => (emEdicao ? setEditId(null) : abrirEdicao(c))} className="underline mr-2" style={{ color: C.violet }}>editar</button>
+                        <button onClick={() => toggleAtivo(c)} className="underline mr-2" style={{ color: C.ember }}>{c.ativo === false ? "reativar" : "revogar"}</button>
+                        <button onClick={() => del(c)} aria-label="Excluir"><Trash2 size={13} color={C.stone} className="inline" /></button>
+                      </td>
+                    </tr>
+                    {emEdicao && (
+                      <tr className="border-t" style={{ borderColor: C.line, background: "#00000006" }}>
+                        <td colSpan={7} className="px-3 py-3">
+                          <div className="grid sm:grid-cols-3 gap-2">
+                            <Field label="Nome / função"><input className={inputCls} style={{ borderColor: C.line }} value={edit.nome} onChange={(e) => setEdit((x) => ({ ...x, nome: e.target.value }))} /></Field>
+                            <Field label="Senha (código de acesso)"><input className={inputCls} style={{ borderColor: C.line }} value={edit.codigo} onChange={(e) => setEdit((x) => ({ ...x, codigo: e.target.value }))} /></Field>
+                            <Field label="Funções (vírgula): oracoes, avivarmusic, visitantes, membros, escala, loja"><input className={inputCls} style={{ borderColor: C.line }} value={edit.setores} onChange={(e) => setEdit((x) => ({ ...x, setores: e.target.value }))} /></Field>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <Btn onClick={() => salvarEdicao(c)}><Save size={13} /> Salvar</Btn>
+                            <Btn variant="ghost" onClick={() => setEditId(null)}>Cancelar</Btn>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {histAberto === c.id && (
+                      <tr className="border-t" style={{ borderColor: C.line, background: "#00000006" }}>
+                        <td colSpan={7} className="px-3 py-3">
+                          <p className="text-[11px] font-mono uppercase mb-1" style={{ color: C.stone }}>Histórico de {c.nome}</p>
+                          {(c.historico || []).length === 0 ? (
+                            <p className="text-xs italic" style={{ color: C.stone }}>Sem registros (código criado antes do histórico existir).</p>
+                          ) : (
+                            <ul className="text-xs space-y-0.5 max-h-48 overflow-y-auto">
+                              {[...(c.historico || [])].reverse().map((h, i) => (
+                                <li key={i} style={{ color: C.ink }}><span className="font-mono" style={{ color: C.stone }}>{fmtDateTime(h.em)}</span> — {h.evento}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {filtradas.length === 0 && <tr><td colSpan={7} className="px-3 py-4 text-xs italic text-center" style={{ color: C.stone }}>Nenhum resultado para a busca.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="mt-6">
-        <DynamicForm fields={OPERADOR_FIELDS} onSubmit={(v) => v.nome && v.codigo && add(v)} submitLabel="Adicionar código" />
+        <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Nova pessoa autorizada</p>
+        <DynamicForm fields={OPERADOR_FIELDS} onSubmit={(v) => v.nome && v.codigo && add(v)} submitLabel="Adicionar pessoa" />
       </div>
     </div>
   );
@@ -7994,6 +8131,14 @@ export default function App() {
   const podeSetor = (setor) => adminMode || (!!operatorAuth && (operatorAuth.setores.includes("todos") || operatorAuth.setores.includes(setor)));
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
   const [operatorCodes, setOperatorCodes] = useState([]);
+  // Registra no histórico da pessoa autorizada cada vez que ela entra com o código.
+  const registrarAcessoOperador = (id, evento) => {
+    if (!id) return;
+    const agora = nowISO();
+    const novos = operatorCodes.map((c) => (c.id === id ? { ...c, acessos: (c.acessos || 0) + 1, ultimoAcesso: agora, historico: [...(c.historico || []), { em: agora, evento }].slice(-60) } : c));
+    setOperatorCodes(novos);
+    saveKey("avivar:operatorcodes", novos);
+  };
   const [oracaoEncontros, setOracaoEncontros] = useState([]);
   const [newsAbrirId, setNewsAbrirId] = useState(null);
 
@@ -9645,11 +9790,12 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           const digitado = String(codigo || "").trim().toLowerCase();
           if (!digitado) return false;
           if (String(codigo).trim() === MASTER_ADMIN_PASSWORD) { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
-          const m = operatorCodes.find((o) => String(o.codigo || "").trim().toLowerCase() === digitado);
+          const m = operatorCodes.find((o) => o.ativo !== false && String(o.codigo || "").trim().toLowerCase() === digitado);
           if (!m) return false;
           const setores = parseSetoresOperador(m.setores);
           if (!setores.includes("todos") && !setores.includes("avivarmusic")) return false;
-          setOperatorAuth({ nome: m.nome, setores });
+          setOperatorAuth({ id: m.id, nome: m.nome, setores });
+          registrarAcessoOperador(m.id, "Acesso ao Avivar Music");
           return true;
         }}
       />
@@ -9753,6 +9899,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           onSuccess={(auth) => {
             setOperatorAuth(auth);
             setOperatorGateOpen(false);
+            registrarAcessoOperador(auth.id, "Acesso ao site");
           }}
         />
       )}
