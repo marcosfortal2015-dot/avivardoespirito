@@ -66,7 +66,7 @@ const ESTUDOS_BANNER = "/estudos-banner.jpg";
 const VISITANTES_BANNER = "/visitantes-banner.jpg";
 const LOJA_BANNER = "/loja-avivar-banner.jpg";
 const COLABORADORES_BANNER = "/colaboradores-banner.jpg";
-const BIBLIA_DESTAQUE_BANNER = "/30-biblia-avivar-destaque.jpg";
+const BIBLIA_DESTAQUE_BANNER = "/113-biblia-avivar-card.png";
 const DIVULGACAO_BANNER = "/divulgacao-youtube.jpg";
 const EVENTO_CRIANCAS_BANNER = "/2-evento-culto-criancas.jpg";
 const EVENTO_ALMOCO_BANNER = "/3-evento-almoco-avivar.jpg";
@@ -281,11 +281,10 @@ const DEFAULT_CELULAS = {
   gama: { ...CELULA_VAZIA("gama"), logoUrl: "/110-celula-gama-logo.png" },
 };
 const CELULA_ENCONTRO_FIELDS = [
+  { key: "titulo", label: "Título do encontro" },
   { key: "data", label: "Data", type: "date" },
   { key: "anfitriao", label: "Anfitrião(ã)" },
   { key: "local", label: "Local / endereço" },
-  { key: "relato", label: "Relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.)", type: "textarea" },
-  { key: "presentes", label: "Relação dos presentes nesse encontro (um nome por linha)", type: "textarea" },
 ];
 
 /* ---------------------------------------------------------------- */
@@ -521,11 +520,28 @@ function Empty({ text }) {
   );
 }
 
+// Caminhos alternativos para uma foto local (arquivo em /public): se o arquivo foi
+// enviado ao GitHub com outra extensão ou com um número na frente do nome (ex.: o
+// "2-" que vem no nome do download), tenta essas variações antes de desistir.
+function variantesFotoLocal(url) {
+  if (!url || typeof url !== "string" || url[0] !== "/" || url[1] === "/") return [];
+  const m = url.match(/^(.*\/)([^/]+?)(\.[A-Za-z0-9]+)?$/);
+  if (!m) return [];
+  const [, dir, nome, ext = ""] = m;
+  const out = [];
+  [".jpg", ".jpeg", ".png", ".webp", ".JPG"].forEach((e) => { if (e.toLowerCase() !== ext.toLowerCase()) out.push(`${dir}${nome}${e}`); });
+  for (let n = 1; n <= 6; n++) out.push(`${dir}${n}-${nome}${ext}`);
+  return out;
+}
+
 function ImgOrPlaceholder({ url, alt, className, ph = "Espaço reservado para imagem — inserir posteriormente" }) {
-  // Se a imagem falhar ao carregar (ex: arquivo não subiu pro GitHub), mostra um
-  // placeholder decente em vez do ícone de "imagem quebrada" do navegador.
-  const [failed, setFailed] = useState(false);
-  if (url && !failed) return <img src={url} alt={alt} className={className} onError={() => setFailed(true)} />;
+  // Se a imagem falhar ao carregar (ex: arquivo não subiu pro GitHub), tenta variações
+  // do nome (extensão/prefixo numérico) e, por fim, mostra um placeholder decente em vez
+  // do ícone de "imagem quebrada" do navegador.
+  const lista = useMemo(() => (url ? [url, ...variantesFotoLocal(url)] : []), [url]);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [url]);
+  if (idx < lista.length) return <img src={lista[idx]} alt={alt} className={className} onError={() => setIdx((i) => i + 1)} />;
   return (
     <div className={`${className} flex items-center justify-center text-center p-3`} style={{ background: C.parchmentDeep, color: C.stone }}>
       <span className="text-xs font-mono">{ph}</span>
@@ -565,7 +581,8 @@ function VoltarBar({ onVoltar }) {
 // Selo usado em toda reportagem marcada como "exclusiva" (avivarNews com exclusiva:
 // true), sempre que ela aparece fora de Códigos Avivar já desbloqueado — na Home, em
 // Ao Vivo, ou nas colunas de Códigos Avivar antes do login.
-const CODIGOS_EXCLUSIVO_MSG = 'CONTEÚDO EXCLUSIVO DOS "CÓDIGOS AVIVAR" — PROFETAS DOS ÚLTIMOS TEMPOS. ASSINE.';
+const CODIGOS_PARTE_MSG = "Pequena parte do conteúdo dos Códigos Avivar — Profetas dos Últimos Dias";
+const CODIGOS_EXCLUSIVO_MSG = CODIGOS_PARTE_MSG.toUpperCase();
 function ExclusivoBadge({ className = "" }) {
   return (
     <span className={`inline-block text-[9px] font-mono font-semibold tracking-wide px-2 py-1 rounded-sm ${className}`} style={{ background: C.gold, color: "#241C00" }}>
@@ -576,7 +593,7 @@ function ExclusivoBadge({ className = "" }) {
 // Texto de prévia de uma reportagem em áreas públicas: se ela é exclusiva, mostra o
 // resumo (nunca o texto completo); senão, mostra um trecho normal do texto.
 function previaReportagem(n, tamanho = 90) {
-  if (n.exclusiva) return n.resumo || "Conteúdo exclusivo — assine os Códigos Avivar para ler.";
+  if (n.exclusiva) return n.resumo || "Pequena parte do conteúdo dos Códigos Avivar — Profetas dos Últimos Dias.";
   if (!n.texto) return "";
   return n.texto.slice(0, tamanho) + (n.texto.length > tamanho ? "…" : "");
 }
@@ -1022,9 +1039,9 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
   );
 }
 
-function RestrictedNotice({ onUnlock }) {
+function RestrictedNotice({ onUnlock, compact = false }) {
   return (
-    <div className="max-w-md mx-auto text-center py-16">
+    <div className={`max-w-md mx-auto text-center ${compact ? "py-6" : "py-16"}`}>
       <Lock size={28} className="mx-auto" color={C.stone} />
       <p className="text-sm mt-3" style={{ color: C.stone }}>Este cadastro é restrito à administração ou a pessoas autorizadas (ex: portaria, RH).</p>
       <Btn className="mt-4" color={C.purple} onClick={onUnlock}>Inserir código de acesso</Btn>
@@ -1065,7 +1082,7 @@ const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitant
 // Barra de acesso do servidor — aparece no topo de cada seção que aceita código de
 // função (recepção, secretaria, louvor...). Sem código: botão pra entrar. Com código:
 // mostra quem entrou e um atalho pra CADA seção que aquele código libera.
-function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPara }) {
+function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPara, embutido = false }) {
   if (adminMode) return null;
   const info = SETORES_OPERADOR.find((x) => x.key === setor) || { label: setor };
   const liberados = operatorAuth
@@ -1073,7 +1090,7 @@ function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPa
     : [];
   const temEste = liberados.includes(setor);
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3">
+    <div className={embutido ? "pt-3" : "max-w-6xl mx-auto px-4 sm:px-6 pt-3"}>
       <div className="rounded-lg border px-3 py-2 flex flex-wrap items-center gap-2 text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
         {!operatorAuth ? (
           <>
@@ -2086,7 +2103,6 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
           {CELULA_KEYS.map((chave) => (
             <CelulaCard key={chave} chave={chave} celula={(celulas && celulas[chave]) || CELULA_VAZIA(chave)} onOpen={() => onOpenCelula(chave)} />
           ))}
-          <CelulaFuturaCard />
         </div>
       </section>
     </div>
@@ -2129,24 +2145,264 @@ function CelulaCard({ chave, celula, onOpen }) {
   );
 }
 
-// Espaço reservado para uma futura Célula Avivar — mesmo visual dos cards reais
-// (borda tracejada pra indicar "ainda não é uma célula"), com uma palavra bíblica
-// sobre congregar/comunhão enquanto a vaga não é preenchida.
-function CelulaFuturaCard() {
+/* ---------------------------------------------------------------- */
+/* Encontros — página do dia (Células Avivar e Oração nos Lares)        */
+/* ---------------------------------------------------------------- */
+const ESTUDO_VAZIO = { titulo: "", data: "", livro: "", versiculo: "", historico: "" };
+const ENCONTRO_CAMPOS = {
+  celula: [
+    { key: "titulo", label: "Título do encontro" },
+    { key: "data", label: "Data", type: "date" },
+    { key: "anfitriao", label: "Anfitrião(ã)" },
+    { key: "local", label: "Local / endereço" },
+  ],
+  oracao: [
+    { key: "titulo", label: "Título do encontro" },
+    { key: "data", label: "Data", type: "date" },
+    { key: "diaSemana", label: "Dia da semana" },
+    { key: "hora", label: "Horário" },
+    { key: "anfitriao", label: "Anfitrião" },
+    { key: "endereco", label: "Endereço completo" },
+    { key: "contato", label: "Contato" },
+  ],
+};
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+// Faixa rolante com os encontros já registrados: a pessoa escolhe uma data (rolando e
+// clicando, ou digitando a data) e abre a página daquele dia.
+function FaixaEncontros({ encontros, cor, onAbrir, vazio = "Nenhum encontro registrado ainda." }) {
+  const [busca, setBusca] = useState("");
+  const [aviso, setAviso] = useState("");
+  const ordenados = [...encontros].filter((e) => e.data).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  const irParaData = (d) => {
+    setBusca(d);
+    const achado = ordenados.find((e) => e.data === d);
+    if (achado) { setAviso(""); onAbrir(achado.id); }
+    else if (d) setAviso("Nenhum encontro registrado nesta data.");
+    else setAviso("");
+  };
   return (
-    <div className="text-left rounded-2xl overflow-hidden border-2 border-dashed shadow-md flex flex-col sm:flex-row sm:items-stretch h-full" style={{ borderColor: C.line, background: "#fff" }}>
-      <div className="w-full h-28 sm:h-auto sm:w-28 lg:w-32 shrink-0 flex items-center justify-center" style={{ background: C.gold + "1a" }}>
-        <Plus size={30} style={{ color: C.gold }} />
+    <div>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+        <p className="text-sm font-display font-semibold" style={{ color: C.ink }}>Registro dos encontros <span className="text-xs font-normal" style={{ color: C.stone }}>· {ordenados.length}</span></p>
+        <label className="text-xs flex items-center gap-1.5" style={{ color: C.stone }}>
+          Escolher data
+          <input type="date" value={busca} onChange={(e) => irParaData(e.target.value)} className="text-xs rounded-md border px-2 py-1" style={{ borderColor: C.line }} />
+        </label>
       </div>
-      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
-        <div>
-          <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Uma nova Célula Avivar</h3>
-          <p className="text-xs mt-1.5 leading-relaxed italic" style={{ color: C.stone }}>
-            "Não deixemos de congregar-nos, como é costume de alguns, mas exortemo-nos uns aos outros; e tanto mais quanto vedes que se aproxima aquele Dia." — Hebreus 10:25
-          </p>
+      {aviso && <p className="text-xs italic mb-2" style={{ color: C.ember }}>{aviso}</p>}
+      {ordenados.length === 0 ? (
+        <Empty text={vazio} />
+      ) : (
+        <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x" style={{ scrollbarWidth: "thin" }}>
+          {ordenados.map((e) => {
+            const dt = new Date(e.data + "T12:00:00");
+            const ok = !isNaN(dt);
+            return (
+              <button
+                key={e.id}
+                onClick={() => onAbrir(e.id)}
+                className="snap-start shrink-0 w-[132px] text-left rounded-xl border-2 p-2.5 transition hover:brightness-95 hover:-translate-y-0.5 focus:outline-none focus:ring-2"
+                style={{ borderColor: cor, background: cor + "14" }}
+              >
+                <p className="font-display text-2xl font-bold leading-none" style={{ color: cor }}>{ok ? String(dt.getDate()).padStart(2, "0") : "--"}</p>
+                <p className="text-[11px] font-mono uppercase mt-0.5" style={{ color: C.ink }}>{ok ? `${MESES_ABREV[dt.getMonth()]} ${dt.getFullYear()}` : e.data}</p>
+                <p className="text-[11px] mt-1 leading-snug line-clamp-2" style={{ color: C.stone }}>{e.titulo || e.anfitriao || "Encontro"}</p>
+                {(e.fotos || []).length > 0 && <p className="text-[10px] mt-1" style={{ color: C.stone }}>📷 {(e.fotos || []).length}</p>}
+              </button>
+            );
+          })}
         </div>
-        <span className="text-xs mt-3 inline-block italic" style={{ color: C.stone }}>Em breve, mais um espaço para congregar.</span>
+      )}
+    </div>
+  );
+}
+
+// Página de um encontro (célula ou oração nos lares): título, estudo do dia, fotos
+// (1 grande à esquerda + 3 colunas de 2 fotos à direita, e mais linhas se houver mais
+// fotos), relato e presentes. Edita quem é admin ou tem autorização (canManage).
+function PaginaEncontro({ tipo, encontro, cor, canManage, onSave, onDelete, onVoltar, rotulo }) {
+  const campos = ENCONTRO_CAMPOS[tipo] || ENCONTRO_CAMPOS.celula;
+  const [editando, setEditando] = useState(false);
+  const [draft, setDraft] = useState({});
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+
+  const abrirEdicao = () => {
+    setDraft({ ...encontro, estudo: { ...ESTUDO_VAZIO, ...(encontro.estudo || {}) } });
+    setEditando(true);
+  };
+  const setCampo = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+  const setEstudo = (k, v) => setDraft((d) => ({ ...d, estudo: { ...d.estudo, [k]: v } }));
+  const salvar = () => {
+    onSave({ ...encontro, ...draft, fotos: encontro.fotos || [] });
+    setEditando(false);
+  };
+
+  const fotos = encontro.fotos || [];
+  const grande = fotos[0] || "";
+  const pequenas = fotos.slice(1);
+  const slotsPequenos = canManage ? Math.max(6, Math.ceil(pequenas.length / 3) * 3) : pequenas.length;
+  const addFoto = (url) => { if (url && url.trim()) onSave({ ...encontro, fotos: [...fotos, url.trim()] }); };
+  const delFoto = (idx) => onSave({ ...encontro, fotos: fotos.filter((_, i) => i !== idx) });
+
+  const estudo = { ...ESTUDO_VAZIO, ...(encontro.estudo || {}) };
+  const temEstudo = Object.values(estudo).some((v) => String(v || "").trim());
+  const presentesLista = (encontro.presentes || "").split("\n").map((x) => x.trim()).filter(Boolean);
+  const titulo = encontro.titulo || (tipo === "oracao" ? "Encontro de oração" : "Encontro da célula");
+  const local = encontro.local || encontro.endereco;
+
+  return (
+    <div className="fixed inset-0 z-[55] overflow-y-auto font-body" style={{ background: C.parchment, color: C.ink }}>
+      <header className="sticky top-0 z-10 border-b" style={{ background: C.black, borderColor: cor + "55" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+          <button onClick={onVoltar} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: cor }}>
+            <ArrowLeft size={16} /> Voltar aos encontros
+          </button>
+          <span className="font-display font-semibold text-sm" style={{ color: "#fff" }}>{rotulo}</span>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <Eyebrow color={cor}><Calendar size={12} className="inline mr-1" />{encontro.data ? fmtDate(encontro.data) : "Encontro"}{encontro.hora ? ` · ${encontro.hora}` : ""}</Eyebrow>
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold" style={{ color: C.ink }}>{titulo}</h2>
+        <p className="text-xs mt-1.5" style={{ color: C.stone }}>
+          {encontro.anfitriao && <>Anfitrião(ã): <strong style={{ color: C.ink }}>{encontro.anfitriao}</strong></>}
+          {local && <> · {local}</>}
+          {encontro.contato && <> · Contato: {encontro.contato}</>}
+        </p>
+
+        {canManage && !editando && (
+          <button onClick={abrirEdicao} className="text-xs underline mt-3 flex items-center gap-1" style={{ color: C.ember }}>
+            <Pencil size={12} /> editar título, dados e estudo do dia
+          </button>
+        )}
+
+        {editando && (
+          <div className="mt-4 p-4 rounded-lg border space-y-4" style={{ borderColor: C.line, background: "#00000006" }}>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {campos.map((f) => (
+                <Field key={f.key} label={f.label}>
+                  <input type={f.type || "text"} className={inputCls} style={{ borderColor: C.line }} value={draft[f.key] || ""} onChange={(e) => setCampo(f.key, e.target.value)} />
+                </Field>
+              ))}
+            </div>
+            <div className="p-3 rounded-lg border" style={{ borderColor: cor + "66", background: "#fff" }}>
+              <p className="text-xs font-mono font-semibold mb-2" style={{ color: cor }}>ESTUDO DE HOJE</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Título do estudo"><input className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.titulo || ""} onChange={(e) => setEstudo("titulo", e.target.value)} /></Field>
+                <Field label="Data do estudo"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.data || ""} onChange={(e) => setEstudo("data", e.target.value)} /></Field>
+                <Field label="Livro"><input className={inputCls} style={{ borderColor: C.line }} placeholder="Ex.: Salmos" value={draft.estudo?.livro || ""} onChange={(e) => setEstudo("livro", e.target.value)} /></Field>
+                <Field label="Versículo(s)"><input className={inputCls} style={{ borderColor: C.line }} placeholder="Ex.: 91:1-4" value={draft.estudo?.versiculo || ""} onChange={(e) => setEstudo("versiculo", e.target.value)} /></Field>
+                <div className="sm:col-span-2"><Field label="Histórico / resumo do estudo"><textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.historico || ""} onChange={(e) => setEstudo("historico", e.target.value)} /></Field></div>
+              </div>
+            </div>
+            <Field label="Relato do líder (palavra do dia, testemunhos, etc.)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={draft.relato || ""} onChange={(e) => setCampo("relato", e.target.value)} /></Field>
+            <Field label="Relação dos presentes (um nome por linha)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={draft.presentes || ""} onChange={(e) => setCampo("presentes", e.target.value)} /></Field>
+            <div className="flex gap-2">
+              <Btn color={cor} onClick={salvar}><Save size={13} /> Salvar</Btn>
+              <Btn variant="ghost" color={cor} onClick={() => setEditando(false)}>Cancelar</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* Estudo de hoje */}
+        <div className="mt-5 rounded-xl border-2 p-4" style={{ borderColor: cor, background: cor + "12" }}>
+          <p className="text-xs font-mono font-semibold uppercase" style={{ color: cor }}><BookOpen size={12} className="inline mr-1" />Estudo de hoje{estudo.data ? ` · ${fmtDate(estudo.data)}` : ""}</p>
+          {temEstudo ? (
+            <div className="mt-2">
+              {estudo.titulo && <p className="font-display font-semibold text-lg" style={{ color: C.ink }}>{estudo.titulo}</p>}
+              {(estudo.livro || estudo.versiculo) && <p className="text-sm mt-0.5" style={{ color: C.ink }}><strong>{estudo.livro}</strong>{estudo.versiculo ? ` ${estudo.versiculo}` : ""}</p>}
+              {estudo.historico && <p className="text-sm mt-2 leading-relaxed whitespace-pre-line" style={{ color: C.stone }}>{estudo.historico}</p>}
+            </div>
+          ) : (
+            <p className="text-xs italic mt-2" style={{ color: C.stone }}>Estudo do dia ainda não cadastrado.</p>
+          )}
+        </div>
+
+        {/* Fotos: 1 grande à esquerda (1/3 da largura) + 3 colunas de 2 fotos à direita */}
+        <div className="mt-5 grid md:grid-cols-3 gap-3 items-start">
+          <div className="relative">
+            {grande ? (
+              <>
+                <button onClick={() => setFotoAmpliada(grande)} className="block w-full rounded-lg overflow-hidden focus:outline-none focus:ring-2" style={{ background: cor + "0f" }}>
+                  <ImgOrPlaceholder url={grande} alt={titulo} className="w-full h-64 md:h-72 object-cover" ph="Foto principal" />
+                </button>
+                {canManage && (
+                  <button onClick={() => delFoto(0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1" aria-label="Remover foto"><X size={13} color="#fff" /></button>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-64 md:h-72 rounded-lg flex items-center justify-center text-xs border-2 border-dashed" style={{ borderColor: cor + "66", color: C.stone, background: cor + "0f" }}>Foto principal — a enviar</div>
+            )}
+          </div>
+          <div className="md:col-span-2 grid grid-cols-3 gap-2 content-start">
+            {Array.from({ length: slotsPequenos }).map((_, i) => {
+              const f = pequenas[i];
+              return f ? (
+                <div key={i} className="relative">
+                  <button onClick={() => setFotoAmpliada(f)} className="block w-full rounded-lg overflow-hidden focus:outline-none focus:ring-2">
+                    <ImgOrPlaceholder url={f} alt={`${titulo} — foto ${i + 2}`} className="w-full h-[7.6rem] md:h-[8.75rem] object-cover" ph="Foto" />
+                  </button>
+                  {canManage && (
+                    <button onClick={() => delFoto(i + 1)} className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5" aria-label="Remover foto"><X size={11} color="#fff" /></button>
+                  )}
+                </div>
+              ) : (
+                <div key={i} className="w-full h-[7.6rem] md:h-[8.75rem] rounded-lg border-2 border-dashed flex items-center justify-center text-[11px]" style={{ borderColor: cor + "55", color: C.stone, background: cor + "0a" }}>foto {i + 2}</div>
+              );
+            })}
+          </div>
+        </div>
+        {canManage && (
+          <div className="mt-2 rounded-lg border" style={{ borderColor: C.line, background: "#fff" }}>
+            <MiniPhotoAdder onAdd={addFoto} />
+            <p className="text-[10px] px-2 pb-2" style={{ color: C.stone }}>A 1ª foto vira a foto grande; as seguintes preenchem as colunas ao lado (e abrem novas linhas se passar de 6). Use o caminho do arquivo enviado ao GitHub (ex.: /minha-foto.jpg).</p>
+          </div>
+        )}
+
+        {(encontro.relato || presentesLista.length > 0) && (
+          <div className="mt-6 grid md:grid-cols-2 gap-5">
+            {encontro.relato && (
+              <div>
+                <p className="text-xs font-semibold" style={{ color: C.ink }}>Relato do encontro</p>
+                <p className="text-sm mt-1 leading-relaxed whitespace-pre-line" style={{ color: C.stone }}>{encontro.relato}</p>
+              </div>
+            )}
+            {presentesLista.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold" style={{ color: C.ink }}>Relação dos presentes</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {presentesLista.map((nome, idx) => (
+                    <span key={idx} className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: cor + "1a", color: C.ink }}>{nome}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {canManage && (
+          <div className="mt-8 pt-3 border-t text-xs" style={{ borderColor: C.line }}>
+            {confirmarExcluir ? (
+              <span style={{ color: "#B03428" }}>
+                Excluir este encontro e suas fotos?{" "}
+                <button onClick={() => { onDelete(); }} className="underline font-semibold">sim, excluir</button>{" "}
+                <button onClick={() => setConfirmarExcluir(false)} className="underline" style={{ color: C.stone }}>cancelar</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmarExcluir(true)} className="underline" style={{ color: "#B03428" }}>excluir este encontro</button>
+            )}
+          </div>
+        )}
       </div>
+
+      {fotoAmpliada && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000e0" }} onClick={() => setFotoAmpliada(null)}>
+          <button onClick={() => setFotoAmpliada(null)} className="absolute top-4 right-4 p-2 rounded-full" style={{ background: "#ffffff22" }}><X size={20} color="#fff" /></button>
+          <img src={fotoAmpliada} alt="" className="max-w-full max-h-full rounded-lg object-contain" onClick={(ev) => ev.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2176,21 +2432,12 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
   const encontros = celula.encontros || [];
   const addEncontro = (v) => onSave({ ...celula, encontros: [...encontros, { id: uid(), ...v, fotos: [] }] });
   const delEncontro = (id) => onSave({ ...celula, encontros: encontros.filter((e) => e.id !== id) });
-  const addFoto = (id, url) => {
-    if (!url.trim()) return;
-    onSave({ ...celula, encontros: encontros.map((e) => (e.id === id ? { ...e, fotos: [...(e.fotos || []), url.trim()] } : e)) });
-  };
-  const delFoto = (id, idx) => {
-    onSave({ ...celula, encontros: encontros.map((e) => (e.id === id ? { ...e, fotos: e.fotos.filter((_, i) => i !== idx) } : e)) });
-  };
-  const encontrosOrdenados = [...encontros].sort((a, b) => new Date(b.data) - new Date(a.data));
+  const [encontroAbertoId, setEncontroAbertoId] = useState(null);
+  const encontroAberto = encontros.find((e) => e.id === encontroAbertoId) || null;
 
   const regenCodigo = () => onPatchTop({ liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase() });
   const toggleCodigo = () => onPatchTop({ liderCodeActive: !liderCodeActive });
 
-  // Foto ampliada (lightbox) — ao clicar em qualquer foto, grande ou da
-  // galeria menor, de qualquer encontro, ela abre em tela cheia.
-  const [fotoAmpliada, setFotoAmpliada] = useState(null);
 
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
@@ -2264,111 +2511,26 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
         </div>
 
         <div className="mt-10">
-          <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Encontros</p>
-          {encontrosOrdenados.length === 0 && <Empty text="Nenhum encontro registrado ainda." />}
-          {/* Um bloco por encontro (empilhados), em vez da antiga grade de 3
-              colunas: a primeira foto do encontro aparece bem maior (pelo menos
-              4x o tamanho da miniatura antiga), com o relato e a relação dos
-              presentes ao lado; abaixo, uma galeria com o restante das fotos,
-              menores, que ampliam ao clicar. */}
-          <div className="flex flex-col gap-6">
-            {encontrosOrdenados.map((e) => {
-              const fotos = e.fotos || [];
-              const fotoDestaque = fotos[0] || "";
-              const galeria = fotos.slice(1);
-              const presentesLista = (e.presentes || "").split("\n").map((s) => s.trim()).filter(Boolean);
-              return (
-                <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: "#fff" }}>
-                  <div className="flex items-start justify-between px-4 pt-4">
-                    <p className="font-display font-semibold text-sm">{fmtDate(e.data)}</p>
-                    {canManage && <button onClick={() => delEncontro(e.id)}><Trash2 size={13} color={C.stone} /></button>}
-                  </div>
-
-                  <div className="grid md:grid-cols-[2fr_1fr] gap-4 p-4 items-start">
-                    {/* Foto em destaque do encontro — bem maior que a galeria abaixo */}
-                    {fotoDestaque ? (
-                      <div className="relative">
-                        <button onClick={() => setFotoAmpliada(fotoDestaque)} className="block w-full focus:outline-none focus:ring-2 rounded-lg overflow-hidden" style={{ background: cor + "0f" }}>
-                          <img src={fotoDestaque} alt={`Encontro de ${fmtDate(e.data)}`} className="w-full h-64 sm:h-[26rem] object-cover" />
-                        </button>
-                        {canManage && (
-                          <button onClick={() => delFoto(e.id, 0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1">
-                            <X size={13} color="#fff" />
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-full h-64 sm:h-[26rem] rounded-lg flex items-center justify-center text-xs" style={{ background: cor + "0f", color: C.stone }}>
-                        Foto — a enviar
-                      </div>
-                    )}
-
-                    {/* Relato + relação dos presentes, ao lado da foto em destaque */}
-                    <div>
-                      {e.anfitriao && <p className="text-xs" style={{ color: C.stone }}>Anfitrião(ã): {e.anfitriao}</p>}
-                      {e.local && <p className="text-xs mt-1" style={{ color: C.stone }}>{e.local}</p>}
-                      {e.relato && (
-                        <div className="mt-3">
-                          <p className="text-xs font-semibold" style={{ color: C.ink }}>Relato do encontro</p>
-                          <p className="text-xs mt-1 leading-relaxed" style={{ color: C.stone }}>{e.relato}</p>
-                        </div>
-                      )}
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold" style={{ color: C.ink }}>Relação dos presentes</p>
-                        {presentesLista.length === 0 ? (
-                          <p className="text-xs mt-1" style={{ color: C.stone }}>Não registrada ainda.</p>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {presentesLista.map((nome, idx) => (
-                              <span key={idx} className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: cor + "1a", color: C.ink }}>{nome}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Galeria com o restante das fotos — menores, ampliam ao clicar */}
-                  {galeria.length > 0 && (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 px-4 pb-3">
-                      {galeria.map((f, idx) => (
-                        <div key={idx} className="relative">
-                          <button onClick={() => setFotoAmpliada(f)} className="block w-full focus:outline-none focus:ring-2 rounded">
-                            <img src={f} className="w-full h-16 sm:h-20 object-cover rounded" />
-                          </button>
-                          {canManage && (
-                            <button onClick={() => delFoto(e.id, idx + 1)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                              <X size={10} color="#fff" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {canManage && (
-                    <div className="px-4 pb-4">
-                      <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <FaixaEncontros encontros={encontros} cor={cor} onAbrir={setEncontroAbertoId} />
           {canManage && (
             <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — relato do líder (quantas harpas louvaram, qual foi a palavra do dia, etc.) e relação dos presentes</p>
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — título, data e local; depois abra o encontro para cadastrar fotos, estudo do dia, relato e presentes</p>
               <DynamicForm fields={CELULA_ENCONTRO_FIELDS} accent={cor} onSubmit={(v) => v.data && addEncontro(v)} submitLabel="Cadastrar encontro" />
             </div>
           )}
         </div>
 
-        {fotoAmpliada && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "#000000e0" }} onClick={() => setFotoAmpliada(null)}>
-            <button onClick={() => setFotoAmpliada(null)} className="absolute top-4 right-4 p-2 rounded-full" style={{ background: "#ffffff22" }}>
-              <X size={20} color="#fff" />
-            </button>
-            <img src={fotoAmpliada} alt="" className="max-w-full max-h-full rounded-lg object-contain" onClick={(ev) => ev.stopPropagation()} />
-          </div>
+        {encontroAberto && (
+          <PaginaEncontro
+            tipo="celula"
+            rotulo={celula.nome}
+            encontro={encontroAberto}
+            cor={cor}
+            canManage={canManage}
+            onSave={(upd) => onSave({ ...celula, encontros: encontros.map((e) => (e.id === upd.id ? upd : e)) })}
+            onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
+            onVoltar={() => setEncontroAbertoId(null)}
+          />
         )}
 
         {adminMode && (
@@ -2692,608 +2854,137 @@ function CodigosPlanosView({ data, save, adminMode, onVoltar, onEscolherPlano })
   );
 }
 
-function CodigosAvivar({ data, save, adminMode, loja, saveLoja, avivarNews, setPage, onOpenNews, unlocked, setUnlocked, forumPosts, addForumPost }) {
-  const [holderName, setHolderName] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [codeInput, setCodeInput] = useState("");
-  const [err, setErr] = useState("");
-  const [showAccessMgmt, setShowAccessMgmt] = useState(false);
-  const [selectedTema, setSelectedTema] = useState(null);
-  const [holderTier, setHolderTier] = useState("geral");
-  const [livroInternoAberto, setLivroInternoAberto] = useState(null);
+// "O que são os Códigos Avivar" — cada frase é um convite (chamada) clicável que leva
+// a pessoa ao app dos Códigos Avivar. Um fundo claro diferente por card.
+const CODIGOS_O_QUE_SAO = [
+  { texto: "Os Códigos Avivar são o conhecimento revelado pelo Espírito Santo aos profetas dos últimos dias — venha conhecer no app.", bg: "#FBF1DE", borda: "#CBA135" },
+  { texto: "Aqui a ciência e a espiritualidade se encontram: descubra no app o que está por trás dos milagres de Jesus.", bg: "#E7F0FB", borda: "#5B8FD6" },
+  { texto: "Portais espirituais, horas dimensionais e energia quântica à luz da Bíblia — entre no app e aprofunde.", bg: "#FBE9F0", borda: "#D6648F" },
+  { texto: "Estudos, cursos e vídeo-aulas para elevar a sua consciência espiritual — acesse o app dos Códigos Avivar.", bg: "#E6F4EA", borda: "#4FA36B" },
+  { texto: "Uma nova fase chegou com a série Profetas dos Últimos Dias — visite o app e fique por dentro de tudo.", bg: "#EFE6FB", borda: "#8E63D6" },
+];
 
-  // Página de venda dos planos + formulário de interesse em assinar.
-  const [showPlanos, setShowPlanos] = useState(false);
-  const [showLeadsAdmin, setShowLeadsAdmin] = useState(false);
-  const [leadNome, setLeadNome] = useState("");
-  const [leadEmail, setLeadEmail] = useState("");
-  const [leadWhats, setLeadWhats] = useState("");
-  const [leadPlano, setLeadPlano] = useState("Anjo (grátis)");
-  const [leadEnviado, setLeadEnviado] = useState(false);
-  // Cupons de desconto (regras no módulo "CUPONS DE DESCONTO", acima).
-  const [leadCupom, setLeadCupom] = useState("");
-  const [leadCupomErro, setLeadCupomErro] = useState("");
-  const [showCupons, setShowCupons] = useState(false);
-  const [cupomPct, setCupomPct] = useState(100);
-  const [cupomLimite, setCupomLimite] = useState("1");
-  const [cupomValidade, setCupomValidade] = useState("");
-  const [cupomNota, setCupomNota] = useState("");
-  const [cupomCopiado, setCupomCopiado] = useState("");
-  const cupons = data.cupons || [];
-  const cupomCheck = leadCupom.trim() ? validarCupom(cupons, leadCupom) : null;
-  const planoKeyDoLead = leadPlano === "Querubim" ? "querubim" : leadPlano === "Serafim" ? "serafim" : null;
-  const precoPlanoLead = planoKeyDoLead ? ((data.planos || {})[planoKeyDoLead] || {}).precoSemestral : "";
-  const precoComCupom = cupomCheck && cupomCheck.ok && precoPlanoLead ? aplicarDescontoCupom(precoPlanoLead, cupomCheck.cupom.percentual) : "";
-  const criarCupom = () => save({ ...data, cupons: [novoCupom({ percentual: cupomPct, limiteUsos: cupomLimite, validade: cupomValidade, nota: cupomNota }), ...cupons] });
-  const toggleCupom = (id) => save({ ...data, cupons: cupons.map((c) => (c.id === id ? { ...c, ativo: !c.ativo } : c)) });
-  const delCupom = (id) => save({ ...data, cupons: cupons.filter((c) => c.id !== id) });
-  const copiarCupom = (codigo) => {
-    try { navigator.clipboard.writeText(codigo); } catch (e) { /* sem área de transferência */ }
-    setCupomCopiado(codigo);
-  };
+// Seção pública (sem login e sem assinatura): é uma vitrine compacta que sempre
+// encaminha a pessoa para o app independente dos Códigos Avivar. O endereço do app
+// fica em data.appUrl (admin cola o link uma vez, aqui mesmo na seção).
+function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews }) {
+  const appUrl = ((data && data.appUrl) || "").trim();
+  const [aviso, setAviso] = useState(false);
+  const [urlEdit, setUrlEdit] = useState(appUrl);
+  const [urlSalva, setUrlSalva] = useState(false);
+  useEffect(() => { setUrlEdit(appUrl); }, [appUrl]);
 
-  const enviarInteresse = () => {
-    if (!leadNome.trim() || !leadEmail.trim()) return;
-    let cuponsAtualizados = cupons;
-    let cupomDoLead = null;
-    if (leadCupom.trim()) {
-      const r = validarCupom(cupons, leadCupom);
-      if (!r.ok) { setLeadCupomErro(r.motivo); return; }
-      cupomDoLead = { codigo: r.cupom.codigo, percentual: r.cupom.percentual };
-      cuponsAtualizados = registrarUsoCupom(cupons, r.cupom.id, { nome: leadNome.trim(), email: leadEmail.trim(), plano: leadPlano });
+  const abrirApp = () => {
+    if (appUrl) {
+      window.open(/^https?:\/\//i.test(appUrl) ? appUrl : "https://" + appUrl, "_blank", "noopener,noreferrer");
+    } else {
+      setAviso(true);
     }
-    setLeadCupomErro("");
-    const novoLead = {
-      id: uid(),
-      nome: leadNome.trim(),
-      email: leadEmail.trim(),
-      whatsapp: leadWhats.trim(),
-      plano: leadPlano,
-      data: new Date().toISOString(),
-      contatado: false,
-      cupom: cupomDoLead,
-    };
-    save({ ...data, leads: [...(data.leads || []), novoLead], cupons: cuponsAtualizados });
-    setLeadNome(""); setLeadEmail(""); setLeadWhats(""); setLeadCupom("");
-    setLeadEnviado(true);
   };
-  const toggleLeadContatado = (id) => save({ ...data, leads: (data.leads || []).map((l) => (l.id === id ? { ...l, contatado: !l.contatado } : l)) });
-  const delLead = (id) => save({ ...data, leads: (data.leads || []).filter((l) => l.id !== id) });
+  const salvarUrl = () => {
+    save({ ...(data || {}), appUrl: urlEdit.trim() });
+    setUrlSalva(true);
+    setTimeout(() => setUrlSalva(false), 2500);
+  };
 
   const reportagensOrdenadas = [...(avivarNews || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   const reportagensDestaque = reportagensOrdenadas.slice(0, 3);
-  // Mais reportagens (além das 3 já mostradas na coluna do meio) — preenche o espaço
-  // vazio da coluna 3, cada título clicável abrindo a matéria na hora.
-  const maisReportagens = reportagensOrdenadas.slice(3, 9);
+  const maisReportagens = reportagensOrdenadas.slice(3, 7);
+  const abrirNoticia = (id) => (onOpenNews ? onOpenNews(id) : (setPage && setPage("aovivo")));
 
-  const vitrineItems = (loja || []).filter((p) => p.categoria === "Códigos Avivar");
-  const addVitrineItem = (v) => {
-    if (!v.titulo) return;
-    saveLoja([...(loja || []), { id: uid(), categoria: "Códigos Avivar", nome: v.titulo, destino: v.destino || "loja", ...v }]);
-  };
-  const delVitrineItem = (id) => saveLoja((loja || []).filter((p) => p.id !== id));
-  const goVitrine = (item) => {
-    if (item.pdfUrl) {
-      window.open(item.pdfUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-    const destino = (item.destino || "loja").trim();
-    if (/^https?:\/\//i.test(destino)) {
-      window.open(destino, "_blank", "noopener,noreferrer");
-    } else {
-      setPage && setPage(destino || "loja");
-    }
-  };
-
-  const tryEnter = () => {
-    const match = data.codes.find((c) => c.active && c.code.toLowerCase() === codeInput.trim().toLowerCase());
-    if (match) {
-      setUnlocked(true);
-      setHolderName(nameInput || match.holder);
-      setHolderTier(match.tier || "geral");
-      setErr("");
-    } else {
-      setErr("Código inválido, inativo ou pessoa não cadastrada.");
-    }
-  };
-
-  const genCode = (holder, tier) => {
-    const code = "AVR-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-    save({ ...data, codes: [...data.codes, { id: uid(), holder, code, active: true, tier: tier || "geral" }] });
-  };
-  const toggleTier = (id) => save({ ...data, codes: data.codes.map((c) => (c.id === id ? { ...c, tier: c.tier === "serafim" ? "geral" : "serafim" } : c)) });
-  const toggleCode = (id) => save({ ...data, codes: data.codes.map((c) => (c.id === id ? { ...c, active: !c.active } : c)) });
-  const resetCode = (id) => {
-    const nc = "AVR-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-    save({ ...data, codes: data.codes.map((c) => (c.id === id ? { ...c, code: nc, active: true } : c)) });
-  };
-
-  const addTema = (v) => save({ ...data, temas: [...data.temas, { id: uid(), ...v }] });
-  const addCourse = (v) => save({ ...data, courses: [...data.courses, { id: uid(), aulas: [], ...v }] });
-  const addAula = (courseId, v) =>
-    save({ ...data, courses: data.courses.map((c) => (c.id === courseId ? { ...c, aulas: [...c.aulas, { id: uid(), ...v }] } : c)) });
-  const delCourse = (id) => save({ ...data, courses: data.courses.filter((c) => c.id !== id) });
-
-  if (showPlanos) {
-    return (
-      <CodigosPlanosView
-        data={data}
-        save={save}
-        adminMode={adminMode}
-        onVoltar={() => setShowPlanos(false)}
-        onEscolherPlano={(nomePlano) => {
-          setLeadPlano(nomePlano === "Anjo" ? "Anjo (grátis)" : nomePlano);
-          setShowPlanos(false);
-        }}
-      />
-    );
-  }
-
-  if (!unlocked) {
-    return (
-      <div className="min-h-[70vh]" style={{ background: C.violetDeep }}>
-        <div className="grid lg:grid-cols-3 items-stretch">
-          {/* Coluna 1 — credenciais de acesso */}
-          <div className="flex items-center justify-center px-4 py-12" style={{ background: C.violetDeep }}>
-            <div className="w-full max-w-sm text-center">
-              <FlameMark size={36} color={C.gold} />
-              <h2 className="font-display text-2xl font-semibold mt-4 text-white">Códigos Avivar</h2>
-              <p className="text-sm mt-2" style={{ color: "#D9D2EA" }}>
-                O conhecimento revelado pelo Espírito Santo, em três níveis — do chamado gratuito à revelação plena.
-              </p>
-
-              {/* Formulário de assinatura — fica ACIMA das credenciais de entrada,
-                  pra quem ainda não tem código e quer se tornar assinante(a). */}
-              <div className="mt-5 rounded-lg border p-4 text-left" style={{ borderColor: C.goldBright + "55", background: "#ffffff0f" }}>
-                <p className="font-display font-semibold text-sm text-white flex items-center gap-1.5">
-                  <Sparkles size={14} color={C.goldBright} /> Ainda não é assinante?
-                </p>
-                <p className="text-xs mt-1.5" style={{ color: "#D9D2EA" }}>
-                  Deixe seus dados que entraremos em contato para ativar seu acesso — ou conheça os planos antes de decidir.
-                </p>
-                <button onClick={() => setShowPlanos(true)} className="text-xs underline font-semibold mt-2 inline-block" style={{ color: C.goldBright }}>
-                  Ver os 3 planos e seus benefícios →
-                </button>
-
-                {leadEnviado ? (
-                  <p className="text-sm mt-3 px-3 py-2 rounded-md flex items-center gap-2" style={{ background: "#2E7D4F33", color: "#A9E4BE" }}>
-                    <CheckCircle2 size={15} /> Recebemos seu interesse! Em breve entraremos em contato.
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    <input placeholder="Seu nome" value={leadNome} onChange={(e) => setLeadNome(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
-                    <input placeholder="Seu e-mail" type="email" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
-                    <input placeholder="WhatsApp (com DDD)" value={leadWhats} onChange={(e) => setLeadWhats(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
-                    <select value={leadPlano} onChange={(e) => setLeadPlano(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2">
-                      <option>Anjo (grátis)</option>
-                      <option>Querubim</option>
-                      <option>Serafim</option>
-                      <option>Ainda não sei — quero saber mais</option>
-                    </select>
-                    <input placeholder="Cupom de desconto (se tiver)" value={leadCupom} onChange={(e) => { setLeadCupom(e.target.value); setLeadCupomErro(""); }} className="w-full rounded-md px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2" />
-                    {cupomCheck && cupomCheck.ok && (
-                      <p className="text-xs px-2 py-1.5 rounded-md" style={{ background: "#2E7D4F33", color: "#A9E4BE" }}>
-                        <CheckCircle2 size={12} className="inline mr-1" />
-                        Cupom válido: {cupomCheck.cupom.percentual}% de desconto{cupomCheck.cupom.percentual === 100 ? " — assinatura gratuita" : ""}.
-                        {precoComCupom && cupomCheck.cupom.percentual < 100 ? ` O plano ${leadPlano} sai por ${precoComCupom} / semestre.` : ""}
-                      </p>
-                    )}
-                    {((cupomCheck && !cupomCheck.ok) || leadCupomErro) && (
-                      <p className="text-xs" style={{ color: "#F2A6A6" }}>{leadCupomErro || cupomCheck.motivo}</p>
-                    )}
-                    <Btn color={C.goldBright} className="w-full justify-center" onClick={enviarInteresse}>
-                      <Send size={14} /> Quero assinar
-                    </Btn>
-                  </div>
-                )}
-              </div>
-
-              {/* Incentivo místico-espiritual acima do formulário de login, convidando a entrar */}
-              <p className="text-xs italic mt-5 px-2 py-2 rounded-md" style={{ color: C.goldBright, background: "#ffffff0f" }}>
-                <Sparkles size={11} className="inline mr-1" />
-                Já é assinante? Sua frequência espiritual está prestes a mudar de nível: entre e vivencie a energia quântica da revelação, onde ciência e fé se encontram para elevar sua consciência.
-              </p>
-
-              <div className="mt-4 space-y-3 text-left">
-                <input placeholder="Seu nome" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
-                <input placeholder="Código de acesso (ex: AVR-0001)" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className="w-full rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2" />
-                {err && <p className="text-xs" style={{ color: "#F2A6A6" }}>{err}</p>}
-                <Btn color={C.gold} className="w-full justify-center" onClick={tryEnter}>
-                  <Unlock size={16} /> Entrar
-                </Btn>
-              </div>
-              {adminMode && (
-                <div className="mt-6 flex flex-col items-center gap-1.5">
-                  <button onClick={() => setShowAccessMgmt(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
-                    Gerenciar códigos de acesso (admin)
-                  </button>
-                  <button onClick={() => setShowCupons(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
-                    Gerar cupons de desconto (admin) — {cupons.length}
-                  </button>
-                  <button onClick={() => setShowLeadsAdmin(true)} className="text-xs underline" style={{ color: "#D9D2EA" }}>
-                    Ver interessados em assinar (admin) — {(data.leads || []).length}
-                  </button>
-                </div>
-              )}
-
-              {/* Card de reforço do convite pra assinar — fundo claro, abaixo do login;
-                  tamanho compacto (só o necessário pro texto), ícone bem próximo do texto */}
-              <div className="mt-6 rounded-lg border shadow-md p-3 flex items-start gap-2.5 text-left" style={{ borderColor: "#ffffff33", background: C.parchment }}>
-                <Sparkles size={18} color={C.violet} className="shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>Eleve sua consciência espiritual</p>
-                  <p className="text-xs mt-1" style={{ color: C.stone }}>
-                    Assine os Códigos Avivar e entre na frequência de revelação, ciência e espiritualidade que Deus reserva para os últimos dias.
-                  </p>
-                </div>
-              </div>
-
-              {/* Curiosidade científico-espiritual — imagem 63 */}
-              <div className="mt-4 rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33", background: C.parchment }}>
-                <ImgOrPlaceholder url={CODIGOS_CURIOSIDADE_AGUA_VINHO} alt="Curiosidade: a Transformação da Água em Vinho" className="w-full object-cover max-h-[220px]" ph="Curiosidade científico-espiritual" />
-                <div className="p-3 text-center">
-                  <p className="text-xs font-mono" style={{ color: C.stone }}>CURIOSIDADE</p>
-                  <p className="text-sm font-semibold mt-1" style={{ color: C.ink }}>Ciência e o milagre da água em vinho</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna 2 — reportagens: portais espirituais, horas dimensionais, energia quântica */}
-          <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
-            {/* Banner da revista Códigos Avivar — movido pra cá (reduzido pela metade),
-                já estamos dentro de Códigos Avivar então não precisa navegar de novo */}
-            <div className="mb-6">
-              <div className="block w-full rounded-2xl overflow-hidden border-2 shadow-xl" style={{ borderColor: C.gold }}>
-                <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-contain max-h-[260px]" ph="Banner revista Códigos Avivar — em destaque" />
-              </div>
-              <p className="text-xs text-center italic mt-2" style={{ color: "#D9D2EA" }}>
-                Deus está revelando os seus mistérios aos profetas. Em breve, Códigos Avivar em sua nova fase com a série Profetas dos Últimos Dias. Tudo que tiver relação com Códigos Avivar levaremos para o nosso app, dentro de poucos dias.
-              </p>
-            </div>
-            <Eyebrow color={C.goldBright}><Sparkles size={11} className="inline mr-1" />Ciência, tempo e espírito</Eyebrow>
-            <h3 className="font-display text-xl font-semibold text-white mt-2 mb-5">Reflexões Avivar News</h3>
-            <div className="rounded-xl p-4" style={{ background: "#ffffff0f" }}>
-              <div className="space-y-3">
-                {reportagensDestaque.length === 0 && (
-                  <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>
-                )}
-                {reportagensDestaque.map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => (onOpenNews ? onOpenNews(n.id) : (setPage && setPage("aovivo")))}
-                    className="block text-left w-full p-4 rounded-lg transition hover:brightness-110 focus:outline-none focus:ring-2"
-                    style={{ background: "#ffffff0f" }}
-                  >
-                    <p className="font-display font-semibold text-white text-sm leading-snug">{n.titulo}</p>
-                    <p className="text-xs mt-1.5" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 130)}</p>
-                    {n.exclusiva ? (
-                      <ExclusivoBadge className="mt-2" />
-                    ) : (
-                      <span className="text-[10px] font-mono underline decoration-dotted text-white/70 mt-2 inline-block">ler em Avivar News</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna 3 — vitrine de ebooks/livros + mais reportagens (pra não sobrar espaço vazio) */}
-          <div className="px-6 py-12 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
-            <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
-            <p className="text-xs mt-2" style={{ color: "#ffffffbb" }}>O Conhecimento Revelado pelo Espírito Santo</p>
-            <div className="rounded-xl p-4 mt-5" style={{ background: "#ffffff0f" }}>
-              {/* Curiosidade / divulgação — banner Profetas dos Últimos Dias (imagem 65) */}
-              <div className="rounded-lg overflow-hidden border shadow-md" style={{ borderColor: "#ffffff33" }}>
-                <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[160px]" ph="Série Profetas dos Últimos Dias — em breve" />
-              </div>
-            </div>
-            {maisReportagens.length > 0 && (
-              <div className="mt-6">
-                <Eyebrow color={C.goldBright}><Radio size={11} className="inline mr-1" />Mais reportagens</Eyebrow>
-                <div className="mt-3 space-y-2.5">
-                  {maisReportagens.map((n) => (
-                    <button
-                      key={n.id}
-                      onClick={() => (onOpenNews ? onOpenNews(n.id) : (setPage && setPage("aovivo")))}
-                      className="flex items-center gap-1.5 text-left w-full text-sm underline decoration-dotted text-white/90 hover:text-white leading-snug"
-                    >
-                      {n.exclusiva && <Lock size={10} color={C.goldBright} className="shrink-0" />}
-                      {n.titulo}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {showAccessMgmt && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
-            <div className="w-full max-w-lg rounded-xl p-6 max-h-[80vh] overflow-y-auto" style={{ background: C.cream }}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Códigos de acesso</h3>
-                <button onClick={() => setShowAccessMgmt(false)}><X size={18} /></button>
-              </div>
-              <DynamicForm fields={[{ key: "holder", label: "Nome da pessoa" }, { key: "tier", label: "Nível de acesso", type: "select", options: ["geral", "serafim"] }]} accent={C.violet} submitLabel="Gerar código" onSubmit={(v) => v.holder && genCode(v.holder, v.tier)} />
-              <div className="mt-4 space-y-2">
-                {data.codes.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between text-sm p-2 rounded-md" style={{ background: C.parchment }}>
-                    <div>
-                      <p style={{ color: C.ink }}>{c.holder}</p>
-                      <p className="font-mono text-xs" style={{ color: C.stone }}>{c.code}</p>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.active ? "#2E7D4F22" : "#B0342822", color: c.active ? "#2E7D4F" : "#B03428" }}>
-                        {c.active ? "ativo" : "revogado"}
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.tier === "serafim" ? C.gold : "#00000011", color: c.tier === "serafim" ? "#fff" : C.stone }}>
-                        {c.tier === "serafim" ? "Serafim" : "geral"}
-                      </span>
-                      <button onClick={() => toggleTier(c.id)} className="text-xs underline" style={{ color: C.violet }}>trocar nível</button>
-                      <button onClick={() => toggleCode(c.id)} className="text-xs underline" style={{ color: C.violet }}>{c.active ? "revogar" : "ativar"}</button>
-                      <button onClick={() => resetCode(c.id)} className="text-xs underline" style={{ color: C.ember }}>resetar</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showCupons && adminMode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
-            <div className="w-full max-w-2xl rounded-xl p-6 max-h-[85vh] overflow-y-auto" style={{ background: C.cream }}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Cupons de desconto — Códigos Avivar</h3>
-                <button onClick={() => setShowCupons(false)}><X size={18} /></button>
-              </div>
-              <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>DESCONTO</p>
-                <div className="flex gap-2">
-                  {CUPOM_PERCENTUAIS.map((pct) => (
-                    <button key={pct} onClick={() => setCupomPct(pct)} className="flex-1 py-2 rounded-md font-display font-bold text-lg border-2" style={{ borderColor: C.violet, background: cupomPct === pct ? C.violet : "#fff", color: cupomPct === pct ? "#fff" : C.violet }}>
-                      {pct}%
-                    </button>
-                  ))}
-                </div>
-                <div className="grid sm:grid-cols-2 gap-3 mt-3">
-                  <Field label="Quantas pessoas podem usar (0 = sem limite)">
-                    <input type="number" min="0" className={inputCls} style={{ borderColor: C.line }} value={cupomLimite} onChange={(e) => setCupomLimite(e.target.value)} />
-                  </Field>
-                  <Field label="Válido até (opcional)">
-                    <input type="date" className={inputCls} style={{ borderColor: C.line }} value={cupomValidade} onChange={(e) => setCupomValidade(e.target.value)} />
-                  </Field>
-                </div>
-                <div className="mt-3">
-                  <Field label="Anotação — pra quem é / motivo (opcional)">
-                    <input className={inputCls} style={{ borderColor: C.line }} value={cupomNota} onChange={(e) => setCupomNota(e.target.value)} />
-                  </Field>
-                </div>
-                <Btn color={C.violet} className="mt-3" onClick={() => { criarCupom(); setCupomNota(""); }}>
-                  <Plus size={16} /> Gerar cupom de {cupomPct}%
-                </Btn>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {cupons.length === 0 && <Empty text="Nenhum cupom gerado ainda." />}
-                {cupons.map((c) => {
-                  const st = statusCupom(c);
-                  return (
-                    <div key={c.id} className="p-3 rounded-md text-sm" style={{ background: C.parchment }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-mono font-semibold break-all" style={{ color: C.ink }}>{c.codigo}</p>
-                          <p className="text-xs mt-0.5" style={{ color: C.stone }}>
-                            <b style={{ color: C.ember }}>{c.percentual}% de desconto</b> · usado {c.usos || 0}{c.limiteUsos > 0 ? ` de ${c.limiteUsos}` : " (sem limite)"}
-                            {c.validade ? ` · válido até ${fmtDate(c.validade)}` : ""}
-                          </p>
-                          {c.nota && <p className="text-xs mt-0.5 italic" style={{ color: C.stone }}>{c.nota}</p>}
-                          {(c.resgates || []).map((r, i) => (
-                            <p key={i} className="text-[11px] mt-0.5" style={{ color: C.stone }}>↳ {r.nome} ({r.email}) — {r.plano} · {new Date(r.data).toLocaleDateString("pt-BR")}</p>
-                          ))}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: st === "ativo" ? "#2E7D4F22" : "#B0342822", color: st === "ativo" ? "#2E7D4F" : "#B03428" }}>{st}</span>
-                          <button onClick={() => copiarCupom(c.codigo)} className="text-xs underline flex items-center gap-1" style={{ color: C.violet }}>
-                            <Copy size={11} /> {cupomCopiado === c.codigo ? "copiado!" : "copiar"}
-                          </button>
-                          <button onClick={() => toggleCupom(c.id)} className="text-xs underline" style={{ color: C.violet }}>{c.ativo ? "desativar" : "reativar"}</button>
-                          <button onClick={() => delCupom(c.id)} className="text-xs underline" style={{ color: C.ember }}>excluir</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs italic mt-4" style={{ color: C.stone }}>
-                Os cupons valem só para a assinatura de Códigos Avivar. A pessoa digita o código no formulário "Quero assinar"; o uso fica registrado aqui e na lista de interessados.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {showLeadsAdmin && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000077" }}>
-            <div className="w-full max-w-2xl rounded-xl p-6 max-h-[80vh] overflow-y-auto" style={{ background: C.cream }}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-display font-semibold text-lg" style={{ color: C.ink }}>Interessados em assinar Códigos Avivar</h3>
-                <button onClick={() => setShowLeadsAdmin(false)}><X size={18} /></button>
-              </div>
-              {(data.leads || []).length === 0 ? (
-                <Empty text="Ninguém preencheu o formulário de assinatura ainda." />
-              ) : (
-                <div className="space-y-2">
-                  {[...(data.leads || [])].reverse().map((l) => (
-                    <div key={l.id} className="p-3 rounded-md text-sm" style={{ background: C.parchment }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold" style={{ color: C.ink }}>{l.nome}</p>
-                          <p className="text-xs" style={{ color: C.stone }}>{l.email}{l.whatsapp ? " · " + l.whatsapp : ""}</p>
-                          <p className="text-xs mt-0.5" style={{ color: C.stone }}>Interesse: <b>{l.plano}</b> · {new Date(l.data).toLocaleDateString("pt-BR")}</p>
-                          {l.cupom && <p className="text-xs mt-0.5 font-mono" style={{ color: C.ember }}>Cupom {l.cupom.codigo} — {l.cupom.percentual}% de desconto</p>}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <button onClick={() => toggleLeadContatado(l.id)} className="text-xs px-2 py-0.5 rounded-full" style={{ background: l.contatado ? "#2E7D4F22" : "#00000011", color: l.contatado ? "#2E7D4F" : C.stone }}>
-                            {l.contatado ? "já contatado" : "marcar contatado"}
-                          </button>
-                          <button onClick={() => delLead(l.id)} className="text-xs underline" style={{ color: C.ember }}>excluir</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs italic mt-4" style={{ color: C.stone }}>
-                Esta lista já fica pronta para ser exportada/migrada quando o app independente de Códigos Avivar sair do papel.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const coursesForTema = selectedTema ? data.courses.filter((c) => c.tema === selectedTema.nome) : data.courses;
-  const bibliotecaCodigosGeral = (loja || []).filter((p) => p.categoria === "Códigos Avivar" && !(p.seedId && p.seedId.startsWith("trilogia-")));
-  const bibliotecaCodigosSerafim = (loja || []).filter((p) => p.seedId && p.seedId.startsWith("trilogia-"));
-  const bibliotecaCodigos = holderTier === "serafim" ? [...bibliotecaCodigosGeral, ...bibliotecaCodigosSerafim] : bibliotecaCodigosGeral;
+  const MsgParte = ({ className = "", cor = "#ffffffcc" }) => (
+    <p className={`text-[10px] font-mono leading-snug ${className}`} style={{ color: cor }}>{CODIGOS_PARTE_MSG}</p>
+  );
 
   return (
-    <div style={{ background: C.violetDeep, minHeight: "70vh" }} className="pb-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <Eyebrow color={C.gold}>Área reservada</Eyebrow>
-            <SectionTitle>Bem-vindo(a), {holderName}</SectionTitle>
-            <p className="text-sm mt-1" style={{ color: "#D9D2EA" }}>Segredos dos profetas, milagres, curas e a ponte entre ciência e espiritualidade.</p>
+    <div style={{ background: C.violetDeep }}>
+      <div className="grid lg:grid-cols-3">
+        {/* Coluna 1 — o que são os Códigos Avivar (cada frase = chamada clicável) */}
+        <div className="px-5 py-7">
+          <Eyebrow color={C.gold}><Sparkles size={11} className="inline mr-1" />Conheça</Eyebrow>
+          <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
+          <p className="text-xs mt-1.5 mb-4" style={{ color: "#D9D2EA" }}>O que são os Códigos Avivar?</p>
+          <div className="space-y-2">
+            {CODIGOS_O_QUE_SAO.map((c, i) => (
+              <button
+                key={i}
+                onClick={abrirApp}
+                className="block w-full text-left rounded-lg border-l-4 px-3 py-2.5 shadow-sm transition hover:brightness-95 hover:translate-x-0.5 focus:outline-none focus:ring-2"
+                style={{ background: c.bg, borderColor: c.borda, color: C.ink }}
+              >
+                <span className="text-[13px] leading-snug font-medium">{c.texto}</span>
+                <span className="block text-[11px] font-semibold mt-1" style={{ color: c.borda }}>Abrir o app Códigos Avivar →</span>
+              </button>
+            ))}
           </div>
-          <button onClick={() => setUnlocked(false)} className="flex items-center gap-1 text-xs px-3 py-2 rounded-md" style={{ color: "#fff", background: "#ffffff1a" }}>
-            <LogOut size={14} /> Sair
+          {aviso && !appUrl && (
+            <p className="text-xs mt-3 rounded-md px-3 py-2" style={{ background: "#ffffff1a", color: "#fff" }}>
+              O app Códigos Avivar está sendo preparado — em breve o link estará disponível aqui.
+            </p>
+          )}
+        </div>
+
+        {/* Coluna 2 — foto central clicável + reflexões do Avivar News */}
+        <div className="px-5 py-7 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
+          <button onClick={abrirApp} className="block w-full rounded-xl overflow-hidden border-2 shadow-xl hover:brightness-110 focus:outline-none focus:ring-2" style={{ borderColor: C.gold }} title="Abrir o app Códigos Avivar">
+            <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-contain max-h-[190px]" ph="Banner revista Códigos Avivar" />
           </button>
-        </div>
-
-        {/* Fórum — antes era uma coluna fixa flutuando sobre o site inteiro; agora
-            mora aqui dentro, só pra quem já tem acesso a Códigos Avivar. */}
-        <div className="mt-8">
-          <Forum posts={forumPosts || []} addPost={(p) => addForumPost && addForumPost(p)} />
-        </div>
-
-        <div className="mt-8 grid sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => setSelectedTema(null)}
-            className="p-4 rounded-lg text-left"
-            style={{ background: !selectedTema ? C.gold : "#ffffff10", color: !selectedTema ? C.violetDeep : "#fff" }}
-          >
-            <p className="font-display font-semibold">Todos os temas</p>
-          </button>
-          {data.temas.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTema(t)}
-              className="p-4 rounded-lg text-left"
-              style={{ background: selectedTema?.id === t.id ? C.gold : "#ffffff10", color: selectedTema?.id === t.id ? C.violetDeep : "#fff" }}
-            >
-              <p className="font-display font-semibold">{t.nome}</p>
-              <p className="text-xs mt-1 opacity-80">{t.descricao}</p>
-            </button>
-          ))}
-        </div>
-
-        {adminMode && (
-          <div className="mt-8 rounded-lg p-4" style={{ background: "#ffffff10" }}>
-            <p className="text-xs font-mono mb-2 text-white/70">ADMIN · novo tema</p>
-            <DynamicForm fields={[{ key: "nome", label: "Nome do tema" }, { key: "descricao", label: "Descrição", type: "textarea" }]} accent={C.gold} onSubmit={addTema} submitLabel="Criar tema" />
+          <MsgParte className="text-center mt-1.5" />
+          <h3 className="font-display text-base font-semibold text-white mt-4 mb-2">Reflexões Avivar News</h3>
+          <div className="space-y-2">
+            {reportagensDestaque.length === 0 && <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>}
+            {reportagensDestaque.map((n) => (
+              <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full px-3 py-2.5 rounded-lg transition hover:brightness-125 focus:outline-none focus:ring-2" style={{ background: "#ffffff12" }}>
+                <p className="font-display font-semibold text-white text-[13px] leading-snug">{n.titulo}</p>
+                <p className="text-[11px] mt-1 line-clamp-2" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 90)}</p>
+                <MsgParte className="mt-1.5" cor={C.goldBright} />
+              </button>
+            ))}
           </div>
-        )}
-
-        <div className="mt-10">
-          <h3 className="font-display text-xl font-semibold text-white mb-4">Cursos</h3>
-          {coursesForTema.length === 0 ? (
-            <Empty text="Nenhum curso cadastrado neste tema ainda." />
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-5">
-              {coursesForTema.map((c) => (
-                <div key={c.id} className="rounded-xl overflow-hidden" style={{ background: "#ffffff0d" }}>
-                  <ImgOrPlaceholder url={c.imageUrl} alt={c.titulo} className="w-full h-36 object-cover" />
-                  <div className="p-4">
-                    <p className="text-xs font-mono" style={{ color: C.gold }}>{c.tema}</p>
-                    <h4 className="font-display font-semibold text-white mt-1">{c.titulo}</h4>
-                    <p className="text-xs text-white/70 mt-1">{c.descricao}</p>
-                    <div className="mt-3 space-y-3">
-                      {c.aulas.map((a) => (
-                        <div key={a.id}>
-                          <p className="text-xs text-white/80 mb-1">{a.titulo}</p>
-                          <div className="aspect-video rounded-md overflow-hidden bg-black">
-                            <iframe title={a.titulo} src={getEmbedUrl(a.videoUrl)} className="w-full h-full" allowFullScreen />
-                          </div>
-                        </div>
-                      ))}
-                      {c.aulas.length === 0 && <p className="text-xs italic text-white/50">Nenhuma aula adicionada ainda.</p>}
-                    </div>
-                    {adminMode && (
-                      <div className="mt-4 border-t border-white/10 pt-3">
-                        <DynamicForm fields={AULA_FIELDS} accent={C.gold} submitLabel="Adicionar aula" onSubmit={(v) => v.titulo && addAula(c.id, v)} />
-                        <button onClick={() => delCourse(c.id)} className="text-xs mt-2 underline text-white/60">excluir curso</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {adminMode && (
-            <div className="mt-6 rounded-lg p-4" style={{ background: "#ffffff10" }}>
-              <p className="text-xs font-mono mb-2 text-white/70">ADMIN · novo curso</p>
-              <DynamicForm fields={CURSO_FIELDS} accent={C.gold} onSubmit={addCourse} submitLabel="Criar curso" />
-            </div>
-          )}
         </div>
 
-        <div className="mt-12 pt-8 border-t" style={{ borderColor: "#ffffff22" }}>
-          <Eyebrow color={C.gold}>Leitura exclusiva</Eyebrow>
-          <h3 className="font-display text-xl font-semibold text-white mb-1">Biblioteca Códigos Avivar</h3>
-          <p className="text-xs mb-4" style={{ color: "#D9D2EA" }}>
-            {holderTier === "serafim"
-              ? "Como aluno(a) Serafim, você tem acesso livre a todos os títulos, incluindo os que são vendidos na Loja Avivar."
-              : "Livros exclusivos pra quem já tem acesso a Códigos Avivar. Os títulos à venda na Loja Avivar ficam liberados só pra alunos(as) Serafim."}
-          </p>
-          {bibliotecaCodigos.length === 0 ? (
-            <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhum título cadastrado ainda.</p>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {bibliotecaCodigos.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setLivroInternoAberto(item)}
-                  className="rounded-lg overflow-hidden border text-left focus:outline-none focus:ring-2"
-                  style={{ borderColor: "#ffffff22", background: "#ffffff0d" }}
-                >
-                  <ImgOrPlaceholder url={item.imageUrl} alt={item.titulo || item.nome} className="w-full h-24 sm:h-28 object-cover" />
-                  <p className="text-xs text-white p-2 leading-snug">{item.titulo || item.nome}</p>
-                </button>
-              ))}
-            </div>
-          )}
-          {livroInternoAberto && (
-            <div className="mt-5 rounded-xl border p-5 grid sm:grid-cols-[140px_1fr] gap-5" style={{ borderColor: "#ffffff33", background: "#ffffff0d" }}>
-              <ImgOrPlaceholder url={livroInternoAberto.imageUrl} alt={livroInternoAberto.titulo || livroInternoAberto.nome} className="w-full h-52 object-cover rounded-lg" />
-              <div>
-                <VoltarBtn onClick={() => setLivroInternoAberto(null)} className="mb-2" />
-                <h4 className="font-display font-semibold text-white">{livroInternoAberto.titulo || livroInternoAberto.nome}</h4>
-                {livroInternoAberto.autor && <p className="text-xs mt-1" style={{ color: C.goldBright }}>{livroInternoAberto.autor}</p>}
-                {livroInternoAberto.pdfUrl ? (
-                  <a href={livroInternoAberto.pdfUrl} download className="inline-block mt-3">
-                    <Btn color={C.gold}><FileText size={14} /> Baixar PDF</Btn>
-                  </a>
-                ) : (
-                  <p className="text-xs italic mt-3" style={{ color: "#ffffffaa" }}>PDF ainda não cadastrado para este livro.</p>
-                )}
+        {/* Coluna 3 — série Profetas dos Últimos Dias + curiosidade + mais reportagens */}
+        <div className="px-5 py-7 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
+          <button onClick={abrirApp} className="block w-full rounded-lg overflow-hidden border shadow-md hover:brightness-110 focus:outline-none focus:ring-2" style={{ borderColor: "#ffffff33" }} title="Abrir o app Códigos Avivar">
+            <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[110px]" ph="Série Profetas dos Últimos Dias" />
+          </button>
+          <MsgParte className="mt-1.5" />
+          <button onClick={abrirApp} className="mt-3 flex w-full items-center gap-3 rounded-lg overflow-hidden border text-left hover:brightness-95 focus:outline-none focus:ring-2" style={{ borderColor: "#ffffff33", background: C.parchment }}>
+            <ImgOrPlaceholder url={CODIGOS_CURIOSIDADE_AGUA_VINHO} alt="Curiosidade: a Transformação da Água em Vinho" className="w-20 h-16 object-cover shrink-0" ph="Curiosidade" />
+            <span className="pr-3 py-1.5">
+              <span className="block text-[10px] font-mono" style={{ color: C.stone }}>CURIOSIDADE</span>
+              <span className="block text-xs font-semibold leading-snug" style={{ color: C.ink }}>Ciência e o milagre da água em vinho</span>
+              <span className="block text-[10px] font-mono mt-0.5" style={{ color: C.emberDeep }}>{CODIGOS_PARTE_MSG}</span>
+            </span>
+          </button>
+          {maisReportagens.length > 0 && (
+            <div className="mt-4">
+              <Eyebrow color={C.goldBright}><Radio size={11} className="inline mr-1" />Mais reportagens</Eyebrow>
+              <div className="space-y-1.5">
+                {maisReportagens.map((n) => (
+                  <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full text-[13px] underline decoration-dotted text-white/90 hover:text-white leading-snug">
+                    {n.titulo}
+                  </button>
+                ))}
               </div>
+              <MsgParte className="mt-1.5" />
             </div>
           )}
+          <button onClick={abrirApp} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold hover:brightness-110 focus:outline-none focus:ring-2" style={{ background: C.gold, color: "#241C00" }}>
+            Entrar no app Códigos Avivar →
+          </button>
         </div>
       </div>
+
+      {adminMode && (
+        <div className="px-5 py-3 border-t flex flex-wrap items-end gap-2" style={{ borderColor: "#ffffff22", background: "#00000033" }}>
+          <div className="flex-1 min-w-[220px]">
+            <p className="text-[11px] font-mono mb-1" style={{ color: "#D9D2EA" }}>ADMIN · link do app Códigos Avivar (todos os cliques desta seção abrem este endereço)</p>
+            <input value={urlEdit} onChange={(e) => setUrlEdit(e.target.value)} placeholder="https://..." className={inputCls} style={{ borderColor: C.line }} />
+          </div>
+          <Btn color={C.gold} onClick={salvarUrl}><Save size={13} /> {urlSalva ? "Salvo!" : "Salvar link"}</Btn>
+        </div>
+      )}
     </div>
   );
 }
@@ -3479,7 +3170,7 @@ const PASSADA_FIELDS = [
 // Modal global de reportagem — usado em TODO lugar do site que abre uma matéria do
 // Avivar News (Home, Códigos Avivar, Ao Vivo, Manchete...): abre na hora, por cima da
 // página atual, com a imagem, sem rolar a tela pra nenhum canto.
-function ReportagemModal({ news, adminMode, onClose, onDelete }) {
+function ReportagemModal({ news, adminMode, onClose, onDelete, onAbrirApp }) {
   if (!news) return null;
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto p-4" style={{ background: "#00000090" }} onClick={onClose}>
@@ -3496,6 +3187,16 @@ function ReportagemModal({ news, adminMode, onClose, onDelete }) {
             </div>
           )}
           {news.texto && <p className="text-sm mt-4 whitespace-pre-line" style={{ color: C.ink }}>{news.texto}</p>}
+          {news.exclusiva && (
+            <div className="mt-5 rounded-lg p-4 text-center" style={{ background: C.violetDeep }}>
+              <p className="text-xs font-mono font-semibold" style={{ color: C.goldBright }}>{CODIGOS_PARTE_MSG}</p>
+              {onAbrirApp && (
+                <button onClick={onAbrirApp} className="mt-3 px-4 py-2 rounded-md text-sm font-semibold" style={{ background: C.gold, color: "#241C00" }}>
+                  Ver o conteúdo completo no app Códigos Avivar →
+                </button>
+              )}
+            </div>
+          )}
           {adminMode && <button onClick={onDelete} className="text-xs underline mt-4" style={{ color: "#B03428" }}>excluir reportagem</button>}
         </div>
       </div>
@@ -4546,7 +4247,11 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
   const [selected, setSelected] = useState(null);
   const add = (v) => v.titulo && save([...(items || []), { id: uid(), ...v }]);
   const del = (id) => save((items || []).filter((i) => i.id !== id));
-  const sorted = [...(items || [])].sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
+  // Pedido do Marcos: ficam ocultos os livros que não têm como baixar (sem PDF) e que também
+  // não são "à venda" (linkLoja). O admin continua vendo, com aviso, e eles reaparecem quando
+  // um PDF for cadastrado.
+  const baixavelOuVenda = (b) => !!b.pdfUrl || !!b.linkLoja;
+  const sorted = [...(items || [])].filter((b) => baixavelOuVenda(b) || adminMode).sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
@@ -4571,6 +4276,7 @@ function BibliotecaAvivar({ items, save, adminMode, setPage }) {
               <div className="p-3">
                 <p className="font-display font-semibold text-sm leading-snug">{b.titulo}</p>
                 {b.autor && <p className="text-xs mt-0.5" style={{ color: C.stone }}>{b.autor}</p>}
+                {adminMode && !baixavelOuVenda(b) && <p className="text-[10px] font-mono font-semibold mt-1" style={{ color: "#B03428" }}>SEM PDF — oculto ao público</p>}
               </div>
             </button>
             {b.pdfUrl && !b.linkLoja && (
@@ -5372,21 +5078,13 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
       <LiderancaDestaque data={lideranca} save={saveLideranca} adminMode={adminMode} />
 
       {semLideranca.length === 0 && <div className="mt-6"><Empty text="Nenhum colaborador cadastrado ainda." /></div>}
-      {antigos.length > 0 && (
+      {/* Colaboradores antigos e novos num só conjunto (sem o rótulo "Nossos
+          Colaboradores"), com as fotos no mesmo tamanho. */}
+      {(antigos.length > 0 || novos.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
-          {antigos.map((c) => (
+          {[...antigos, ...novos].map((c) => (
             <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} />
           ))}
-        </div>
-      )}
-      {novos.length > 0 && (
-        <div className="mt-10 p-4 rounded-xl" style={{ background: C.cream }}>
-          <p className="text-xs font-mono mb-3 uppercase tracking-wide" style={{ color: C.stone }}>Nossos Colaboradores</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-            {novos.map((c) => (
-              <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} contido />
-            ))}
-          </div>
         </div>
       )}
       {adminMode && (
@@ -5429,6 +5127,8 @@ const OBREIROS_PADRAO = [
   "Pra. Gláucia", "Pra. Isabele", "Pra. Wládia", "Pr. Marcos", "Ir. Elias", "Lucas", "Ir. José", "Ir. Vitória Castro",
   "Ir. Vitória Dimas", "Ir. Livia", "Ir. Bárbara", "Ir. Renato", "Ir. Kauan", "Ir. Brena", "Ir. Samuel", "Ir. Odeuzina", "Ir. Nilcéia",
 ];
+// Fundos claros dos cards pequenos de posto (Escala de Obreiros).
+const CORES_CLARAS_POSTOS = ["#FBF1DE", "#E7F0FB", "#FBE9F0", "#E6F4EA", "#EFE6FB", "#FDEBDD", "#E3F3F4", "#F4F0DA"];
 const POSTOS_PADRAO = ["Recepção", "Ofertas", "Slides", "Mídia", "Abertura e Semeadura", "Pregação", "Anjos de Luz", "Louvor", "Kids"];
 // Ordem fixa de exibição na tabela "Escala de Serviços Ministeriais" — postos que não
 // estiverem nessa lista (customizados pelo admin) aparecem depois, na ordem cadastrada.
@@ -5550,7 +5250,7 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
 // disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
 // naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
 // com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
-function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator }) {
+function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator, embutido = false }) {
   // Código do setor "escala" = poderes completos de admin dentro da Escala.
   const adminMode = adminReal || operatorMode;
   const canManage = adminMode;
@@ -5570,6 +5270,7 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   const [nomeConferente, setNomeConferente] = useState("");
   const [obsAbertoId, setObsAbertoId] = useState(null); // id do escalado com o campo de texto de observação aberto
   const [obsTextoDraft, setObsTextoDraft] = useState("");
+  const [postoAberto, setPostoAberto] = useState(null); // posto cujo quadro de obreiros está aberto
 
   const diaSemana = diaSemanaFromData(dataCulto);
   const horarioAtual = horarioDoDia(diaSemana, safeData.horarios);
@@ -5792,21 +5493,21 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+    <div className={embutido ? "px-1 py-6" : "max-w-6xl mx-auto px-4 sm:px-6 py-10"}>
       <Eyebrow><ClipboardList size={12} className="inline mr-1" />Serviço na Casa de Deus</Eyebrow>
       <SectionTitle>Escala de Obreiros</SectionTitle>
 
-      <p className="mt-3 text-sm font-bold" style={{ color: C.liveRed }}>
+      <p className="mt-1 text-xs font-bold" style={{ color: C.liveRed }}>
         Caso não possa servir ao Senhor no culto abaixo, favor marcar como indisponível com antecedência.
       </p>
 
-      <div className="mt-4 flex items-center gap-3 flex-wrap p-3 rounded-lg border" style={{ borderColor: C.line, background: C.parchment }}>
+      <div className="mt-3 flex items-center gap-3 flex-wrap px-3 py-2 rounded-lg border" style={{ borderColor: C.line, background: C.parchment }}>
         <Field label="Data do culto">
           <input type="date" className={inputCls} style={{ borderColor: C.line }} value={dataCulto} onChange={(e) => setDataCulto(e.target.value)} />
         </Field>
         <div className="text-sm" style={{ color: C.ink }}>
-          <p className="font-mono text-xs uppercase" style={{ color: C.stone }}>Horário deste culto</p>
-          <p className="font-display font-semibold">{fmtHorario(horarioAtual)}</p>
+          <p className="font-mono text-[10px] uppercase" style={{ color: C.stone }}>Horário deste culto</p>
+          <p className="font-display font-semibold text-sm">{fmtHorario(horarioAtual)}</p>
         </div>
         {fechado && (
           <span className="text-xs px-2 py-1 rounded-full font-mono" style={{ background: "#2E7D4F22", color: "#2E7D4F" }}>
@@ -5815,12 +5516,78 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
         )}
       </div>
 
+      {/* Postos — cards pequenos, de fundo claro; o clique abre, logo abaixo, o quadro
+          com os nomes dos obreiros escalados naquele posto (no dia escolhido). */}
+      <div className="mt-4">
+        <p className="text-[10px] font-mono uppercase mb-1.5" style={{ color: C.stone }}>Clique no posto para ver os obreiros</p>
+        <div className="flex flex-wrap gap-2">
+          {safeData.postos.map((posto, i) => {
+            const qtd = escalados.filter((e) => e.posto === posto).length;
+            const aberto = postoAberto === posto;
+            const cor = CORES_CLARAS_POSTOS[i % CORES_CLARAS_POSTOS.length];
+            return (
+              <button
+                key={posto}
+                onClick={() => setPostoAberto(aberto ? null : posto)}
+                className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition hover:brightness-95 focus:outline-none focus:ring-2"
+                style={{ background: cor, color: C.ink, borderColor: aberto ? C.ink : "#00000022", boxShadow: aberto ? "0 0 0 2px " + C.gold : "none" }}
+              >
+                {posto}
+                <span className="text-[10px] font-mono px-1.5 rounded-full" style={{ background: "#ffffffcc" }}>{qtd}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {postoAberto && safeData.postos.includes(postoAberto) && (() => {
+          const doPosto = escalados.filter((e) => e.posto === postoAberto);
+          return (
+            <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: C.gold, background: C.cream }}>
+              <div className="flex items-center justify-between">
+                <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{postoAberto} · {fmtDate(dataCulto)}</p>
+                <button onClick={() => setPostoAberto(null)} aria-label="Fechar"><X size={14} color={C.stone} /></button>
+              </div>
+              {doPosto.length === 0 ? (
+                <p className="text-xs italic mt-2" style={{ color: C.stone }}>Nenhum obreiro escalado neste posto para este dia.</p>
+              ) : (
+                <div className="mt-2 space-y-1.5">
+                  {doPosto.map((e) => (
+                    <div key={e.id} className="px-2 py-1.5 rounded-md flex items-center justify-between gap-2 flex-wrap" style={{ background: C.parchment }}>
+                      <div>
+                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
+                        <span className="ml-2"><StatusObreiro e={e} /></span>
+                      </div>
+                      {podeMexerNoDia && (!fechado || adminMode) && (
+                        <button onClick={() => removerEscalado(e.id)} className="text-[10px] underline" style={{ color: "#B03428" }}>remover da escala</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {canManage && (!fechado || adminMode) && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Obreiros disponíveis — clique pra escalar</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {disponiveis.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Todos já foram escalados hoje.</span>}
+                    {disponiveis.map((nome) => (
+                      <button key={nome} onClick={() => escalarObreiro(nome, postoAberto)} className="text-xs px-2 py-1 rounded-full border" style={{ borderColor: C.line, color: C.ink, background: C.parchment }}>
+                        {nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Quadro-resumo — movido pra antes dos postos; agora em formato de tabela com
           Ministério / Nome / Disponibilidade / Observações. Só aparece depois do
           primeiro obreiro escalado no dia. */}
       {escalados.length > 0 && (
-        <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
-          <Eyebrow color={C.ember}>Escala de Serviços Ministeriais</Eyebrow>
+        <details className="mt-4 p-3 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
+          <summary className="cursor-pointer text-xs font-mono uppercase font-semibold" style={{ color: C.ember }}>Escala de Serviços Ministeriais — quadro completo do dia ({escalados.length})</summary>
           <div className="overflow-x-auto">
             <table className="w-full text-sm mt-3">
               <thead>
@@ -5900,55 +5667,8 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
           {adminMode && fechado && (
             <button onClick={reabrirDia} className="text-xs underline mt-3" style={{ color: C.stone }}>reabrir escala do dia (admin)</button>
           )}
-        </div>
+        </details>
       )}
-
-      {/* Postos e suas caixas de disponíveis / escalados */}
-      <div className="mt-6 grid sm:grid-cols-3 gap-4">
-        {safeData.postos.map((posto) => {
-          const doPosto = escalados.filter((e) => e.posto === posto);
-          return (
-            <div key={posto} className="p-3 rounded-lg border" style={{ borderColor: C.line, background: C.cream }}>
-              <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{posto}</p>
-
-              {doPosto.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {doPosto.map((e) => (
-                    <div key={e.id} className="p-2 rounded-md flex items-center justify-between gap-2 flex-wrap" style={{ background: C.parchment }}>
-                      <div>
-                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
-                        <span className="ml-2"><StatusObreiro e={e} /></span>
-                      </div>
-                      {podeMexerNoDia && (!fechado || adminMode) && (
-                        <button onClick={() => removerEscalado(e.id)} className="text-[10px] underline" style={{ color: "#B03428" }}>remover da escala</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {canManage && (!fechado || adminMode) && (
-                <div className="mt-2">
-                  <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Obreiros disponíveis — clique pra escalar</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {disponiveis.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Todos já foram escalados hoje.</span>}
-                    {disponiveis.map((nome) => (
-                      <button
-                        key={nome}
-                        onClick={() => escalarObreiro(nome, posto)}
-                        className="text-xs px-2 py-1 rounded-full border"
-                        style={{ borderColor: C.line, color: C.ink, background: C.parchment }}
-                      >
-                        {nome}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
 
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
@@ -6109,7 +5829,7 @@ const AVIVARNEWS_FIELDS = [
   { key: "imageUrl", label: "URL da imagem de capa (opcional)", type: "url" },
   { key: "videoUrl", label: "URL do vídeo (YouTube ou Vimeo, opcional)", type: "url" },
   { key: "texto", label: "Texto da reportagem", type: "textarea" },
-  { key: "exclusiva", label: "Conteúdo exclusivo de Códigos Avivar (só quem assina/entra com código lê o texto completo)", type: "select", options: ["Não", "Sim"] },
+  { key: "exclusiva", label: "Conteúdo dos Códigos Avivar (mostra o aviso \"pequena parte do conteúdo dos Códigos Avivar\" e o botão para o app)", type: "select", options: ["Não", "Sim"] },
   { key: "resumo", label: "Resumo curto (aparece na parte geral do site quando for exclusiva)", type: "textarea" },
 ];
 
@@ -6124,8 +5844,9 @@ const VISITANTE_FIELDS = [
   { key: "local", label: "Local / culto" },
 ];
 
-function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator }) {
+function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator, embutido = false }) {
   const [modoProjecao, setModoProjecao] = useState(false);
+  const [verTodosDias, setVerTodosDias] = useState(false);
   const canAccess = adminMode || operatorMode;
   const grouped = useMemo(() => {
     const byDay = {};
@@ -6154,64 +5875,106 @@ function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOp
     save([...items, entry]);
   };
 
+  const wrapCls = embutido ? "px-1 py-6" : "max-w-6xl mx-auto px-4 sm:px-6 py-10";
+
+  // Download (CSV, abre direto no Excel) — SÓ para o admin geral.
+  const baixarVisitantes = () => {
+    const esc = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+    const cols = [["Data", (v) => fmtDateTime(v.timestamp)], ...VISITANTE_FIELDS.map((f) => [f.label.replace(/\s*\(.*\)/, ""), (v) => v[f.key]])];
+    const linhas = [cols.map(([t]) => esc(t)).join(";")];
+    [...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach((v) => linhas.push(cols.map(([, fn]) => esc(fn(v))).join(";")));
+    const blob = new Blob(["\ufeff" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `visitantes-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   if (!canAccess) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <div className={wrapCls}>
         <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
         <SectionTitle>Cadastro de Visitantes</SectionTitle>
-        <RestrictedNotice onUnlock={onRequestOperator} />
+        <RestrictedNotice onUnlock={onRequestOperator} compact={embutido} />
       </div>
     );
   }
 
+  const CartaoVisitante = ({ v }) => (
+    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: C.line, background: "#fff" }}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{v.nome} {v.cargoEclesiastico && <span className="text-xs font-normal" style={{ color: C.stone }}>· {v.cargoEclesiastico}</span>}</p>
+        <p className="text-xs" style={{ color: C.stone }}>{v.igreja} {v.local && `· ${v.local}`} · {fmtDateTime(v.timestamp)}</p>
+      </div>
+      {v.telefone && (
+        <a
+          href={waLink(v.telefone, `Olá ${v.nome.split(" ")[0]}! Que alegria receber sua visita em nome de Jesus Cristo, no Ministério Avivar do Espírito. Esperamos vê-lo(a) novamente em breve!`)}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-md"
+          style={{ background: "#25D36622", color: "#1B8A55" }}
+        >
+          <MessageCircle size={13} /> agradecer
+        </a>
+      )}
+    </div>
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+    <div className={wrapCls}>
       <Eyebrow><HandHeart size={12} className="inline mr-1" />Que bom te ver por aqui</Eyebrow>
       <SectionTitle>Cadastro de Visitantes</SectionTitle>
-      <p className="text-sm mt-2" style={{ color: C.stone }}>Registre a visita e, se desejar, envie uma mensagem de agradecimento no WhatsApp.</p>
+      <p className="text-xs mt-1" style={{ color: C.stone }}>Registre a visita e, se desejar, envie uma mensagem de agradecimento no WhatsApp.</p>
 
-      {/* Moldura da seção Visitantes inteira, a pedido — fundo creme, filete dourado */}
-      <div className="rounded-2xl border-2 p-4 sm:p-6 mt-6" style={{ borderColor: C.gold, background: C.cream }}>
-        <div>
-          <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
+      {/* Moldura da seção Visitantes inteira — fundo creme, filete dourado */}
+      <div className="rounded-2xl border-2 p-3 sm:p-4 mt-4" style={{ borderColor: C.gold, background: C.cream }}>
+        <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
+
+        <div className="flex flex-wrap gap-2 mt-3">
+          <Btn variant="ghost" onClick={() => setModoProjecao(true)}>
+            <Video size={14} /> Tela de projeção (culto de hoje)
+          </Btn>
+          {adminMode && (
+            <Btn variant="ghost" color={C.goldDeep} onClick={baixarVisitantes}>
+              <FileText size={14} /> Baixar lista (admin)
+            </Btn>
+          )}
         </div>
 
-        <Btn variant="ghost" className="mt-4" onClick={() => setModoProjecao(true)}>
-          <Video size={14} /> Abrir tela de projeção (culto de hoje)
-        </Btn>
-
-        <div className="mt-10 space-y-6">
-          {Object.keys(grouped).length === 0 && <Empty text="Nenhuma visita registrada ainda." />}
-          {Object.entries(grouped).map(([day, list]) => (
-            <div key={day}>
-              <p className="text-xs font-mono font-semibold mb-2" style={{ color: C.stone }}>{day}</p>
-              <div className="space-y-2">
-                {list.map((v) => (
-                  <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border" style={{ borderColor: C.line, background: "#fff" }}>
-                    <div>
-                      <p className="text-sm font-medium">{v.nome} {v.cargoEclesiastico && <span className="text-xs font-normal" style={{ color: C.stone }}>· {v.cargoEclesiastico}</span>}</p>
-                      <p className="text-xs" style={{ color: C.stone }}>{v.igreja} {v.local && `· ${v.local}`} · {fmtDateTime(v.timestamp)}</p>
-                    </div>
-                    {v.telefone && (
-                      <a
-                        href={waLink(v.telefone, `Olá ${v.nome.split(" ")[0]}! Que alegria receber sua visita em nome de Jesus Cristo, no Ministério Avivar do Espírito. Esperamos vê-lo(a) novamente em breve!`)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-md"
-                        style={{ background: "#25D36622", color: "#1B8A55" }}
-                      >
-                        <MessageCircle size={13} /> agradecer no WhatsApp
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
+        {/* Por padrão aparecem só os visitantes do dia; o botão abre a relação de todos os dias. */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-xs font-mono font-semibold" style={{ color: C.ink }}>
+              {verTodosDias ? "Todos os dias" : `Visitantes de hoje · ${hojeStr}`}
+            </p>
+            <button onClick={() => setVerTodosDias((v) => !v)} className="text-xs underline" style={{ color: C.violet }}>
+              {verTodosDias ? "← ver só os de hoje" : `Ver todos os dias (${items.length})`}
+            </button>
+          </div>
+          {!verTodosDias && (
+            <div className="space-y-2">
+              {visitantesHoje.length === 0 && <Empty text="Nenhum visitante registrado hoje." />}
+              {visitantesHoje.map((v) => <CartaoVisitante key={v.id} v={v} />)}
             </div>
-          ))}
+          )}
+          {verTodosDias && (
+            <div className="space-y-5">
+              {Object.keys(grouped).length === 0 && <Empty text="Nenhuma visita registrada ainda." />}
+              {Object.entries(grouped).map(([day, list]) => (
+                <div key={day}>
+                  <p className="text-xs font-mono font-semibold mb-1.5" style={{ color: C.stone }}>{day} · {list.length}</p>
+                  <div className="space-y-2">
+                    {list.map((v) => <CartaoVisitante key={v.id} v={v} />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <p className="text-xs mt-6 italic" style={{ color: C.stone }}>
-          Neste protótipo, a mensagem de agradecimento é enviada com um toque (via WhatsApp Web/App). Envio 100% automático, sem toque, requer integração com a API oficial do WhatsApp Business em um backend real.
-        </p>
       </div>
 
       {modoProjecao && (
@@ -6252,6 +6015,7 @@ const ORACAO_FIELDS = [
 ];
 
 const ENCONTRO_FIELDS = [
+  { key: "titulo", label: "Título do encontro" },
   { key: "anfitriao", label: "Anfitrião (ex: Casa da Irmã Deuza)" },
   { key: "diaSemana", label: "Dia da semana (ex: Terça-feira)" },
   { key: "data", label: "Data", type: "date" },
@@ -6273,13 +6037,8 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
 
   const addEncontro = (v) => saveEncontros([...encontros, { id: uid(), ...v, fotos: [] }]);
   const delEncontro = (id) => saveEncontros(encontros.filter((e) => e.id !== id));
-  const addFoto = (id, url) => {
-    if (!url.trim()) return;
-    saveEncontros(encontros.map((e) => (e.id === id ? { ...e, fotos: [...(e.fotos || []), url.trim()] } : e)));
-  };
-  const delFoto = (id, idx) => {
-    saveEncontros(encontros.map((e) => (e.id === id ? { ...e, fotos: e.fotos.filter((_, i) => i !== idx) } : e)));
-  };
+  const [encontroAbertoId, setEncontroAbertoId] = useState(null);
+  const encontroAberto = encontros.find((e) => e.id === encontroAbertoId) || null;
 
   const [editandoLocal, setEditandoLocal] = useState(false);
   const [fotoDiaEdit, setFotoDiaEdit] = useState((localDia && localDia.fotoUrl) || "");
@@ -6329,55 +6088,15 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
         )
       )}
 
-      {/* Agenda de encontros — pública pra ver, restrita pra cadastrar. Pedido do Marcos:
-          o mais novo cadastrado entra na 1ª coluna; ao cadastrar outro, o anterior "anda"
-          pra coluna da direita, e assim por diante até formar novas linhas — sempre tudo
-          visível (nunca esconde nem pagina). Como cada encontro novo é sempre adicionado
-          ao FIM do array (ver addEncontro), basta exibir em ordem invertida (mais novo
-          primeiro) numa grade de 3 colunas: o mais novo cai na coluna 1, o antigo "1º
-          mais novo" empurra pra coluna 2, o próximo pra coluna 3, e o seguinte já forma
-          a linha de baixo — exatamente o efeito descrito. Cada coluna tem um fundo claro
-          diferente (CORES_COLUNAS_ORACAO) pra ficar fácil de acompanhar visualmente. */}
+      {/* Registro dos encontros — faixa rolante: a pessoa escolhe a data e abre a página daquele
+          dia (título, estudo do dia, fotos, relato). Só admin/autorizado cadastra e edita. */}
       <div className="mt-4">
-        <p className="text-sm font-display font-semibold mb-3" style={{ color: C.ink }}>Próximos encontros</p>
-        {encontros.length === 0 && <p className="text-sm italic" style={{ color: C.stone }}>Nenhum encontro cadastrado ainda.</p>}
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[...encontros].reverse().map((e, idx) => (
-            <div key={e.id} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line, background: CORES_COLUNAS_ORACAO[idx % CORES_COLUNAS_ORACAO.length] }}>
-              <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <p className="font-display font-semibold text-sm">{e.anfitriao}</p>
-                  {canManageAgenda && <button onClick={() => delEncontro(e.id)}><Trash2 size={13} color={C.stone} /></button>}
-                </div>
-                <p className="text-xs mt-1" style={{ color: C.stone }}><strong>{e.diaSemana}</strong> · {fmtDate(e.data)} · {e.hora}</p>
-                <p className="text-xs mt-1" style={{ color: C.stone }}>{e.endereco}</p>
-                {e.contato && <p className="text-xs" style={{ color: C.stone }}>Contato: {e.contato}</p>}
-              </div>
-              {(e.fotos || []).length > 0 && (
-                <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">
-                  {e.fotos.map((f, idx) => (
-                    <div key={idx} className="relative">
-                      <img src={f} className="w-full h-28 object-cover rounded" />
-                      {canManageAgenda && (
-                        <button onClick={() => delFoto(e.id, idx)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                          <X size={10} color="#fff" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {canManageAgenda && (
-                <MiniPhotoAdder onAdd={(url) => addFoto(e.id, url)} />
-              )}
-            </div>
-          ))}
-        </div>
+        <FaixaEncontros encontros={encontros} cor={C.purple} onAbrir={setEncontroAbertoId} />
 
         {canManageAgenda ? (
           <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro</p>
-            <DynamicForm fields={ENCONTRO_FIELDS} onSubmit={(v) => v.anfitriao && addEncontro(v)} submitLabel="Cadastrar encontro" />
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — depois de cadastrar, abra-o na faixa acima para colocar fotos, estudo do dia e relato</p>
+            <DynamicForm fields={ENCONTRO_FIELDS} onSubmit={(v) => v.data && (v.anfitriao || v.titulo) && addEncontro(v)} submitLabel="Cadastrar encontro" />
           </div>
         ) : (
           <Btn variant="ghost" className="mt-4" color={C.purple} onClick={onRequestOperator}>
@@ -6385,6 +6104,19 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
           </Btn>
         )}
       </div>
+
+      {encontroAberto && (
+        <PaginaEncontro
+          tipo="oracao"
+          rotulo="Orações nos Lares"
+          encontro={encontroAberto}
+          cor={C.purple}
+          canManage={canManageAgenda}
+          onSave={(upd) => saveEncontros(encontros.map((e) => (e.id === upd.id ? upd : e)))}
+          onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
+          onVoltar={() => setEncontroAbertoId(null)}
+        />
+      )}
 
       <div className="mt-12 pt-8 border-t" style={{ borderColor: C.line }}>
         {canManageAgenda ? (
@@ -8225,12 +7957,14 @@ export default function App() {
   // marcada como "exclusiva" — só abre de verdade pra quem já está com Códigos Avivar
   // desbloqueado (ou é admin); qualquer outra pessoa é mandada pra tela de credenciais.
   const abrirReportagem = (id) => {
-    const item = (avivarNews || []).find((n) => n.id === id);
-    if (item && item.exclusiva && !adminMode && !codigosUnlocked) {
-      scrollToSection("codigos");
-      return;
-    }
     setNewsAbrirId(id);
+  };
+  // Todo clique de "chamada" para os Códigos Avivar leva ao app (link em codigos.appUrl,
+  // cadastrado pelo admin); sem link ainda, volta para a seção Códigos Avivar.
+  const abrirAppCodigos = () => {
+    const u = ((codigos && codigos.appUrl) || "").trim();
+    if (u) window.open(/^https?:\/\//i.test(u) ? u : "https://" + u, "_blank", "noopener,noreferrer");
+    else { setPaginaAvivarNewsTVOpen(false); scrollToSection("codigos"); }
   };
   const [loading, setLoading] = useState(true);
   // Lido uma vez do link de WhatsApp (?escalaId=...) — se presente, a tela de confirmação
@@ -8251,7 +7985,6 @@ export default function App() {
   // (em vez de ficar só dentro de CodigosAvivar) pra que abrirReportagem saiba, de
   // qualquer lugar do site, se pode abrir uma reportagem "exclusiva" direto ou se deve
   // mandar a pessoa pra tela de login de Códigos Avivar.
-  const [codigosUnlocked, setCodigosUnlocked] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   // operatorAuth guarda quem autenticou (nome + setores liberados). podeSetor() decide,
@@ -9541,6 +9274,17 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       saveKey("avivar:site", novoSite);
       todo.homeCardsReorg1 = true;
     }
+    // Nova arte do card "Bíblia Avivar" (enviada pelo Marcos em 05/10) — troca a imagem do
+    // card já salvo, uma única vez (trocas posteriores feitas pelo admin são preservadas).
+    if (!seeds.bibliaCardImg2) {
+      const hcAtual = site.homeCards || DEFAULT_HOMECARDS;
+      if (hcAtual.some((c) => c.key === "biblia")) {
+        const novoSite = { ...(site || DEFAULT_SITE), homeCards: hcAtual.map((c) => (c.key === "biblia" ? { ...c, imageUrl: BIBLIA_DESTAQUE_BANNER } : c)) };
+        setSite(novoSite);
+        saveKey("avivar:site", novoSite);
+      }
+      todo.bibliaCardImg2 = true;
+    }
     // Remove o card "Dízimos e Ofertas" da grade de 9 cards da Home — a seção
     // própria que ele abria foi removida (duplicava o card de Pix já existente
     // no Hero da Home), então o card da grade ficaria sem destino.
@@ -9720,6 +9464,15 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.avivarKidsIsaac1 = true;
     }
+    // Pedido do Marcos: zerar as permissões (códigos de operador) que o admin havia
+    // criado, para que novas sejam criadas do zero. Roda uma única vez.
+    if (!seeds.operadoresLimpar1) {
+      if ((operatorCodes || []).length > 0) {
+        setOperatorCodes([]);
+        saveKey("avivar:operatorcodes", []);
+      }
+      todo.operadoresLimpar1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -9870,10 +9623,10 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         passadas={transmissoesPassadas} savePassadas={persist.transmissoesPassadas}
         news={avivarNews} saveNews={persist.avivarNews}
         adminMode={adminMode} onOpenNews={abrirReportagem}
-        unlocked={codigosUnlocked}
+        unlocked={false}
         intercessao={intercessao} saveIntercessao={persist.intercessao}
         onVoltar={() => setPaginaAvivarNewsTVOpen(false)}
-        onAbrirCodigos={() => { setPaginaAvivarNewsTVOpen(false); scrollToSection("codigos"); }}
+        onAbrirCodigos={abrirAppCodigos}
       />
     );
   }
@@ -9948,15 +9701,19 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
 
       <main className="lg:ml-[200px]">
         <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} /></section>
-        <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} loja={loja} saveLoja={persist.loja} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} unlocked={codigosUnlocked} setUnlocked={setCodigosUnlocked} forumPosts={forumPosts} addForumPost={(p) => persist.forum([...forumPosts, p])} /></section>
+        <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="loja" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
         <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} kidsItems={avivarKids} saveKids={persist.avivarKids} lideranca={lideranca} saveLideranca={persist.lideranca} /></section>
-        <section id="escala" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="escala" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><EscalaObreiros data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        {/* Serviço na Casa de Deus (esquerda) e Cadastro de Visitantes (direita) no mesmo nível —
+            independentes entre si, cada um com o seu próprio controle de acesso. */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-8 items-start">
+          <section id="escala" className="scroll-mt-24 lg:col-span-2 min-w-0"><div className="pt-4"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="escala" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><EscalaObreiros embutido data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+          <section id="visitantes" className="scroll-mt-24 min-w-0"><div className="pt-4 lg:invisible"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes embutido items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+        </div>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="visitantes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
@@ -9973,6 +9730,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         news={(avivarNews || []).find((n) => n.id === newsAbrirId) || null}
         adminMode={adminMode}
         onClose={() => setNewsAbrirId(null)}
+        onAbrirApp={abrirAppCodigos}
         onDelete={() => {
           persist.avivarNews(avivarNews.filter((n) => n.id !== newsAbrirId));
           setNewsAbrirId(null);
