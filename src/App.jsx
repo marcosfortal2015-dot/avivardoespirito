@@ -264,7 +264,7 @@ const DEFAULT_CELULAS = {
   // Diácono Gilvan coordena o projeto Células Avivar como um todo (as 3 células).
   // liderCode é o código único que o admin gera/revoga e entrega ao Diácono Gilvan
   // (Líder de Células) para que ele edite as 3 páginas sem precisar do login de admin.
-  coordenador: "Diácono Gilvan",
+  coordenador: "Pr. Gilvan",
   liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase(),
   liderCodeActive: true,
   alfa: {
@@ -281,10 +281,10 @@ const DEFAULT_CELULAS = {
   gama: { ...CELULA_VAZIA("gama"), logoUrl: "/110-celula-gama-logo.png" },
 };
 const CELULA_ENCONTRO_FIELDS = [
-  { key: "titulo", label: "Título do encontro" },
   { key: "data", label: "Data", type: "date" },
-  { key: "anfitriao", label: "Anfitrião(ã)" },
+  { key: "hora", label: "Hora", type: "time" },
   { key: "local", label: "Local / endereço" },
+  { key: "titulo", label: "Título do encontro (opcional)" },
 ];
 
 /* ---------------------------------------------------------------- */
@@ -1083,6 +1083,7 @@ const SETORES_OPERADOR = [
   { key: "membros", label: "Membros" },
   { key: "escala", label: "Escala de Obreiros" },
   { key: "loja", label: "Loja (editar produtos, frete e pedidos)" },
+  { key: "caixa", label: "Caixa / Tesouraria (só se marcado explicitamente — não vem em \"Todos\")" },
 ];
 // Apelidos aceitos no campo "setores" de um código — o admin pode escrever do jeito
 // que fala no dia a dia (ex: "recepção"), com ou sem acento, que cai no setor certo.
@@ -1093,13 +1094,14 @@ const SETOR_APELIDOS = {
   membro: "membros", secretaria: "membros",
   escalas: "escala", obreiros: "escala",
   frete: "loja", tudo: "todos",
+  tesouraria: "caixa", tesoureiro: "caixa", financeiro: "caixa", contabilidade: "caixa",
 };
 function parseSetoresOperador(texto) {
   const lista = String(texto || "").split(/[,;]/).map((s) => semAcento(s.trim())).filter(Boolean).map((s) => SETOR_APELIDOS[s] || s);
   return lista.length ? [...new Set(lista)] : ["todos"];
 }
 // Onde fica cada setor no site (id da seção) — usado pelos atalhos da barra de acesso.
-const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitantes: "visitantes", membros: "membros", escala: "escala", loja: "loja" };
+const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitantes: "visitantes", membros: "membros", escala: "escala", loja: "loja", caixa: "caixa" };
 
 // Barra de acesso do servidor — aparece no topo de cada seção que aceita código de
 // função (recepção, secretaria, louvor...). Sem código: botão pra entrar. Com código:
@@ -1108,7 +1110,7 @@ function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPa
   if (adminMode) return null;
   const info = SETORES_OPERADOR.find((x) => x.key === setor) || { label: setor };
   const liberados = operatorAuth
-    ? (operatorAuth.setores.includes("todos") ? SETORES_OPERADOR.filter((x) => x.key !== "todos").map((x) => x.key) : operatorAuth.setores.filter((k) => SETOR_DESTINO[k]))
+    ? (operatorAuth.setores.includes("todos") ? SETORES_OPERADOR.filter((x) => x.key !== "todos" && x.key !== "caixa").map((x) => x.key) : operatorAuth.setores.filter((k) => SETOR_DESTINO[k]))
     : [];
   const temEste = liberados.includes(setor);
   return (
@@ -1841,7 +1843,7 @@ function VisitantesDiaBanner({ vd }) {
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
@@ -2119,7 +2121,7 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
@@ -2230,7 +2232,12 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
         <Eyebrow><Layers size={12} className="inline mr-1" />Comunhão em pequenos grupos</Eyebrow>
         <SectionTitle>Células Avivar</SectionTitle>
         {celulas && celulas.coordenador && (
-          <p className="text-sm mb-5" style={{ color: C.stone }}>Coordenador das Células Avivar: <strong style={{ color: C.ink }}>{celulas.coordenador}</strong></p>
+          <p className="text-sm mb-5" style={{ color: C.stone }}>
+            Coordenador das Células Avivar: <strong style={{ color: C.ink }}>{celulas.coordenador}</strong>
+            {podeRelatorioCelulas && (
+              <button onClick={onRelatorioCelulas} className="ml-3 text-xs underline font-semibold" style={{ color: C.violet }}>Relatório unificado das células</button>
+            )}
+          </p>
         )}
         {/* Grid própria das Células (não usa GRID3): no celular, 1 card por linha —
             cada card se divide em logo (topo) + dados (abaixo), senão a logo fixa ao
@@ -2285,25 +2292,123 @@ function CelulaCard({ chave, celula, onOpen }) {
 /* ---------------------------------------------------------------- */
 /* Encontros — página do dia (Células Avivar e Oração nos Lares)        */
 /* ---------------------------------------------------------------- */
+const FOTOS_MAX = 5;
+const VIDEOS_MAX = 4;
 const ESTUDO_VAZIO = { titulo: "", data: "", livro: "", versiculo: "", historico: "" };
-const ENCONTRO_CAMPOS = {
+
+// Campos da "ficha" do encontro — todos aparecem com filete (linha), mesmo vazios.
+// Os campos de estudo (assunto, livro, versículo) ficam em encontro.estudo.
+const FICHA_CAMPOS = {
   celula: [
-    { key: "titulo", label: "Título do encontro" },
-    { key: "data", label: "Data", type: "date" },
-    { key: "anfitriao", label: "Anfitrião(ã)" },
-    { key: "local", label: "Local / endereço" },
+    { k: "titulo", l: "Título do encontro", span: 2 },
+    { k: "data", l: "Data", t: "date" },
+    { k: "hora", l: "Hora", t: "time" },
+    { k: "local", l: "Local" },
+    { k: "anfitriao", l: "Anfitrião(ã)" },
+    { k: "assunto", l: "Assunto", estudo: "titulo", span: 2 },
+    { k: "livro", l: "Livro", estudo: "livro" },
+    { k: "versiculo", l: "Versículo bíblico", estudo: "versiculo" },
   ],
   oracao: [
-    { key: "titulo", label: "Título do encontro" },
-    { key: "data", label: "Data", type: "date" },
-    { key: "diaSemana", label: "Dia da semana" },
-    { key: "hora", label: "Horário" },
-    { key: "anfitriao", label: "Anfitrião" },
-    { key: "endereco", label: "Endereço completo" },
-    { key: "contato", label: "Contato" },
+    { k: "titulo", l: "Título do encontro", span: 2 },
+    { k: "data", l: "Data", t: "date" },
+    { k: "diaSemana", l: "Dia da semana" },
+    { k: "hora", l: "Horário" },
+    { k: "anfitriao", l: "Anfitrião" },
+    { k: "endereco", l: "Endereço completo", span: 2 },
+    { k: "contato", l: "Contato" },
+    { k: "assunto", l: "Assunto (estudo de hoje)", estudo: "titulo", span: 2 },
+    { k: "estudoData", l: "Data do estudo", estudo: "data", t: "date" },
+    { k: "livro", l: "Livro", estudo: "livro" },
+    { k: "versiculo", l: "Versículo bíblico", estudo: "versiculo" },
   ],
 };
 const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+const valorFicha = (obj, def) => (def.estudo ? ((obj.estudo || {})[def.estudo] || "") : (obj[def.k] || ""));
+const gravarFicha = (obj, def, v) => (def.estudo ? { ...obj, estudo: { ...ESTUDO_VAZIO, ...(obj.estudo || {}), [def.estudo]: v } } : { ...obj, [def.k]: v });
+const linhasTexto = (t) => String(t || "").split("\n").map((x) => x.trim()).filter(Boolean);
+const abrevTexto = (t, n = 40) => { const s = String(t || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; };
+
+/* --- Fotos enviadas pelo próprio celular/computador -------------------
+   Não há servidor de arquivos no site: a foto é reduzida (máx. 1280 px, JPEG) e
+   gravada como uma chave própria ("avivar:img:<id>"); o encontro guarda só a
+   referência "kv:<id>". Assim a página do encontro não fica pesada. */
+const imgCache = {};
+async function carregarImagemKv(id) {
+  if (imgCache[id]) return imgCache[id];
+  const r = await loadKey(`avivar:img:${id}`, null);
+  const d = r && r.d ? r.d : "";
+  if (d) imgCache[id] = d;
+  return d;
+}
+function comprimirImagem(file, maxLado = 1280, qualidade = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("leitura"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("imagem"));
+      img.onload = () => {
+        const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * escala));
+        const h = Math.max(1, Math.round(img.height * escala));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", qualidade));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function enviarImagemKv(file) {
+  const dataUrl = await comprimirImagem(file);
+  const id = uid() + uid();
+  await saveKey(`avivar:img:${id}`, { d: dataUrl });
+  const conferido = await loadKey(`avivar:img:${id}`, null);
+  if (!conferido || !conferido.d) throw new Error("gravacao");
+  imgCache[id] = dataUrl;
+  return "kv:" + id;
+}
+function useFotoUrl(src) {
+  const ehKv = typeof src === "string" && src.startsWith("kv:");
+  const [url, setUrl] = useState(ehKv ? imgCache[src.slice(3)] || "" : src || "");
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    if (ehKv) {
+      setUrl(imgCache[src.slice(3)] || "");
+      setFalhou(false);
+      carregarImagemKv(src.slice(3)).then((d) => { if (vivo) { setUrl(d); setFalhou(!d); } });
+    } else {
+      setUrl(src || "");
+    }
+    return () => { vivo = false; };
+  }, [src]);
+  return { url, ehKv, falhou };
+}
+function FotoKv({ src, alt, className, ph }) {
+  const { url, ehKv, falhou } = useFotoUrl(src);
+  if (ehKv && !url) {
+    return <div className={`${className} flex items-center justify-center text-xs`} style={{ background: C.parchmentDeep, color: C.stone }}>{falhou ? "Foto indisponível" : "Carregando…"}</div>;
+  }
+  return <ImgOrPlaceholder url={url} alt={alt} className={className} ph={ph} />;
+}
+function FotoAmpliadaKv({ src, onClose }) {
+  const { url } = useFotoUrl(src);
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000e0" }} onClick={onClose}>
+      <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full" style={{ background: "#ffffff22" }}><X size={20} color="#fff" /></button>
+      {url && <img src={url} alt="" className="max-w-full max-h-full rounded-lg object-contain" onClick={(ev) => ev.stopPropagation()} />}
+    </div>
+  );
+}
 
 // Faixa rolante com os encontros já registrados: a pessoa escolhe uma data (rolando e
 // clicando, ou digitando a data) e abre a página daquele dia.
@@ -2345,7 +2450,11 @@ function FaixaEncontros({ encontros, cor, onAbrir, vazio = "Nenhum encontro regi
                 <p className="font-display text-2xl font-bold leading-none" style={{ color: cor }}>{ok ? String(dt.getDate()).padStart(2, "0") : "--"}</p>
                 <p className="text-[11px] font-mono uppercase mt-0.5" style={{ color: C.ink }}>{ok ? `${MESES_ABREV[dt.getMonth()]} ${dt.getFullYear()}` : e.data}</p>
                 <p className="text-[11px] mt-1 leading-snug line-clamp-2" style={{ color: C.stone }}>{e.titulo || e.anfitriao || "Encontro"}</p>
-                {(e.fotos || []).length > 0 && <p className="text-[10px] mt-1" style={{ color: C.stone }}>📷 {(e.fotos || []).length}</p>}
+                <p className="text-[10px] mt-1" style={{ color: C.stone }}>
+                  {(e.fotos || []).length > 0 && <>📷 {(e.fotos || []).length} </>}
+                  {(e.videos || []).length > 0 && <>▶ {(e.videos || []).length} </>}
+                </p>
+                {e.encerrado && <p className="text-[10px] font-semibold" style={{ color: "#2E7D4F" }}>✔ encerrada</p>}
               </button>
             );
           })}
@@ -2355,39 +2464,187 @@ function FaixaEncontros({ encontros, cor, onAbrir, vazio = "Nenhum encontro regi
   );
 }
 
-// Página de um encontro (célula ou oração nos lares): título, estudo do dia, fotos
-// (1 grande à esquerda + 3 colunas de 2 fotos à direita, e mais linhas se houver mais
-// fotos), relato e presentes. Edita quem é admin ou tem autorização (canManage).
-function PaginaEncontro({ tipo, encontro, cor, canManage, onSave, onDelete, onVoltar, rotulo }) {
-  const campos = ENCONTRO_CAMPOS[tipo] || ENCONTRO_CAMPOS.celula;
-  const [editando, setEditando] = useState(false);
-  const [draft, setDraft] = useState({});
-  const [fotoAmpliada, setFotoAmpliada] = useState(null);
+// Linha "de caderno" (filete) — aparece mesmo quando o campo está vazio.
+const estiloPauta = (cor, linhas = 3) => ({
+  lineHeight: "1.75rem",
+  minHeight: `${linhas * 1.75}rem`,
+  backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent calc(1.75rem - 1.5px), ${cor}99 calc(1.75rem - 1.5px), ${cor}99 1.75rem)`,
+  backgroundAttachment: "local",
+});
+
+function CampoFilete({ label, value, onChange, type = "text", editavel, cor, multilinha = false, linhas = 3 }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.stone }}>{label}</p>
+      {multilinha ? (
+        editavel ? (
+          <textarea value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-transparent outline-none resize-y text-sm" style={{ ...estiloPauta(cor, linhas), color: C.ink, padding: 0, border: "none" }} />
+        ) : (
+          <div className="text-sm whitespace-pre-wrap" style={{ ...estiloPauta(cor, linhas), color: C.ink }}>{value}</div>
+        )
+      ) : editavel ? (
+        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-transparent outline-none text-sm px-0.5" style={{ borderBottom: `1.5px solid ${cor}`, minHeight: "1.9rem", color: C.ink }} />
+      ) : (
+        <div className="text-sm px-0.5" style={{ borderBottom: `1.5px solid ${cor}`, minHeight: "1.9rem", lineHeight: "1.9rem", color: C.ink }}>
+          {type === "date" && value ? fmtDate(value) : value}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Página de um encontro (célula ou oração nos lares): ficha com filetes, foto 1 grande
+// com "como foi" ao lado, até 5 fotos enviadas do aparelho, vídeos estilo YouTube,
+// lista de presentes e — nas células — assinatura de encerramento do Coordenador, com
+// registro de qualquer edição feita depois.
+function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord, quem, coordenadorNome, verificarSenhaCoord, sugestoesPresentes = [], onSave, onDelete, onVoltar, rotulo }) {
+  const campos = FICHA_CAMPOS[tipo] || FICHA_CAMPOS.celula;
+  const ehCelula = tipo === "celula";
+  const podeAssinar = isAdmin || isCoord;
+  const encerrado = encontro.encerrado || null;
+  const canEdit = !!podeEditarBase && (!encerrado || podeAssinar);
+  const nomeQuem = (quem && quem.nome) || (isAdmin ? "Administração" : "—");
+
+  const encRef = useRef(encontro);
+  encRef.current = encontro;
+
+  const rascunhoDe = (e) => ({
+    titulo: e.titulo || "", data: e.data || "", hora: e.hora || "", local: e.local || "", anfitriao: e.anfitriao || "",
+    diaSemana: e.diaSemana || "", endereco: e.endereco || "", contato: e.contato || "",
+    estudo: { ...ESTUDO_VAZIO, ...(e.estudo || {}) },
+    observacoes: e.observacoes || "", relato: e.relato || "", presentes: e.presentes || "",
+  });
+  const [draft, setDraft] = useState(() => rascunhoDe(encontro));
+  const [salvoOk, setSalvoOk] = useState(false);
+  useEffect(() => { setDraft(rascunhoDe(encontro)); }, [encontro.id]);
+  const baseSalva = rascunhoDe(encontro);
+  const sujo = JSON.stringify(draft) !== JSON.stringify(baseSalva);
+
+  const [aviso, setAviso] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [fotoModal, setFotoModal] = useState(null); // índice
+  const [ampliada, setAmpliada] = useState(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+  const inputMultiRef = useRef(null);
+  const inputUmaRef = useRef(null);
+  const substIdxRef = useRef(null);
 
-  const abrirEdicao = () => {
-    setDraft({ ...encontro, estudo: { ...ESTUDO_VAZIO, ...(encontro.estudo || {}) } });
-    setEditando(true);
-  };
-  const setCampo = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
-  const setEstudo = (k, v) => setDraft((d) => ({ ...d, estudo: { ...d.estudo, [k]: v } }));
-  const salvar = () => {
-    onSave({ ...encontro, ...draft, fotos: encontro.fotos || [] });
-    setEditando(false);
+  const comAuditoria = (base, novo, linhasAud) => {
+    if (!base.encerrado || !linhasAud.length) return novo;
+    return { ...novo, auditoria: [...(base.auditoria || []), { em: nowISO(), por: nomeQuem, papel: isAdmin ? "admin" : (quem && quem.papel) || "", o: linhasAud }] };
   };
 
+  const salvarFicha = () => {
+    const base = encRef.current;
+    const mudancas = [];
+    campos.forEach((def) => {
+      const a = valorFicha(base, def), b = valorFicha(draft, def);
+      if (a !== b) mudancas.push(`${def.l}: “${abrevTexto(a) || "vazio"}” → “${abrevTexto(b) || "vazio"}”`);
+    });
+    if ((base.estudo || {}).historico !== draft.estudo.historico && ((base.estudo || {}).historico || draft.estudo.historico)) mudancas.push("Histórico do estudo alterado");
+    if ((base.observacoes || "") !== draft.observacoes) mudancas.push("Observações alteradas");
+    if ((base.relato || "") !== draft.relato) mudancas.push(ehCelula ? "“Como foi a célula” alterado" : "“Como foi o encontro” alterado");
+    const pa = linhasTexto(base.presentes).length, pb = linhasTexto(draft.presentes).length;
+    if ((base.presentes || "") !== draft.presentes) mudancas.push(`Lista de presentes alterada (${pa} → ${pb})`);
+    const novo = { ...base, ...draft, estudo: { ...ESTUDO_VAZIO, ...draft.estudo } };
+    onSave(comAuditoria(base, novo, mudancas));
+    setSalvoOk(true);
+    setTimeout(() => setSalvoOk(false), 2500);
+  };
+
+  const setCampo = (def, v) => setDraft((d) => gravarFicha(d, def, v));
+
+  // --- Fotos ---
   const fotos = encontro.fotos || [];
-  const grande = fotos[0] || "";
-  const pequenas = fotos.slice(1);
-  const slotsPequenos = canManage ? Math.max(6, Math.ceil(pequenas.length / 3) * 3) : pequenas.length;
-  const addFoto = (url) => { if (url && url.trim()) onSave({ ...encontro, fotos: [...fotos, url.trim()] }); };
-  const delFoto = (idx) => onSave({ ...encontro, fotos: fotos.filter((_, i) => i !== idx) });
+  const salvarFotos = (novas, resumo) => {
+    const base = encRef.current;
+    onSave(comAuditoria(base, { ...base, fotos: novas }, [resumo]));
+  };
+  const enviarVarias = async (fileList) => {
+    const arquivos = Array.from(fileList || []);
+    if (!arquivos.length) return;
+    const atuais = encRef.current.fotos || [];
+    const livres = FOTOS_MAX - atuais.length;
+    if (livres <= 0) { setAviso(`Já há ${FOTOS_MAX} fotos neste encontro. Clique numa foto para substituir ou remover.`); return; }
+    const usar = arquivos.slice(0, livres);
+    setAviso(arquivos.length > livres ? `Máximo de ${FOTOS_MAX} fotos por encontro: usei as primeiras ${livres}.` : "");
+    setEnviando(true);
+    try {
+      const novas = [];
+      for (const f of usar) novas.push(await enviarImagemKv(f));
+      const baseFotos = encRef.current.fotos || [];
+      salvarFotos([...baseFotos, ...novas], `Fotos inseridas: ${novas.length} (agora ${baseFotos.length + novas.length})`);
+    } catch (e) {
+      setAviso("Não consegui enviar uma das fotos. Use imagens JPG ou PNG e tente de novo.");
+    }
+    setEnviando(false);
+  };
+  const substituirFoto = async (file) => {
+    const idx = substIdxRef.current;
+    if (file == null || idx == null) return;
+    setEnviando(true);
+    try {
+      const nova = await enviarImagemKv(file);
+      const baseFotos = [...(encRef.current.fotos || [])];
+      baseFotos[idx] = nova;
+      salvarFotos(baseFotos, `Foto ${idx + 1} substituída`);
+      setFotoModal(null);
+    } catch (e) {
+      setAviso("Não consegui enviar a foto. Use uma imagem JPG ou PNG e tente de novo.");
+    }
+    setEnviando(false);
+  };
+  const removerFoto = (idx) => {
+    const baseFotos = (encRef.current.fotos || []).filter((_, i) => i !== idx);
+    salvarFotos(baseFotos, `Foto ${idx + 1} removida`);
+    setFotoModal(null);
+  };
+  const clicarFoto = (idx) => (canEdit ? setFotoModal(idx) : setAmpliada(fotos[idx]));
 
-  const estudo = { ...ESTUDO_VAZIO, ...(encontro.estudo || {}) };
-  const temEstudo = Object.values(estudo).some((v) => String(v || "").trim());
-  const presentesLista = (encontro.presentes || "").split("\n").map((x) => x.trim()).filter(Boolean);
-  const titulo = encontro.titulo || (tipo === "oracao" ? "Encontro de oração" : "Encontro da célula");
-  const local = encontro.local || encontro.endereco;
+  // --- Vídeos ---
+  const videos = encontro.videos || [];
+  const [querVideo, setQuerVideo] = useState(videos.length > 0);
+  const [novoVideo, setNovoVideo] = useState({ titulo: "", url: "" });
+  const addVideo = () => {
+    const url = novoVideo.url.trim();
+    if (!url || videos.length >= VIDEOS_MAX) return;
+    const base = encRef.current;
+    const novo = { id: uid(), titulo: novoVideo.titulo.trim() || "Vídeo do encontro", url, em: nowISO() };
+    onSave(comAuditoria(base, { ...base, videos: [...(base.videos || []), novo] }, [`Vídeo adicionado: ${novo.titulo}`]));
+    setNovoVideo({ titulo: "", url: "" });
+  };
+  const delVideo = (v) => {
+    const base = encRef.current;
+    onSave(comAuditoria(base, { ...base, videos: (base.videos || []).filter((x) => x.id !== v.id) }, [`Vídeo removido: ${v.titulo}`]));
+  };
+
+  // --- Presentes ---
+  const presentesLista = linhasTexto(draft.presentes);
+  const [novoPresente, setNovoPresente] = useState("");
+  const setPresentes = (lista) => setDraft((d) => ({ ...d, presentes: lista.join("\n") }));
+  const alternarPresente = (nome) => setPresentes(presentesLista.includes(nome) ? presentesLista.filter((x) => x !== nome) : [...presentesLista, nome]);
+  const addPresente = () => {
+    const n = novoPresente.trim();
+    if (!n) return;
+    if (!presentesLista.includes(n)) setPresentes([...presentesLista, n]);
+    setNovoPresente("");
+  };
+
+  // --- Encerramento ---
+  const [senhaAss, setSenhaAss] = useState("");
+  const [erroAss, setErroAss] = useState("");
+  const encerrar = (viaAdmin) => {
+    if (sujo) { setErroAss("Salve a ficha antes de encerrar."); return; }
+    if (!viaAdmin && !verificarSenhaCoord(senhaAss)) { setErroAss("Senha do Coordenador incorreta."); return; }
+    const base = encRef.current;
+    onSave({ ...base, encerrado: { por: viaAdmin ? "Administração" : coordenadorNome || "Coordenador", em: nowISO(), via: viaAdmin ? "admin" : "coordenador" } });
+    setSenhaAss("");
+    setErroAss("");
+  };
+
+  const titulo = encontro.titulo || (ehCelula ? "Encontro da célula" : "Encontro de oração");
+  const grande = fotos[0];
+  const outras = fotos.slice(1);
 
   return (
     <div className="fixed inset-0 z-[55] overflow-y-auto font-body" style={{ background: C.parchment, color: C.ink }}>
@@ -2403,128 +2660,203 @@ function PaginaEncontro({ tipo, encontro, cor, canManage, onSave, onDelete, onVo
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <Eyebrow color={cor}><Calendar size={12} className="inline mr-1" />{encontro.data ? fmtDate(encontro.data) : "Encontro"}{encontro.hora ? ` · ${encontro.hora}` : ""}</Eyebrow>
         <h2 className="font-display text-2xl sm:text-3xl font-semibold" style={{ color: C.ink }}>{titulo}</h2>
-        <p className="text-xs mt-1.5" style={{ color: C.stone }}>
-          {encontro.anfitriao && <>Anfitrião(ã): <strong style={{ color: C.ink }}>{encontro.anfitriao}</strong></>}
-          {local && <> · {local}</>}
-          {encontro.contato && <> · Contato: {encontro.contato}</>}
-        </p>
-
-        {canManage && !editando && (
-          <button onClick={abrirEdicao} className="text-xs underline mt-3 flex items-center gap-1" style={{ color: C.ember }}>
-            <Pencil size={12} /> editar título, dados e estudo do dia
-          </button>
+        {encerrado && (
+          <p className="text-xs mt-1 font-semibold" style={{ color: "#2E7D4F" }}>✔ Encerrada por {encerrado.por} em {new Date(encerrado.em).toLocaleString("pt-BR")}{(encontro.auditoria || []).length > 0 ? ` · editada depois do encerramento (${encontro.auditoria.length}×)` : ""}</p>
         )}
+        {!canEdit && podeEditarBase && encerrado && <p className="text-[11px] italic mt-1" style={{ color: C.stone }}>Encerrada: só o Coordenador (ou a administração) pode editar.</p>}
 
-        {editando && (
-          <div className="mt-4 p-4 rounded-lg border space-y-4" style={{ borderColor: C.line, background: "#00000006" }}>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {campos.map((f) => (
-                <Field key={f.key} label={f.label}>
-                  <input type={f.type || "text"} className={inputCls} style={{ borderColor: C.line }} value={draft[f.key] || ""} onChange={(e) => setCampo(f.key, e.target.value)} />
-                </Field>
-              ))}
-            </div>
-            <div className="p-3 rounded-lg border" style={{ borderColor: cor + "66", background: "#fff" }}>
-              <p className="text-xs font-mono font-semibold mb-2" style={{ color: cor }}>ESTUDO DE HOJE</p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="Título do estudo"><input className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.titulo || ""} onChange={(e) => setEstudo("titulo", e.target.value)} /></Field>
-                <Field label="Data do estudo"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.data || ""} onChange={(e) => setEstudo("data", e.target.value)} /></Field>
-                <Field label="Livro"><input className={inputCls} style={{ borderColor: C.line }} placeholder="Ex.: Salmos" value={draft.estudo?.livro || ""} onChange={(e) => setEstudo("livro", e.target.value)} /></Field>
-                <Field label="Versículo(s)"><input className={inputCls} style={{ borderColor: C.line }} placeholder="Ex.: 91:1-4" value={draft.estudo?.versiculo || ""} onChange={(e) => setEstudo("versiculo", e.target.value)} /></Field>
-                <div className="sm:col-span-2"><Field label="Histórico / resumo do estudo"><textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={draft.estudo?.historico || ""} onChange={(e) => setEstudo("historico", e.target.value)} /></Field></div>
+        {/* Ficha com filetes */}
+        <div className="mt-5 rounded-xl border-2 p-4 sm:p-5" style={{ borderColor: cor, background: "#fff" }}>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+            {campos.map((def) => (
+              <div key={def.k} className={def.span === 2 ? "sm:col-span-2" : ""}>
+                <CampoFilete label={def.l} type={def.t || "text"} value={valorFicha(draft, def)} onChange={(v) => setCampo(def, v)} editavel={canEdit} cor={cor} />
               </div>
-            </div>
-            <Field label="Relato do líder (palavra do dia, testemunhos, etc.)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={draft.relato || ""} onChange={(e) => setCampo("relato", e.target.value)} /></Field>
-            <Field label="Relação dos presentes (um nome por linha)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={draft.presentes || ""} onChange={(e) => setCampo("presentes", e.target.value)} /></Field>
-            <div className="flex gap-2">
-              <Btn color={cor} onClick={salvar}><Save size={13} /> Salvar</Btn>
-              <Btn variant="ghost" color={cor} onClick={() => setEditando(false)}>Cancelar</Btn>
-            </div>
+            ))}
           </div>
-        )}
-
-        {/* Estudo de hoje */}
-        <div className="mt-5 rounded-xl border-2 p-4" style={{ borderColor: cor, background: cor + "12" }}>
-          <p className="text-xs font-mono font-semibold uppercase" style={{ color: cor }}><BookOpen size={12} className="inline mr-1" />Estudo de hoje{estudo.data ? ` · ${fmtDate(estudo.data)}` : ""}</p>
-          {temEstudo ? (
-            <div className="mt-2">
-              {estudo.titulo && <p className="font-display font-semibold text-lg" style={{ color: C.ink }}>{estudo.titulo}</p>}
-              {(estudo.livro || estudo.versiculo) && <p className="text-sm mt-0.5" style={{ color: C.ink }}><strong>{estudo.livro}</strong>{estudo.versiculo ? ` ${estudo.versiculo}` : ""}</p>}
-              {estudo.historico && <p className="text-sm mt-2 leading-relaxed whitespace-pre-line" style={{ color: C.stone }}>{estudo.historico}</p>}
-            </div>
-          ) : (
-            <p className="text-xs italic mt-2" style={{ color: C.stone }}>Estudo do dia ainda não cadastrado.</p>
-          )}
+          <div className="grid md:grid-cols-2 gap-x-6 gap-y-4 mt-4">
+            <CampoFilete label="Histórico do estudo" multilinha linhas={3} value={draft.estudo.historico} onChange={(v) => setDraft((d) => ({ ...d, estudo: { ...d.estudo, historico: v } }))} editavel={canEdit} cor={cor} />
+            <CampoFilete label="Observações" multilinha linhas={3} value={draft.observacoes} onChange={(v) => setDraft((d) => ({ ...d, observacoes: v }))} editavel={canEdit} cor={cor} />
+          </div>
         </div>
 
-        {/* Fotos: 1 grande à esquerda (1/3 da largura) + 3 colunas de 2 fotos à direita */}
-        <div className="mt-5 grid md:grid-cols-3 gap-3 items-start">
+        {/* Foto 1 grande + "como foi" ao lado */}
+        <div className="mt-5 grid lg:grid-cols-2 gap-4 items-stretch">
           <div className="relative">
             {grande ? (
-              <>
-                <button onClick={() => setFotoAmpliada(grande)} className="block w-full rounded-lg overflow-hidden focus:outline-none focus:ring-2" style={{ background: cor + "0f" }}>
-                  <ImgOrPlaceholder url={grande} alt={titulo} className="w-full h-64 md:h-72 object-cover" ph="Foto principal" />
-                </button>
-                {canManage && (
-                  <button onClick={() => delFoto(0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1" aria-label="Remover foto"><X size={13} color="#fff" /></button>
-                )}
-              </>
+              <button onClick={() => clicarFoto(0)} className="block w-full rounded-xl overflow-hidden focus:outline-none focus:ring-2 relative" style={{ background: cor + "0f" }}>
+                <FotoKv src={grande} alt={titulo} className="w-full h-64 sm:h-80 lg:h-full lg:min-h-[20rem] object-cover" ph="Foto 1" />
+                <span className="absolute left-2 top-2 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full" style={{ background: "#000000aa", color: "#fff" }}>Foto 1</span>
+                {canEdit && <span className="absolute right-2 bottom-2 text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: "#ffffffdd", color: C.ink }}>clique para substituir / remover</span>}
+              </button>
             ) : (
-              <div className="w-full h-64 md:h-72 rounded-lg flex items-center justify-center text-xs border-2 border-dashed" style={{ borderColor: cor + "66", color: C.stone, background: cor + "0f" }}>Foto principal — a enviar</div>
+              <div className="w-full h-64 sm:h-80 lg:h-full lg:min-h-[20rem] rounded-xl flex flex-col items-center justify-center text-xs border-2 border-dashed gap-2" style={{ borderColor: cor + "66", color: C.stone, background: cor + "0f" }}>
+                <span className="font-mono font-semibold">Foto 1</span>
+                <span>{canEdit ? "use o botão INSERIR FOTOS" : "foto a enviar"}</span>
+              </div>
             )}
           </div>
-          <div className="md:col-span-2 grid grid-cols-3 gap-2 content-start">
-            {Array.from({ length: slotsPequenos }).map((_, i) => {
-              const f = pequenas[i];
-              return f ? (
-                <div key={i} className="relative">
-                  <button onClick={() => setFotoAmpliada(f)} className="block w-full rounded-lg overflow-hidden focus:outline-none focus:ring-2">
-                    <ImgOrPlaceholder url={f} alt={`${titulo} — foto ${i + 2}`} className="w-full h-[7.6rem] md:h-[8.75rem] object-cover" ph="Foto" />
-                  </button>
-                  {canManage && (
-                    <button onClick={() => delFoto(i + 1)} className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5" aria-label="Remover foto"><X size={11} color="#fff" /></button>
-                  )}
-                </div>
-              ) : (
-                <div key={i} className="w-full h-[7.6rem] md:h-[8.75rem] rounded-lg border-2 border-dashed flex items-center justify-center text-[11px]" style={{ borderColor: cor + "55", color: C.stone, background: cor + "0a" }}>foto {i + 2}</div>
-              );
-            })}
+          <div className="rounded-xl border-2 p-4" style={{ borderColor: cor + "88", background: cor + "0d" }}>
+            <CampoFilete label={ehCelula ? "Como foi a célula (histórico do dia)" : "Como foi o encontro (histórico do dia)"} multilinha linhas={11} value={draft.relato} onChange={(v) => setDraft((d) => ({ ...d, relato: v }))} editavel={canEdit} cor={cor} />
           </div>
         </div>
-        {canManage && (
-          <div className="mt-2 rounded-lg border" style={{ borderColor: C.line, background: "#fff" }}>
-            <MiniPhotoAdder onAdd={addFoto} />
-            <p className="text-[10px] px-2 pb-2" style={{ color: C.stone }}>A 1ª foto vira a foto grande; as seguintes preenchem as colunas ao lado (e abrem novas linhas se passar de 6). Use o caminho do arquivo enviado ao GitHub (ex.: /minha-foto.jpg).</p>
+
+        {/* Inserir fotos */}
+        {canEdit && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <input ref={inputMultiRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { enviarVarias(e.target.files); e.target.value = ""; }} />
+            <button
+              onClick={() => inputMultiRef.current && inputMultiRef.current.click()}
+              disabled={enviando || fotos.length >= FOTOS_MAX}
+              className="px-4 py-2 rounded-lg text-sm font-bold tracking-wide disabled:opacity-50"
+              style={{ background: cor, color: "#fff" }}
+            >
+              {enviando ? "ENVIANDO…" : "📷 INSERIR FOTOS"}
+            </button>
+            <span className="text-xs" style={{ color: C.stone }}>{fotos.length} de {FOTOS_MAX} fotos · escolha até {FOTOS_MAX} de uma vez</span>
+            <input ref={inputUmaRef} type="file" accept="image/*" className="hidden" onChange={(e) => { substituirFoto(e.target.files[0]); e.target.value = ""; }} />
+          </div>
+        )}
+        {aviso && <p className="text-xs mt-2 font-semibold" style={{ color: C.ember }}>{aviso}</p>}
+
+        {/* Fotos 2 a 5 — espaços que só aparecem quando há foto */}
+        {outras.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {outras.map((f, i) => (
+              <button key={i} onClick={() => clicarFoto(i + 1)} className="relative rounded-lg overflow-hidden focus:outline-none focus:ring-2">
+                <FotoKv src={f} alt={`${titulo} — foto ${i + 2}`} className="w-full h-36 sm:h-40 object-cover" ph={`Foto ${i + 2}`} />
+                <span className="absolute left-1.5 top-1.5 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full" style={{ background: "#000000aa", color: "#fff" }}>Foto {i + 2}</span>
+              </button>
+            ))}
           </div>
         )}
 
-        {(encontro.relato || presentesLista.length > 0) && (
-          <div className="mt-6 grid md:grid-cols-2 gap-5">
-            {encontro.relato && (
-              <div>
-                <p className="text-xs font-semibold" style={{ color: C.ink }}>Relato do encontro</p>
-                <p className="text-sm mt-1 leading-relaxed whitespace-pre-line" style={{ color: C.stone }}>{encontro.relato}</p>
+        {/* Vídeos estilo YouTube */}
+        {(videos.length > 0 || canEdit) && (
+          <div className="mt-6">
+            <p className="text-sm font-display font-semibold mb-2" style={{ color: C.ink }}><PlayCircle size={14} className="inline mr-1" />Vídeos do encontro</p>
+            {canEdit && (
+              <div className="mb-3">
+                <label className="text-xs flex items-center gap-2" style={{ color: C.ink }}>
+                  <input type="checkbox" checked={querVideo} onChange={(e) => setQuerVideo(e.target.checked)} /> Quero inserir vídeo neste encontro (link do YouTube ou Vimeo)
+                </label>
+                {querVideo && (
+                  <div className="mt-2 grid sm:grid-cols-[1fr_2fr_auto] gap-2 items-end">
+                    <Field label="Título do vídeo"><input className={inputCls} style={{ borderColor: C.line }} value={novoVideo.titulo} onChange={(e) => setNovoVideo((v) => ({ ...v, titulo: e.target.value }))} /></Field>
+                    <Field label="Link do vídeo"><input className={inputCls} style={{ borderColor: C.line }} placeholder="https://youtu.be/..." value={novoVideo.url} onChange={(e) => setNovoVideo((v) => ({ ...v, url: e.target.value }))} /></Field>
+                    <Btn color={cor} onClick={addVideo}><Plus size={14} /> Adicionar</Btn>
+                  </div>
+                )}
+                {querVideo && <p className="text-[10px] mt-1" style={{ color: C.stone }}>Vídeo não é enviado direto para o site (é pesado): suba no YouTube (pode ser "não listado") e cole o link aqui. Até {VIDEOS_MAX} vídeos por encontro.</p>}
               </div>
             )}
-            {presentesLista.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold" style={{ color: C.ink }}>Relação dos presentes</p>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {presentesLista.map((nome, idx) => (
-                    <span key={idx} className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: cor + "1a", color: C.ink }}>{nome}</span>
-                  ))}
+            {videos.length > 0 && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {videos.map((v) => (
+                  <div key={v.id}>
+                    <div className="rounded-xl overflow-hidden bg-black aspect-video">
+                      <iframe title={v.titulo} src={getEmbedUrl(v.url)} loading="lazy" className="w-full h-full" allowFullScreen />
+                    </div>
+                    <p className="text-sm font-semibold mt-2 leading-snug">{v.titulo}</p>
+                    <p className="text-[11px]" style={{ color: C.stone }}>{titulo} · {encontro.data ? fmtDate(encontro.data) : ""}</p>
+                    {canEdit && <button onClick={() => delVideo(v)} className="text-[11px] underline mt-0.5" style={{ color: "#B03428" }}>remover vídeo</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lista de presentes */}
+        <div className="mt-6 rounded-xl border-2 p-4" style={{ borderColor: cor, background: "#fff" }}>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-display font-semibold" style={{ color: C.ink }}><Users size={14} className="inline mr-1" />Lista de presentes</p>
+            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full" style={{ background: cor + "1a", color: cor }}>Total: {presentesLista.length}</span>
+          </div>
+          {canEdit && sugestoesPresentes.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Participantes da célula — toque para marcar presença</p>
+              <div className="flex flex-wrap gap-1.5">
+                {sugestoesPresentes.map((n) => {
+                  const on = presentesLista.includes(n);
+                  return (
+                    <button key={n} onClick={() => alternarPresente(n)} className="text-xs px-2.5 py-1 rounded-full border" style={{ borderColor: on ? cor : C.line, background: on ? cor : "#fff", color: on ? "#fff" : C.ink }}>
+                      {on ? "✔ " : ""}{n}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {canEdit && (
+            <div className="mt-3 flex gap-2">
+              <input value={novoPresente} onChange={(e) => setNovoPresente(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPresente(); }} placeholder="Outro presente / visitante — digite e Enter" className={`${inputCls} text-xs`} style={{ borderColor: C.line }} />
+              <Btn color={cor} onClick={addPresente}><Plus size={14} /></Btn>
+            </div>
+          )}
+          <ol className="mt-3 grid sm:grid-cols-2 gap-x-8">
+            {Array.from({ length: Math.max(8, presentesLista.length + (presentesLista.length % 2)) }).map((_, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm" style={{ borderBottom: `1.5px solid ${cor}`, minHeight: "1.9rem" }}>
+                <span className="text-[10px] font-mono w-5" style={{ color: C.stone }}>{i + 1}.</span>
+                <span className="flex-1">{presentesLista[i] || ""}</span>
+                {canEdit && presentesLista[i] && <button onClick={() => setPresentes(presentesLista.filter((_, j) => j !== i))} aria-label="Remover"><X size={11} color={C.stone} /></button>}
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {canEdit && (
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
+            <Btn color={cor} onClick={salvarFicha}><Save size={14} /> Salvar ficha do encontro</Btn>
+            {sujo && <span className="text-xs font-semibold" style={{ color: C.ember }}>há alterações não salvas</span>}
+            {salvoOk && <span className="text-xs font-semibold" style={{ color: "#2E7D4F" }}>Salvo!</span>}
+          </div>
+        )}
+
+        {/* Encerramento — assinatura do Coordenador */}
+        {ehCelula && (
+          <div className="mt-8 rounded-xl border-2 p-4" style={{ borderColor: encerrado ? "#2E7D4F" : cor, background: encerrado ? "#2E7D4F0d" : "#fff" }}>
+            <p className="text-sm font-display font-semibold" style={{ color: C.ink }}><ShieldCheck size={14} className="inline mr-1" />Encerramento da célula — assinatura do Coordenador</p>
+            {encerrado ? (
+              <div className="mt-2">
+                <p className="font-script text-4xl leading-tight" style={{ color: C.ink, borderBottom: `1.5px solid ${cor}`, display: "inline-block", paddingRight: "2rem" }}>{encerrado.por}</p>
+                <p className="text-xs mt-1" style={{ color: C.stone }}>Coordenador(a) das Células Avivar · encerrada em {new Date(encerrado.em).toLocaleString("pt-BR")}</p>
+              </div>
+            ) : podeAssinar ? (
+              <div className="mt-2">
+                <p className="text-xs" style={{ color: C.stone }}>Ao assinar com a sua senha, a célula é encerrada. Depois disso você ainda pode editar, mas cada alteração fica registrada com data e hora.</p>
+                <div className="mt-2 flex flex-wrap gap-2 items-end max-w-xl">
+                  <div className="flex-1 min-w-[200px]"><Field label="Senha do Coordenador"><SenhaInput value={senhaAss} onChange={(e) => setSenhaAss(e.target.value)} onEnter={() => encerrar(false)} /></Field></div>
+                  <Btn color="#2E7D4F" onClick={() => encerrar(false)}>Assinar e encerrar</Btn>
+                  {isAdmin && <Btn variant="ghost" color={C.stone} onClick={() => encerrar(true)}>Encerrar como administração</Btn>}
                 </div>
+                {erroAss && <p className="text-xs mt-1 font-semibold" style={{ color: "#B03428" }}>{erroAss}</p>}
               </div>
+            ) : (
+              <p className="text-xs mt-2 italic" style={{ color: C.stone }}>Aguardando a assinatura do Coordenador{coordenadorNome ? ` (${coordenadorNome})` : ""} para encerrar esta célula.</p>
+            )}
+            {podeAssinar && (encontro.auditoria || []).length > 0 && (
+              <details className="mt-3">
+                <summary className="text-xs font-semibold cursor-pointer" style={{ color: C.ember }}>Alterações feitas depois do encerramento ({encontro.auditoria.length})</summary>
+                <ul className="mt-2 space-y-1.5 text-xs">
+                  {[...encontro.auditoria].reverse().map((a, i) => (
+                    <li key={i} className="p-2 rounded-md" style={{ background: C.parchment }}>
+                      <span className="font-mono" style={{ color: C.stone }}>{new Date(a.em).toLocaleString("pt-BR")}</span> — <strong>{a.por}</strong>
+                      <ul className="list-disc ml-4 mt-0.5">{(a.o || []).map((l, j) => <li key={j}>{l}</li>)}</ul>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         )}
 
-        {canManage && (
+        {podeAssinar && (
           <div className="mt-8 pt-3 border-t text-xs" style={{ borderColor: C.line }}>
             {confirmarExcluir ? (
               <span style={{ color: "#B03428" }}>
                 Excluir este encontro e suas fotos?{" "}
-                <button onClick={() => { onDelete(); }} className="underline font-semibold">sim, excluir</button>{" "}
+                <button onClick={() => onDelete()} className="underline font-semibold">sim, excluir</button>{" "}
                 <button onClick={() => setConfirmarExcluir(false)} className="underline" style={{ color: C.stone }}>cancelar</button>
               </span>
             ) : (
@@ -2534,25 +2866,155 @@ function PaginaEncontro({ tipo, encontro, cor, canManage, onSave, onDelete, onVo
         )}
       </div>
 
-      {fotoAmpliada && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000e0" }} onClick={() => setFotoAmpliada(null)}>
-          <button onClick={() => setFotoAmpliada(null)} className="absolute top-4 right-4 p-2 rounded-full" style={{ background: "#ffffff22" }}><X size={20} color="#fff" /></button>
-          <img src={fotoAmpliada} alt="" className="max-w-full max-h-full rounded-lg object-contain" onClick={(ev) => ev.stopPropagation()} />
+      {/* Foto: substituir / remover */}
+      {fotoModal != null && fotos[fotoModal] && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center p-4" style={{ background: "#000000cc" }} onClick={() => setFotoModal(null)}>
+          <div className="w-full max-w-md rounded-xl p-4" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+            <p className="font-display font-semibold text-sm mb-2">Foto {fotoModal + 1}</p>
+            <FotoKv src={fotos[fotoModal]} alt="" className="w-full max-h-72 object-contain rounded-lg" />
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Btn color={cor} onClick={() => { substIdxRef.current = fotoModal; inputUmaRef.current && inputUmaRef.current.click(); }}>{enviando ? "Enviando…" : "Substituir (enviar outra)"}</Btn>
+              <Btn variant="ghost" color="#B03428" onClick={() => removerFoto(fotoModal)}><Trash2 size={13} /> Remover</Btn>
+              <Btn variant="ghost" color={C.stone} onClick={() => { setAmpliada(fotos[fotoModal]); setFotoModal(null); }}>Ver ampliada</Btn>
+              <Btn variant="ghost" color={C.stone} onClick={() => setFotoModal(null)}>Fechar</Btn>
+            </div>
+          </div>
         </div>
       )}
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
     </div>
   );
 }
 
-function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, adminMode, onSave, onPatchTop, onVoltar }) {
+// Relatório unificado das Células — todas as células (ou uma só) num período, com
+// presenças, situação (encerrada/assinada) e alterações pós-encerramento. Sai em PDF
+// (imprimir / salvar como PDF).
+function RelatorioCelulas({ celulas, coordenador, onClose }) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [de, setDe] = useState("");
+  const [ate, setAte] = useState(hoje);
+  const [filtro, setFiltro] = useState("todas");
+  const chaves = CELULA_KEYS.filter((k) => filtro === "todas" || filtro === k);
+  const blocos = chaves.map((k) => {
+    const c = (celulas && celulas[k]) || CELULA_VAZIA(k);
+    const enc = (c.encontros || []).filter((e) => e.data && (!de || e.data >= de) && (!ate || e.data <= ate)).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    const presencas = enc.reduce((s, e) => s + linhasTexto(e.presentes).length, 0);
+    return { k, c, enc, presencas, encerradas: enc.filter((e) => e.encerrado).length, editadas: enc.filter((e) => (e.auditoria || []).length > 0).length };
+  });
+  const totalEnc = blocos.reduce((s, b) => s + b.enc.length, 0);
+  const totalPres = blocos.reduce((s, b) => s + b.presencas, 0);
+  const esc = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const imprimir = () => {
+    const periodo = `${de ? fmtDate(de) : "início"} a ${ate ? fmtDate(ate) : "hoje"}`;
+    const corpo = blocos.map((b) => `
+      <h3 style="margin:18px 0 4px;color:#4A3B6B">${esc(b.c.nome)} <small style="font-weight:normal">· anfitrião(ã): ${esc(b.c.anfitriao || "—")} · líder: ${esc((b.c.lider && b.c.lider.nome) || "—")}</small></h3>
+      <table><thead><tr><th>Data</th><th>Hora</th><th>Local</th><th>Assunto</th><th>Versículo</th><th>Presentes</th><th>Situação</th></tr></thead><tbody>
+      ${b.enc.length === 0 ? '<tr><td colspan="7"><em>Sem encontros no período.</em></td></tr>' : b.enc.map((e) => `<tr><td>${fmtDate(e.data)}</td><td>${esc(e.hora || "")}</td><td>${esc(e.local || "")}</td><td>${esc((e.estudo || {}).titulo || e.titulo || "")}</td><td>${esc(((e.estudo || {}).livro || "") + " " + ((e.estudo || {}).versiculo || ""))}</td><td>${linhasTexto(e.presentes).length}</td><td>${e.encerrado ? "Encerrada por " + esc(e.encerrado.por) + " em " + new Date(e.encerrado.em).toLocaleString("pt-BR") : "Em aberto"}${(e.auditoria || []).length ? " · " + e.auditoria.length + " alteração(ões) após encerrar" : ""}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="totais">Encontros: <strong>${b.enc.length}</strong> · Presenças somadas: <strong>${b.presencas}</strong> · Média por encontro: <strong>${b.enc.length ? (b.presencas / b.enc.length).toFixed(1) : "0"}</strong> · Encerradas: <strong>${b.encerradas}</strong></p>`).join("");
+    printReport(
+      "Relatório unificado das Células Avivar",
+      `<p class="sub">Período: ${periodo}</p>${corpo}
+       <div class="totais"><p><strong>Total geral:</strong> ${totalEnc} encontros · ${totalPres} presenças</p></div>
+       <p style="margin-top:48px">______________________________________<br/>Coordenador(a): ${esc(coordenador || "")}</p>`
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto p-4" style={{ background: "#000000aa" }} onClick={onClose}>
+      <div className="max-w-5xl mx-auto my-6 rounded-xl p-5" style={{ background: C.cream }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-display text-xl font-semibold">Relatório unificado das Células</h3>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="flex flex-wrap items-end gap-3 mt-3">
+          <Field label="De"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={de} onChange={(e) => setDe(e.target.value)} /></Field>
+          <Field label="Até"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={ate} onChange={(e) => setAte(e.target.value)} /></Field>
+          <Field label="Célula">
+            <select className={inputCls} style={{ borderColor: C.line }} value={filtro} onChange={(e) => setFiltro(e.target.value)}>
+              <option value="todas">Todas</option>
+              {CELULA_KEYS.map((k) => <option key={k} value={k}>{(celulas && celulas[k] && celulas[k].nome) || CELULA_LABELS[k]}</option>)}
+            </select>
+          </Field>
+          <Btn color={C.gold} onClick={imprimir}><FileText size={14} /> Imprimir / salvar PDF</Btn>
+        </div>
+        <p className="text-xs mt-3" style={{ color: C.stone }}><strong>{totalEnc}</strong> encontros · <strong>{totalPres}</strong> presenças no período.</p>
+        <div className="mt-3 space-y-5">
+          {blocos.map((b) => (
+            <div key={b.k}>
+              <p className="font-display font-semibold" style={{ color: CELULA_CORES[b.k] || C.violet }}>{b.c.nome} <span className="text-xs font-normal" style={{ color: C.stone }}>· {b.enc.length} encontros · {b.presencas} presenças · {b.encerradas} encerradas{b.editadas ? ` · ${b.editadas} editadas após encerrar` : ""}</span></p>
+              <div className="overflow-x-auto mt-1">
+                <table className="w-full text-xs">
+                  <thead><tr className="text-left font-mono uppercase" style={{ color: C.stone }}><th className="py-1 pr-2">Data</th><th className="pr-2">Hora</th><th className="pr-2">Local</th><th className="pr-2">Assunto</th><th className="pr-2">Versículo</th><th className="pr-2">Pres.</th><th>Situação</th></tr></thead>
+                  <tbody>
+                    {b.enc.length === 0 && <tr><td colSpan={7} className="py-2 italic" style={{ color: C.stone }}>Sem encontros no período.</td></tr>}
+                    {b.enc.map((e) => (
+                      <tr key={e.id} className="border-t align-top" style={{ borderColor: C.line }}>
+                        <td className="py-1 pr-2 whitespace-nowrap">{fmtDate(e.data)}</td>
+                        <td className="pr-2">{e.hora || ""}</td>
+                        <td className="pr-2">{e.local || ""}</td>
+                        <td className="pr-2">{(e.estudo || {}).titulo || e.titulo || ""}</td>
+                        <td className="pr-2">{((e.estudo || {}).livro || "") + " " + ((e.estudo || {}).versiculo || "")}</td>
+                        <td className="pr-2">{linhasTexto(e.presentes).length}</td>
+                        <td>{e.encerrado ? <span style={{ color: "#2E7D4F" }}>✔ {e.encerrado.por}, {new Date(e.encerrado.em).toLocaleDateString("pt-BR")}</span> : <span style={{ color: C.stone }}>em aberto</span>}{(e.auditoria || []).length > 0 && <span style={{ color: C.ember }}> · {e.auditoria.length} alteração(ões) após encerrar</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const gerarCodigoAcesso = (prefixo) => prefixo + "-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+
+// Senha mostrada ao admin, com olhinho para ver/ocultar.
+function SenhaComOlho({ codigo }) {
+  const [ver, setVer] = useState(false);
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono">
+      {ver ? codigo : "•".repeat(Math.min(Math.max(String(codigo || "").length, 6), 12))}
+      <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? "Ocultar senha" : "Mostrar senha"}>{ver ? <EyeOff size={13} /> : <Eye size={13} />}</button>
+    </span>
+  );
+}
+
+function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, liderCodeActive, adminMode, auth, setAuth, onSave, onPatchTop, onVoltar }) {
   const cor = CELULA_CORES[chave] || C.gold;
-  // Acesso do Líder de Células (Diácono Gilvan, coordenador das 3 células) — mesmo
-  // padrão de código/gate já usado nas Unidades Avivar (IgrejaCard/PaginaIgreja):
-  // um único código, gerado e revogável pelo admin, dá direito de editar as 3 células.
+  // Acesso: o Coordenador das Células (Pr. Gilvan) entra com a senha dele e edita as 3
+  // células; cada célula pode ter um Líder com senha própria, que edita só a sua. As duas
+  // senhas são geradas pelo admin (rodapé desta página). Sem líder cadastrado, quem
+  // preenche é o Coordenador.
   const [gateOpen, setGateOpen] = useState(false);
   const [codeInput, setCodeInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
-  const canManage = adminMode || unlocked;
+  const [erroAcesso, setErroAcesso] = useState("");
+  const isCoord = !!auth && auth.papel === "coordenador";
+  const isLiderAqui = !!auth && auth.papel === "lider" && auth.chave === chave;
+  const canManage = adminMode || isCoord || isLiderAqui;
+  const lider = celula.lider || null;
+  const quem = adminMode ? { nome: "Administração", papel: "admin" } : auth ? { nome: auth.nome, papel: auth.papel } : null;
+
+  const tentarEntrar = () => {
+    const c = codeInput.trim().toUpperCase();
+    if (!c) return;
+    if (liderCodeActive && c === String(liderCode || "").toUpperCase()) {
+      setAuth({ papel: "coordenador", nome: coordenador || "Coordenador" });
+    } else if (lider && lider.ativo !== false && lider.codigo && c === String(lider.codigo).toUpperCase()) {
+      setAuth({ papel: "lider", nome: lider.nome || "Líder", chave });
+    } else {
+      setErroAcesso("Senha inválida ou revogada.");
+      return;
+    }
+    setErroAcesso("");
+    setCodeInput("");
+    setGateOpen(false);
+  };
+  const verificarSenhaCoord = (s) => !!liderCodeActive && String(s || "").trim().toUpperCase() === String(liderCode || "").toUpperCase();
 
   const participantesLista = (celula.participantes || "").split("\n").map((s) => s.trim()).filter(Boolean);
   const [editandoDados, setEditandoDados] = useState(false);
@@ -2560,21 +3022,27 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
   const [anfitriao, setAnfitriao] = useState(celula.anfitriao || "");
   const [participantesTexto, setParticipantesTexto] = useState(celula.participantes || "");
   const [historiaTexto, setHistoriaTexto] = useState(celula.historia || "");
-
   const salvarDados = () => {
     onSave({ ...celula, logoUrl, anfitriao, participantes: participantesTexto, historia: historiaTexto });
     setEditandoDados(false);
   };
 
   const encontros = celula.encontros || [];
-  const addEncontro = (v) => onSave({ ...celula, encontros: [...encontros, { id: uid(), ...v, fotos: [] }] });
+  const addEncontro = (v) => onSave({ ...celula, encontros: [...encontros, { id: uid(), ...v, estudo: { ...ESTUDO_VAZIO }, fotos: [], videos: [] }] });
   const delEncontro = (id) => onSave({ ...celula, encontros: encontros.filter((e) => e.id !== id) });
   const [encontroAbertoId, setEncontroAbertoId] = useState(null);
   const encontroAberto = encontros.find((e) => e.id === encontroAbertoId) || null;
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
 
-  const regenCodigo = () => onPatchTop({ liderCode: "LIDER-" + Math.random().toString(36).slice(2, 7).toUpperCase() });
-  const toggleCodigo = () => onPatchTop({ liderCodeActive: !liderCodeActive });
-
+  // Senhas (admin)
+  const [nomeCoordEdit, setNomeCoordEdit] = useState(coordenador || "");
+  const [nomeLiderEdit, setNomeLiderEdit] = useState((lider && lider.nome) || "");
+  const regenCodigoCoord = () => onPatchTop({ liderCode: gerarCodigoAcesso("COORD"), liderCodeActive: true });
+  const toggleCodigoCoord = () => onPatchTop({ liderCodeActive: !liderCodeActive });
+  const gerarLider = () => onSave({ ...celula, lider: { nome: nomeLiderEdit.trim() || "Líder", codigo: gerarCodigoAcesso("LIDER"), ativo: true, criadoEm: nowISO() } });
+  const toggleLider = () => onSave({ ...celula, lider: { ...lider, ativo: lider.ativo === false } });
+  const removerLider = () => onSave({ ...celula, lider: null });
+  const salvarNomeLider = () => lider && onSave({ ...celula, lider: { ...lider, nome: nomeLiderEdit.trim() || lider.nome } });
 
   return (
     <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
@@ -2593,7 +3061,10 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <Eyebrow color={cor}><Layers size={12} className="inline mr-1" />Células Avivar{coordenador ? ` · Coordenador: ${coordenador}` : ""}</Eyebrow>
         <SectionTitle>{celula.nome}</SectionTitle>
-        {celula.anfitriao && <p className="text-sm" style={{ color: C.stone }}>Anfitrião(ã): <strong style={{ color: C.ink }}>{celula.anfitriao}</strong></p>}
+        <p className="text-sm" style={{ color: C.stone }}>
+          {celula.anfitriao && <>Anfitrião(ã): <strong style={{ color: C.ink }}>{celula.anfitriao}</strong> · </>}
+          {lider && lider.ativo !== false && lider.nome ? <>Líder: <strong style={{ color: C.ink }}>{lider.nome}</strong></> : <span className="italic">sem líder cadastrado — o Coordenador preenche os encontros</span>}
+        </p>
 
         {celula.historia && <p className="text-sm mt-4 max-w-2xl leading-relaxed" style={{ color: C.stone }}>{celula.historia}</p>}
 
@@ -2603,17 +3074,32 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
 
         <div className="mt-3">
           {!canManage ? (
-            <button onClick={() => setGateOpen((v) => !v)} className="text-xs underline" style={{ color: C.violet }}>Sou o Líder de Células</button>
+            <button onClick={() => setGateOpen((v) => !v)} className="text-xs underline" style={{ color: C.violet }}>Sou o Coordenador ou o Líder desta célula</button>
           ) : (
-            <span className="text-xs" style={{ color: "#2E7D4F" }}>Editando como {adminMode ? "admin" : "Líder de Células"}</span>
+            <span className="text-xs" style={{ color: "#2E7D4F" }}>
+              Editando como {adminMode ? "administração" : isCoord ? `Coordenador (${auth.nome})` : `Líder (${auth.nome})`}
+              {!adminMode && <button onClick={() => setAuth(null)} className="underline ml-3" style={{ color: C.stone }}>sair</button>}
+            </span>
+          )}
+          {auth && auth.papel === "lider" && auth.chave !== chave && !adminMode && (
+            <p className="text-[11px] italic mt-1" style={{ color: C.stone }}>Você é líder de outra célula; aqui só pode visualizar. Para editar esta, entre com a senha do Coordenador ou do líder desta célula.</p>
           )}
           {gateOpen && !canManage && (
-            <div className="flex gap-2 mt-2">
-              <input placeholder="Código do Líder de Células" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className={`${inputCls} max-w-xs text-xs`} style={{ borderColor: C.line }} />
-              <Btn variant="ghost" color={cor} onClick={() => { if (liderCodeActive && codeInput.trim().toUpperCase() === liderCode) setUnlocked(true); }}>Entrar</Btn>
+            <div className="mt-2 max-w-sm">
+              <div className="flex gap-2 items-start">
+                <div className="flex-1"><SenhaInput placeholder="Senha de acesso" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} onEnter={tentarEntrar} /></div>
+                <Btn variant="ghost" color={cor} onClick={tentarEntrar}>Entrar</Btn>
+              </div>
+              {erroAcesso && <p className="text-xs mt-1 font-semibold" style={{ color: "#B03428" }}>{erroAcesso}</p>}
             </div>
           )}
         </div>
+
+        {(adminMode || isCoord) && (
+          <button onClick={() => setRelatorioAberto(true)} className="mt-3 text-xs inline-flex items-center gap-1 px-3 py-2 rounded-md border font-semibold" style={{ borderColor: cor, color: cor }}>
+            <FileText size={13} /> Relatório unificado de todas as células
+          </button>
+        )}
 
         {canManage && (
           editandoDados ? (
@@ -2621,7 +3107,7 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
               <Field label="URL do logotipo da célula"><input className={inputCls} style={{ borderColor: C.line }} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} /></Field>
               <Field label="Anfitrião(ã)"><input className={inputCls} style={{ borderColor: C.line }} value={anfitriao} onChange={(e) => setAnfitriao(e.target.value)} /></Field>
               <div className="sm:col-span-2"><Field label="Histórico da célula"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={historiaTexto} onChange={(e) => setHistoriaTexto(e.target.value)} /></Field></div>
-              <div className="sm:col-span-2"><Field label="Participantes (um nome por linha — editável pelo admin ou pelo Líder de Células)"><textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={participantesTexto} onChange={(e) => setParticipantesTexto(e.target.value)} /></Field></div>
+              <div className="sm:col-span-2"><Field label="Participantes (um nome por linha) — aparecem como sugestão na lista de presentes"><textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={participantesTexto} onChange={(e) => setParticipantesTexto(e.target.value)} /></Field></div>
               <div className="flex gap-2 sm:col-span-2">
                 <Btn color={cor} onClick={salvarDados}><Save size={13} /> Salvar</Btn>
                 <Btn variant="ghost" color={cor} onClick={() => setEditandoDados(false)}>Cancelar</Btn>
@@ -2651,8 +3137,8 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
           <FaixaEncontros encontros={encontros} cor={cor} onAbrir={setEncontroAbertoId} />
           {canManage && (
             <div className="mt-6 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — título, data e local; depois abra o encontro para cadastrar fotos, estudo do dia, relato e presentes</p>
-              <DynamicForm fields={CELULA_ENCONTRO_FIELDS} accent={cor} onSubmit={(v) => v.data && addEncontro(v)} submitLabel="Cadastrar encontro" />
+              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo encontro — data, hora e local; depois abra o encontro para preencher a ficha, inserir fotos/vídeos e a lista de presentes</p>
+              <DynamicForm fields={CELULA_ENCONTRO_FIELDS} accent={cor} onSubmit={(v) => v.data && addEncontro(v)} submitLabel="Criar encontro" />
             </div>
           )}
         </div>
@@ -2663,18 +3149,51 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
             rotulo={celula.nome}
             encontro={encontroAberto}
             cor={cor}
-            canManage={canManage}
+            podeEditarBase={canManage}
+            isAdmin={adminMode}
+            isCoord={isCoord}
+            quem={quem}
+            coordenadorNome={coordenador}
+            verificarSenhaCoord={verificarSenhaCoord}
+            sugestoesPresentes={participantesLista}
             onSave={(upd) => onSave({ ...celula, encontros: encontros.map((e) => (e.id === upd.id ? upd : e)) })}
             onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
             onVoltar={() => setEncontroAbertoId(null)}
           />
         )}
 
+        {relatorioAberto && <RelatorioCelulas celulas={todasCelulas} coordenador={coordenador} onClose={() => setRelatorioAberto(false)} />}
+
         {adminMode && (
-          <div className="mt-10 pt-4 border-t text-xs" style={{ borderColor: C.line, color: C.stone }}>
-            Código do Líder de Células (válido para as 3 células): <strong style={{ color: C.ink }}>{liderCode}</strong> · {liderCodeActive ? "ativo" : "revogado"}
-            <button onClick={toggleCodigo} className="underline ml-3" style={{ color: C.violet }}>{liderCodeActive ? "revogar" : "reativar"}</button>
-            <button onClick={regenCodigo} className="underline ml-3" style={{ color: C.ember }}>resetar código</button>
+          <div className="mt-10 pt-4 border-t text-xs space-y-4" style={{ borderColor: C.line, color: C.stone }}>
+            <p className="font-mono uppercase">Senhas desta célula — geradas pelo admin</p>
+            <div className="p-3 rounded-lg border" style={{ borderColor: C.line }}>
+              <p className="font-semibold" style={{ color: C.ink }}>Coordenador das Células (acessa as 3 células)</p>
+              <div className="flex flex-wrap items-end gap-2 mt-2">
+                <Field label="Nome do Coordenador"><input className={`${inputCls} text-xs`} style={{ borderColor: C.line }} value={nomeCoordEdit} onChange={(e) => setNomeCoordEdit(e.target.value)} /></Field>
+                <Btn variant="ghost" color={cor} onClick={() => onPatchTop({ coordenador: nomeCoordEdit.trim() || coordenador })}>Salvar nome</Btn>
+              </div>
+              <p className="mt-2">Senha: <SenhaComOlho codigo={liderCode} /> · {liderCodeActive ? "ativa" : "revogada"}
+                <button onClick={toggleCodigoCoord} className="underline ml-3" style={{ color: C.violet }}>{liderCodeActive ? "revogar" : "reativar"}</button>
+                <button onClick={regenCodigoCoord} className="underline ml-3" style={{ color: C.ember }}>gerar nova senha</button>
+              </p>
+            </div>
+            <div className="p-3 rounded-lg border" style={{ borderColor: C.line }}>
+              <p className="font-semibold" style={{ color: C.ink }}>Líder da {celula.nome}</p>
+              <div className="flex flex-wrap items-end gap-2 mt-2">
+                <Field label="Nome do líder"><input className={`${inputCls} text-xs`} style={{ borderColor: C.line }} value={nomeLiderEdit} onChange={(e) => setNomeLiderEdit(e.target.value)} /></Field>
+                {lider ? <Btn variant="ghost" color={cor} onClick={salvarNomeLider}>Salvar nome</Btn> : <Btn color={cor} onClick={gerarLider}>Gerar senha do líder</Btn>}
+              </div>
+              {lider ? (
+                <p className="mt-2">Senha: <SenhaComOlho codigo={lider.codigo} /> · {lider.ativo === false ? "revogada" : "ativa"}
+                  <button onClick={toggleLider} className="underline ml-3" style={{ color: C.violet }}>{lider.ativo === false ? "reativar" : "revogar"}</button>
+                  <button onClick={gerarLider} className="underline ml-3" style={{ color: C.ember }}>gerar nova senha</button>
+                  <button onClick={removerLider} className="underline ml-3" style={{ color: "#B03428" }}>remover líder</button>
+                </p>
+              ) : (
+                <p className="mt-2 italic">Sem líder cadastrado: o Coordenador preenche os campos desta célula.</p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -2685,6 +3204,7 @@ function PaginaCelula({ chave, celula, coordenador, liderCode, liderCodeActive, 
     </div>
   );
 }
+
 
 /* ---------------------------------------------------------------- */
 /* Nossa História — aberta pelo clique no nome/logo do Hero da Home    */
@@ -3002,10 +3522,11 @@ const CODIGOS_O_QUE_SAO = [
 ];
 
 // Seção pública (sem login e sem assinatura): é uma vitrine compacta que sempre
+const CODIGOS_APP_URL_PADRAO = "https://www.codigosavivar.com.br";
 // encaminha a pessoa para o app independente dos Códigos Avivar. O endereço do app
 // fica em data.appUrl (admin cola o link uma vez, aqui mesmo na seção).
 function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews }) {
-  const appUrl = ((data && data.appUrl) || "").trim();
+  const appUrl = ((data && data.appUrl) || CODIGOS_APP_URL_PADRAO).trim();
   const [aviso, setAviso] = useState(false);
   const [urlEdit, setUrlEdit] = useState(appUrl);
   const [urlSalva, setUrlSalva] = useState(false);
@@ -4587,47 +5108,680 @@ function Doacoes({ data, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 /* Caixa (financeiro) — área restrita ao admin                          */
 /* ---------------------------------------------------------------- */
-const CAIXA_FIELDS = [
-  { key: "tipo", label: "Tipo", type: "select", options: ["Entrada", "Saída"] },
-  { key: "categoria", label: "Categoria", type: "select", options: ["Dízimo", "Oferta", "Água", "Luz", "Internet", "Manutenção", "Bens", "Outro"] },
-  { key: "descricao", label: "Descrição" },
-  { key: "valor", label: "Valor (R$)", type: "number" },
-  { key: "data", label: "Data", type: "date" },
+/* ---------------------------------------------------------------- */
+/* Caixa — regras puras (períodos, classificação, relatórios, boletos)  */
+/* ---------------------------------------------------------------- */
+const CULTOS_TIPOS = [
+  "Culto de Doutrina (quarta)",
+  "Culto de Cura e Libertação (sexta)",
+  "Culto de Família (domingo)",
+  "Culto de Mulheres",
+  "Culto de Varões",
+  "Culto de Crianças",
+  "Culto de Jovens",
+  "Outro culto",
+];
+const cultoPadraoDoDia = (dataStr) => {
+  if (!dataStr) return CULTOS_TIPOS[2];
+  const dia = new Date(dataStr + "T12:00:00").getDay();
+  if (dia === 3) return CULTOS_TIPOS[0];
+  if (dia === 5) return CULTOS_TIPOS[1];
+  if (dia === 0) return CULTOS_TIPOS[2];
+  return "";
+};
+const CAIXA_GRUPOS_SAIDA = {
+  contas: { rotulo: "Contas e boletos", categorias: ["Água", "Luz", "Aluguel", "Internet", "Telefone", "Outra conta / boleto"] },
+  rotina: { rotulo: "Consumo de rotina", categorias: ["Água de beber", "Material de escritório (grampos, papel)", "Limpeza", "Lanche / café", "Outro consumo"] },
+  outros: { rotulo: "Manutenção, bens e outros", categorias: ["Manutenção", "Bens", "Outro"] },
+};
+const CAIXA_CATEGORIAS_ENTRADA = ["Dízimo", "Oferta", "Outra entrada"];
+const CAIXA_EXTRA_VAZIO = { contribuintes: [], cultos: [], publicacoes: [], auditoria: [], cidade: "", operadorPadrao: "", ocultarNomesPadrao: true };
+const CAIXA_PERIODOS = [
+  ["dia", "Dia"], ["semana", "Semana"], ["quinzena", "Quinzena"], ["mensal", "Mensal"],
+  ["trimestral", "Trimestral"], ["semestral", "Semestral"], ["anual", "Anual"], ["custom", "Período livre"],
 ];
 
-function Caixa({ items, save, adminMode }) {
-  const add = (v) => save([...items, { id: uid(), ...v }]);
-  const del = (id) => save(items.filter((i) => i.id !== id));
-  const sorted = [...items].sort((a, b) => new Date(b.data) - new Date(a.data));
-  const totalEntradas = items.filter((i) => i.tipo === "Entrada").reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
-  const totalSaidas = items.filter((i) => i.tipo === "Saída").reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
-  const saldo = totalEntradas - totalSaidas;
-  const fmtR = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const num = (v) => { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; };
+const isoDia = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const diaISOhoje = () => isoDia(new Date());
+const fmtBRL = (n) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const escHtml = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  const gerarPDF = () => {
-    const rows = sorted
-      .map((i) => `<tr><td>${fmtDate(i.data)}</td><td>${i.tipo}</td><td>${i.categoria}</td><td>${i.descricao || ""}</td><td>${fmtR(parseFloat(i.valor) || 0)}</td></tr>`)
-      .join("");
-    printReport(
-      "Relatório de Caixa",
-      `<table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>
-       <div class="totais">
-         <p><strong>Total de entradas:</strong> ${fmtR(totalEntradas)}</p>
-         <p><strong>Total de saídas:</strong> ${fmtR(totalSaidas)}</p>
-         <p><strong>Saldo:</strong> ${fmtR(saldo)}</p>
-       </div>`
-    );
+// Intervalo [de, ate] (AAAA-MM-DD) de um período que contém a data de referência.
+// Semana = domingo a sábado (ciclo dos cultos); quinzena = 1–15 ou 16–fim do mês.
+function periodoIntervalo(tipo, ref, deLivre, ateLivre) {
+  const r = new Date((ref || diaISOhoje()) + "T12:00:00");
+  const y = r.getFullYear(), m = r.getMonth();
+  let a, b, rotulo;
+  const MES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  if (tipo === "dia") { a = b = r; rotulo = `Dia ${fmtDate(isoDia(r))}`; }
+  else if (tipo === "semana") { a = new Date(y, m, r.getDate() - r.getDay(), 12); b = new Date(y, m, r.getDate() - r.getDay() + 6, 12); rotulo = `Semana de ${fmtDate(isoDia(a))} a ${fmtDate(isoDia(b))}`; }
+  else if (tipo === "quinzena") {
+    if (r.getDate() <= 15) { a = new Date(y, m, 1, 12); b = new Date(y, m, 15, 12); rotulo = `1ª quinzena de ${MES[m]}/${y}`; }
+    else { a = new Date(y, m, 16, 12); b = new Date(y, m + 1, 0, 12); rotulo = `2ª quinzena de ${MES[m]}/${y}`; }
+  }
+  else if (tipo === "mensal") { a = new Date(y, m, 1, 12); b = new Date(y, m + 1, 0, 12); rotulo = `${MES[m][0].toUpperCase() + MES[m].slice(1)} de ${y}`; }
+  else if (tipo === "trimestral") { const q = Math.floor(m / 3); a = new Date(y, q * 3, 1, 12); b = new Date(y, q * 3 + 3, 0, 12); rotulo = `${q + 1}º trimestre de ${y}`; }
+  else if (tipo === "semestral") { const s = m < 6 ? 0 : 1; a = new Date(y, s * 6, 1, 12); b = new Date(y, s * 6 + 6, 0, 12); rotulo = `${s + 1}º semestre de ${y}`; }
+  else if (tipo === "anual") { a = new Date(y, 0, 1, 12); b = new Date(y, 11, 31, 12); rotulo = `Ano de ${y}`; }
+  else { return { de: deLivre || "", ate: ateLivre || "", rotulo: `${deLivre ? fmtDate(deLivre) : "início"} a ${ateLivre ? fmtDate(ateLivre) : "hoje"}` }; }
+  return { de: isoDia(a), ate: isoDia(b), rotulo };
+}
+
+const classeEntrada = (i) => (i.categoria === "Dízimo" ? "dizimo" : i.categoria === "Oferta" ? "oferta" : "outra");
+const CATEGORIAS_CONTAS = CAIXA_GRUPOS_SAIDA.contas.categorias;
+const CATEGORIAS_ROTINA = CAIXA_GRUPOS_SAIDA.rotina.categorias;
+const grupoSaida = (i) => {
+  if (i.grupo && CAIXA_GRUPOS_SAIDA[i.grupo]) return i.grupo;
+  if (CATEGORIAS_CONTAS.includes(i.categoria)) return "contas";
+  if (CATEGORIAS_ROTINA.includes(i.categoria)) return "rotina";
+  return "outros";
+};
+const valorEfetivo = (i) => num(i.tipo === "Saída" && i.valorIgreja !== undefined && i.valorIgreja !== "" ? i.valorIgreja : i.valor);
+
+// Monta os números de um relatório para um intervalo.
+function calcularRelatorio(items, extra, { de, ate, ocultarNomes = false }) {
+  const noPeriodo = (items || []).filter((i) => i.data && (!de || i.data >= de) && (!ate || i.data <= ate));
+  const entradas = noPeriodo.filter((i) => i.tipo === "Entrada");
+  const saidas = noPeriodo.filter((i) => i.tipo === "Saída");
+  const nomeDe = (i) => {
+    if (i.pessoa) return i.pessoa;
+    const c = ((extra && extra.contribuintes) || []).find((x) => x.id === i.contribuinteId);
+    return c ? c.nome : "";
+  };
+  const chaveDe = (i) => i.contribuinteId || (nomeDe(i) ? "n:" + semAcento(nomeDe(i)) : "");
+  // Rotulagem de nomes (ou anonimato)
+  const rotulos = {};
+  let seq = 0;
+  const rotulo = (i, prefixo) => {
+    const k = chaveDe(i);
+    if (!k) return null;
+    if (!ocultarNomes && !i.anonimo) return nomeDe(i);
+    const kk = prefixo + k;
+    if (!rotulos[kk]) rotulos[kk] = `${prefixo} ${++seq}`;
+    return i.anonimo && !ocultarNomes ? "Anônimo" : rotulos[kk];
+  };
+
+  // Dízimos
+  const dizimos = entradas.filter((i) => classeEntrada(i) === "dizimo").sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  const dizimosLinhas = dizimos.map((i) => ({ nome: rotulo(i, "Dizimista") || "Sem identificação", competencia: i.competencia || (i.data || "").slice(0, 7), data: i.data, valor: num(i.valor) }));
+  const totalDizimos = dizimosLinhas.reduce((s, l) => s + l.valor, 0);
+
+  // Ofertas (por culto e por pessoa)
+  const ofertas = entradas.filter((i) => classeEntrada(i) === "oferta");
+  const cultosMap = {};
+  const chaveCulto = (i) => `${i.data}|${i.culto || "Culto não informado"}`;
+  ofertas.forEach((i) => {
+    const k = chaveCulto(i);
+    cultosMap[k] = cultosMap[k] || { data: i.data, culto: i.culto || "Culto não informado", total: 0, ofertantes: new Set() };
+    cultosMap[k].total += num(i.valor);
+    if (num(i.valor) > 0 && chaveDe(i)) cultosMap[k].ofertantes.add(chaveDe(i));
+  });
+  ((extra && extra.cultos) || []).filter((c) => c.data && (!de || c.data >= de) && (!ate || c.data <= ate)).forEach((c) => {
+    const k = `${c.data}|${c.tipo || "Culto não informado"}`;
+    cultosMap[k] = cultosMap[k] || { data: c.data, culto: c.tipo || "Culto não informado", total: 0, ofertantes: new Set() };
+  });
+  const cultos = Object.values(cultosMap).sort((a, b) => String(a.data).localeCompare(String(b.data))).map((c) => ({ ...c, nOfertantes: c.ofertantes.size }));
+  const totalOfertas = cultos.reduce((s, c) => s + c.total, 0);
+  const porTipoMap = {};
+  cultos.forEach((c) => {
+    porTipoMap[c.culto] = porTipoMap[c.culto] || { culto: c.culto, n: 0, total: 0 };
+    porTipoMap[c.culto].n += 1;
+    porTipoMap[c.culto].total += c.total;
+  });
+  const porTipo = Object.values(porTipoMap).sort((a, b) => b.total - a.total);
+  const pessoasMap = {};
+  ofertas.forEach((i) => {
+    const k = chaveDe(i) || "__geral";
+    pessoasMap[k] = pessoasMap[k] || { nome: k === "__geral" ? "Oferta geral do culto (sem nome)" : rotulo(i, "Ofertante"), total: 0, cultosOfertou: new Set(), geral: k === "__geral" };
+    pessoasMap[k].total += num(i.valor);
+    if (num(i.valor) > 0) pessoasMap[k].cultosOfertou.add(chaveCulto(i));
+  });
+  const ofertantes = Object.values(pessoasMap).sort((a, b) => (a.geral ? 1 : 0) - (b.geral ? 1 : 0) || b.total - a.total).map((p) => ({ nome: p.nome, total: p.total, vezes: p.cultosOfertou.size, geral: p.geral }));
+
+  // Outras entradas
+  const outras = entradas.filter((i) => classeEntrada(i) === "outra");
+  const totalOutras = outras.reduce((s, i) => s + num(i.valor), 0);
+
+  // Saídas por grupo
+  const gruposSaida = {};
+  Object.keys(CAIXA_GRUPOS_SAIDA).forEach((g) => {
+    const lista = saidas.filter((i) => grupoSaida(i) === g).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    gruposSaida[g] = {
+      rotulo: CAIXA_GRUPOS_SAIDA[g].rotulo,
+      linhas: lista.map((i) => ({ data: i.data, categoria: i.categoria, descricao: i.descricao || i.beneficiario || "", total: i.valorTotal !== undefined && i.valorTotal !== "" ? num(i.valorTotal) : num(i.valor), igreja: valorEfetivo(i) })),
+      totalIgreja: lista.reduce((s, i) => s + valorEfetivo(i), 0),
+      totalDocumentos: lista.reduce((s, i) => s + (i.valorTotal !== undefined && i.valorTotal !== "" ? num(i.valorTotal) : num(i.valor)), 0),
+    };
+  });
+  const totalSaidas = Object.values(gruposSaida).reduce((s, g) => s + g.totalIgreja, 0);
+  const totalEntradas = totalDizimos + totalOfertas + totalOutras;
+  return { de, ate, dizimosLinhas, totalDizimos, cultos, totalOfertas, porTipo, ofertantes, outras, totalOutras, gruposSaida, totalSaidas, totalEntradas, saldo: totalEntradas - totalSaidas, nLancamentos: noPeriodo.length };
+}
+
+const dataPorExtenso = (d = new Date()) => d.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+
+// HTML do relatório (A4, tabelas em duas colunas que fluem para a página seguinte).
+function htmlRelatorio(rel, { titulo, rotuloPeriodo, mostrar, cidade, operador, nomeIgreja = "Ministério Avivar do Espírito" }) {
+  const m = { resumo: true, dizimos: true, ofertas: true, porCulto: true, despesas: true, ...(mostrar || {}) };
+  const tab = (cab, linhas, rodape) => `<table><thead><tr>${cab.map((c) => `<th${c.d ? ' class="d"' : ""}>${escHtml(c.t)}</th>`).join("")}</tr></thead><tbody>${linhas.length ? linhas.map((l) => `<tr>${l.map((c, i) => `<td${cab[i] && cab[i].d ? ' class="d"' : ""}>${escHtml(c)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${cab.length}"><em>Sem lançamentos.</em></td></tr>`}</tbody>${rodape ? `<tfoot><tr>${rodape.map((c, i) => `<td${cab[i] && cab[i].d ? ' class="d"' : ""}><strong>${escHtml(c)}</strong></td>`).join("")}</tr></tfoot>` : ""}</table>`;
+  const bloco = (h, conteudo) => `<div class="bloco"><h4>${escHtml(h)}</h4>${conteudo}</div>`;
+  let ent = "", sai = "";
+  if (m.dizimos) ent += bloco("Dizimistas", tab([{ t: "Dizimista" }, { t: "Competência" }, { t: "Valor", d: 1 }], rel.dizimosLinhas.map((l) => [l.nome, l.competencia, fmtBRL(l.valor)]), ["Total", "", fmtBRL(rel.totalDizimos)]));
+  if (m.ofertas) ent += bloco("Ofertantes", tab([{ t: "Ofertante" }, { t: "Ofertou em" }, { t: "Total", d: 1 }], rel.ofertantes.map((o) => [o.nome, o.geral ? "—" : `${o.vezes} de ${rel.cultos.length} culto(s)`, fmtBRL(o.total)]), ["Total", "", fmtBRL(rel.totalOfertas)]));
+  if (m.porCulto) {
+    ent += bloco("Ofertas por culto", tab([{ t: "Data" }, { t: "Culto" }, { t: "Ofert." , d: 1 }, { t: "Total", d: 1 }], rel.cultos.map((c) => [fmtDate(c.data), c.culto, String(c.nOfertantes), fmtBRL(c.total)]), ["Total", "", "", fmtBRL(rel.totalOfertas)]));
+    ent += bloco("Resumo por tipo de culto", tab([{ t: "Tipo de culto" }, { t: "Cultos", d: 1 }, { t: "Total", d: 1 }, { t: "Média", d: 1 }], rel.porTipo.map((t) => [t.culto, String(t.n), fmtBRL(t.total), fmtBRL(t.n ? t.total / t.n : 0)])));
+  }
+  if (rel.outras.length) ent += bloco("Outras entradas", tab([{ t: "Data" }, { t: "Descrição" }, { t: "Valor", d: 1 }], rel.outras.map((i) => [fmtDate(i.data), i.descricao || i.categoria, fmtBRL(num(i.valor))]), ["Total", "", fmtBRL(rel.totalOutras)]));
+  if (m.despesas) {
+    const g = rel.gruposSaida;
+    const cabConta = [{ t: "Data" }, { t: "Conta" }, { t: "Valor total", d: 1 }, { t: "Pago igreja", d: 1 }, { t: "%", d: 1 }];
+    const linhaConta = (l) => [fmtDate(l.data), (l.categoria || "") + (l.descricao ? " — " + l.descricao : ""), fmtBRL(l.total), fmtBRL(l.igreja), l.total > 0 ? (l.igreja / l.total * 100).toFixed(0) + "%" : "—"];
+    const pct = (x) => (x.totalDocumentos > 0 ? (x.totalIgreja / x.totalDocumentos * 100).toFixed(0) + "%" : "—");
+    sai += bloco(g.contas.rotulo, tab(cabConta, g.contas.linhas.map(linhaConta), ["Total", "", fmtBRL(g.contas.totalDocumentos), fmtBRL(g.contas.totalIgreja), pct(g.contas)]));
+    sai += bloco(g.rotina.rotulo, tab([{ t: "Data" }, { t: "Item" }, { t: "Valor", d: 1 }], g.rotina.linhas.map((l) => [fmtDate(l.data), (l.categoria || "") + (l.descricao ? " — " + l.descricao : ""), fmtBRL(l.igreja)]), ["Total", "", fmtBRL(g.rotina.totalIgreja)]));
+    sai += bloco(g.outros.rotulo, tab(cabConta, g.outros.linhas.map(linhaConta), ["Total", "", fmtBRL(g.outros.totalDocumentos), fmtBRL(g.outros.totalIgreja), pct(g.outros)]));
+  }
+  const resumo = m.resumo ? `<div class="resumo"><div><span>Entradas</span><b>${fmtBRL(rel.totalEntradas)}</b></div><div><span>Saídas</span><b>${fmtBRL(rel.totalSaidas)}</b></div><div><span>Saldo</span><b>${fmtBRL(rel.saldo)}</b></div></div>` : "";
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(titulo)}</title><style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #1F1B2E; margin: 0; padding: 14px; }
+    h1 { font-size: 16px; margin: 0; border-bottom: 2px solid #CBA135; padding-bottom: 5px; }
+    .sub { font-size: 10px; margin: 4px 0 8px; }
+    .resumo { display: flex; gap: 8px; margin: 6px 0 10px; }
+    .resumo div { flex: 1; border: 1px solid #CBA135; border-radius: 4px; padding: 4px 8px; background: #FBF6ED; }
+    .resumo span { display: block; font-size: 9px; text-transform: uppercase; }
+    .resumo b { font-size: 13px; }
+    h2 { column-span: all; font-size: 12px; background: #4A3B6B; color: #fff; padding: 3px 8px; margin: 10px 0 6px; border-radius: 3px; }
+    .cols { column-count: 2; column-gap: 14px; }
+    .bloco { margin-bottom: 9px; break-inside: auto; }
+    h4 { font-size: 10.5px; margin: 0 0 3px; color: #4A3B6B; break-after: avoid; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #bbb; padding: 2px 4px; font-size: 9.5px; text-align: left; vertical-align: top; }
+    th { background: #F1E7D3; }
+    td.d, th.d { text-align: right; white-space: nowrap; }
+    tr { break-inside: avoid; }
+    tfoot td { background: #FBF6ED; }
+    .rodape { margin-top: 18px; font-size: 10.5px; break-inside: avoid; }
+    .ass { margin-top: 26px; display: flex; gap: 30px; }
+    .ass div { flex: 1; border-top: 1px solid #1F1B2E; padding-top: 3px; font-size: 10px; }
+  </style></head><body>
+    <h1>${escHtml(titulo)}</h1>
+    <p class="sub">${escHtml(nomeIgreja)} · ${escHtml(rotuloPeriodo)}</p>
+    ${resumo}
+    <div class="cols">
+      ${ent ? `<h2>ENTRADAS</h2>${ent}` : ""}
+      ${sai ? `<h2>SAÍDAS</h2>${sai}` : ""}
+    </div>
+    <div class="rodape">
+      <p>${escHtml(cidade || "____________________")}, ${escHtml(dataPorExtenso())}.</p>
+      <div class="ass"><div>Operador(a): ${escHtml(operador || "______________________")}</div><div>Tesouraria / Pastor responsável</div></div>
+    </div>
+  </body></html>`;
+}
+
+/* --- Boletos, contas e PIX: lê linha digitável, código de barras ou QR --- */
+function fatorParaData(fator, hoje = new Date()) {
+  const n = parseInt(fator, 10);
+  if (!n) return "";
+  const d1 = new Date(Date.UTC(1997, 9, 7) + n * 86400000);
+  const d2 = new Date(Date.UTC(2025, 1, 22) + (n - 1000) * 86400000);
+  const alvo = hoje.getTime();
+  const d = Math.abs(d1.getTime() - alvo) <= Math.abs(d2.getTime() - alvo) ? d1 : d2;
+  return d.toISOString().slice(0, 10);
+}
+function lerEMV(s) {
+  const out = {};
+  let i = 0;
+  while (i + 4 <= s.length) {
+    const id = s.slice(i, i + 2);
+    const len = parseInt(s.slice(i + 2, i + 4), 10);
+    if (isNaN(len)) break;
+    out[id] = s.slice(i + 4, i + 4 + len);
+    i += 4 + len;
+  }
+  return out;
+}
+function interpretarCodigoPagamento(texto, hoje = new Date()) {
+  const raw = String(texto || "").trim();
+  if (/^000201/.test(raw)) {
+    const e = lerEMV(raw);
+    return { tipo: "pix", valor: e["54"] ? parseFloat(e["54"]) : null, beneficiario: e["59"] || "", vencimento: "", linha: raw };
+  }
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 47) {
+    return { tipo: "boleto", linha: d, valor: parseInt(d.slice(37, 47), 10) / 100, vencimento: fatorParaData(d.slice(33, 37), hoje), beneficiario: "" };
+  }
+  if (d.length === 44 && d[0] !== "8") {
+    return { tipo: "boleto", linha: d, valor: parseInt(d.slice(9, 19), 10) / 100, vencimento: fatorParaData(d.slice(5, 9), hoje), beneficiario: "" };
+  }
+  if ((d.length === 48 || d.length === 44) && d[0] === "8") {
+    const barras = d.length === 48 ? d.slice(0, 11) + d.slice(12, 23) + d.slice(24, 35) + d.slice(36, 47) : d;
+    const real = barras[2] === "6" || barras[2] === "7";
+    return { tipo: "conta de consumo", linha: d, valor: real ? parseInt(barras.slice(4, 15), 10) / 100 : null, vencimento: "", beneficiario: "" };
+  }
+  return { tipo: "desconhecido", linha: raw, valor: null, vencimento: "", beneficiario: "" };
+}
+
+/* ---------------------------------------------------------------- */
+/* Leitor de código (câmera / foto) — boletos, contas, PIX e cartões QR  */
+/* ---------------------------------------------------------------- */
+function LeitorCodigo({ titulo = "Ler código", dica, onResult, onClose }) {
+  const videoRef = useRef(null);
+  const [erro, setErro] = useState("");
+  const [manual, setManual] = useState("");
+  const [lendoFoto, setLendoFoto] = useState(false);
+  const suporta = typeof window !== "undefined" && "BarcodeDetector" in window;
+
+  useEffect(() => {
+    if (!suporta) return undefined;
+    let ativo = true;
+    let stream = null;
+    let timer = null;
+    let det = null;
+    try { det = new window.BarcodeDetector(); } catch (e) { setErro("Este navegador não consegue ler códigos pela câmera."); return undefined; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { setErro("Câmera indisponível neste aparelho/navegador."); return undefined; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((s) => {
+      if (!ativo) { s.getTracks().forEach((t) => t.stop()); return; }
+      stream = s;
+      if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.play().catch(() => {}); }
+      const tick = async () => {
+        if (!ativo) return;
+        try {
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            const r = await det.detect(videoRef.current);
+            if (r && r.length) { ativo = false; onResult(r[0].rawValue); return; }
+          }
+        } catch (e) { /* tenta de novo */ }
+        timer = setTimeout(tick, 350);
+      };
+      tick();
+    }).catch(() => setErro("Não consegui abrir a câmera (permissão negada?). Use a foto ou digite os números."));
+    return () => { ativo = false; if (timer) clearTimeout(timer); if (stream) stream.getTracks().forEach((t) => t.stop()); };
+  }, []);
+
+  const lerFoto = async (file) => {
+    if (!file) return;
+    if (!suporta) { setErro("Este navegador não lê código a partir de foto. Digite os números ou use um leitor de código de barras USB."); return; }
+    setLendoFoto(true);
+    try {
+      const bmp = await createImageBitmap(file);
+      const r = await new window.BarcodeDetector().detect(bmp);
+      if (r && r.length) { onResult(r[0].rawValue); return; }
+      setErro("Não encontrei nenhum código na foto. Tente com mais luz e o código bem enquadrado.");
+    } catch (e) { setErro("Não consegui ler essa foto."); }
+    setLendoFoto(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "#000000cc" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl p-4" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <p className="font-display font-semibold">{titulo}</p>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        {dica && <p className="text-xs mt-1" style={{ color: C.stone }}>{dica}</p>}
+        {suporta && !erro && (
+          <div className="mt-3 rounded-lg overflow-hidden bg-black aspect-video">
+            <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+          </div>
+        )}
+        {erro && <p className="text-xs mt-3 font-semibold" style={{ color: "#B03428" }}>{erro}</p>}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="text-xs px-3 py-1.5 rounded-md border cursor-pointer" style={{ borderColor: C.gold, color: C.goldDeep }}>
+            📷 {lendoFoto ? "Lendo…" : "Ler de uma foto"}
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { lerFoto(e.target.files[0]); e.target.value = ""; }} />
+          </label>
+        </div>
+        <div className="mt-3">
+          <Field label="Ou digite / cole os números (ou use um leitor de código de barras USB aqui)">
+            <input className={inputCls} style={{ borderColor: C.line }} value={manual} onChange={(e) => setManual(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && manual.trim()) onResult(manual.trim()); }} placeholder="Linha digitável, código de barras ou PIX copia-e-cola" />
+          </Field>
+          <Btn className="mt-2" color={C.gold} onClick={() => manual.trim() && onResult(manual.trim())}>Usar estes números</Btn>
+        </div>
+        {!suporta && <p className="text-[11px] mt-3 italic" style={{ color: C.stone }}>A leitura pela câmera funciona no Chrome do celular Android (e em alguns computadores). Em outros aparelhos, digite os números ou use um leitor USB.</p>}
+      </div>
+    </div>
+  );
+}
+
+const CAIXA_ROTULOS = { tipo: "Tipo", data: "Data", categoria: "Categoria", descricao: "Descrição", valor: "Valor", pessoa: "Pessoa", culto: "Culto", competencia: "Competência", valorTotal: "Valor total", valorIgreja: "Valor pago pela igreja", vencimento: "Vencimento", linhaDigitavel: "Linha digitável", beneficiario: "Beneficiário", anonimo: "Ocultar nome", observacao: "Observação", grupo: "Grupo" };
+const diffLancamento = (a, b) => Object.keys(CAIXA_ROTULOS).filter((k) => String(a[k] == null ? "" : a[k]) !== String(b[k] == null ? "" : b[k])).map((k) => `${CAIXA_ROTULOS[k]}: “${abrevTexto(a[k] == null ? "" : a[k], 30) || "vazio"}” → “${abrevTexto(b[k] == null ? "" : b[k], 30) || "vazio"}”`);
+
+const CAIXA_FORM_VAZIO = () => ({
+  tipo: "Entrada", data: diaISOhoje(), classe: "Dízimo", competencia: diaISOhoje().slice(0, 7), culto: cultoPadraoDoDia(diaISOhoje()),
+  contribuinteId: "", pessoaLivre: "", anonimo: false, grupo: "contas", categoria: "Luz", descricao: "", valor: "", valorTotal: "", valorIgreja: "",
+  vencimento: "", linhaDigitavel: "", beneficiario: "", anexo: "", observacao: "",
+});
+const formDeLancamento = (i) => ({
+  ...CAIXA_FORM_VAZIO(),
+  tipo: i.tipo, data: i.data || diaISOhoje(),
+  classe: classeEntrada(i) === "dizimo" ? "Dízimo" : classeEntrada(i) === "oferta" ? "Oferta" : "Outra entrada",
+  competencia: i.competencia || (i.data || "").slice(0, 7), culto: i.culto || "",
+  contribuinteId: i.contribuinteId || "", pessoaLivre: i.contribuinteId ? "" : i.pessoa || "", anonimo: !!i.anonimo,
+  grupo: grupoSaida(i), categoria: i.tipo === "Saída" ? i.categoria || "" : "",
+  descricao: i.descricao || "", valor: i.valor != null ? String(i.valor) : "",
+  valorTotal: i.valorTotal != null ? String(i.valorTotal) : "", valorIgreja: i.valorIgreja != null ? String(i.valorIgreja) : "",
+  vencimento: i.vencimento || "", linhaDigitavel: i.linhaDigitavel || "", beneficiario: i.beneficiario || "", anexo: i.anexo || "", observacao: i.observacao || "",
+});
+function lancamentoDeForm(f, contribuintes) {
+  const base = { tipo: f.tipo, data: f.data, descricao: f.descricao.trim(), observacao: f.observacao.trim() };
+  if (f.tipo === "Entrada") {
+    const c = contribuintes.find((x) => x.id === f.contribuinteId);
+    const out = { ...base, categoria: f.classe, valor: String(num(f.valor)), anonimo: !!f.anonimo };
+    if (c) { out.contribuinteId = c.id; out.pessoa = c.nome; } else if (f.pessoaLivre.trim()) out.pessoa = f.pessoaLivre.trim();
+    if (f.classe === "Dízimo") out.competencia = f.competencia || f.data.slice(0, 7);
+    if (f.classe === "Oferta") out.culto = f.culto || "";
+    return out;
+  }
+  const out = { ...base, grupo: f.grupo, categoria: f.categoria, beneficiario: f.beneficiario.trim(), anexo: f.anexo || "" };
+  if (f.grupo !== "rotina") {
+    const vt = num(f.valorTotal);
+    const vi = f.valorIgreja === "" ? vt : num(f.valorIgreja);
+    out.valorTotal = String(vt);
+    out.valorIgreja = String(vi);
+    out.valor = String(vi);
+    out.vencimento = f.vencimento || "";
+    out.linhaDigitavel = f.linhaDigitavel.trim();
+  } else {
+    out.valor = String(num(f.valor));
+  }
+  return out;
+}
+
+function FormLancamento({ inicial, contribuintes, onSalvar, onCancelar, editando }) {
+  const [f, setF] = useState(inicial || CAIXA_FORM_VAZIO());
+  const [leitor, setLeitor] = useState(false);
+  const [msgLeitura, setMsgLeitura] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const anexoRef = useRef(null);
+  const ativos = contribuintes.filter((c) => c.ativo !== false);
+
+  const valorFinal = f.tipo === "Entrada" ? num(f.valor) : f.grupo === "rotina" ? num(f.valor) : (f.valorIgreja === "" ? num(f.valorTotal) : num(f.valorIgreja));
+  const pct = f.tipo === "Saída" && f.grupo !== "rotina" && num(f.valorTotal) > 0 ? ((f.valorIgreja === "" ? num(f.valorTotal) : num(f.valorIgreja)) / num(f.valorTotal)) * 100 : null;
+
+  const aoLer = (texto) => {
+    setLeitor(false);
+    const r = interpretarCodigoPagamento(texto);
+    if (r.tipo === "desconhecido") { setMsgLeitura("Não reconheci esse código como boleto, conta ou PIX. Confira os números."); return; }
+    setF((x) => ({
+      ...x,
+      linhaDigitavel: r.tipo === "pix" ? x.linhaDigitavel : r.linha,
+      valorTotal: r.valor != null && r.valor > 0 ? String(r.valor) : x.valorTotal,
+      vencimento: r.vencimento || x.vencimento,
+      beneficiario: r.beneficiario || x.beneficiario,
+    }));
+    setMsgLeitura(`Lido: ${r.tipo}${r.valor ? " · " + fmtBRL(r.valor) : ""}${r.vencimento ? " · vence " + fmtDate(r.vencimento) : ""}. Confira os campos abaixo.`);
+  };
+  const anexar = async (file) => {
+    if (!file) return;
+    setEnviando(true);
+    try { set("anexo", await enviarImagemKv(file)); } catch (e) { setErro("Não consegui enviar a foto do comprovante."); }
+    setEnviando(false);
+  };
+  const salvar = () => {
+    if (!f.data) { setErro("Informe a data."); return; }
+    if (!(valorFinal > 0)) { setErro("Informe o valor."); return; }
+    if (f.tipo === "Saída" && !f.categoria) { setErro("Escolha a categoria."); return; }
+    setErro("");
+    onSalvar(lancamentoDeForm(f, contribuintes));
+    if (!editando) setF({ ...CAIXA_FORM_VAZIO(), tipo: f.tipo, data: f.data, classe: f.classe, grupo: f.grupo, categoria: f.categoria, culto: f.culto });
+  };
+  const sel = (k, opcoes, extra = {}) => (
+    <select className={inputCls} style={{ borderColor: C.line }} value={f[k]} onChange={(e) => set(k, e.target.value)} {...extra}>
+      {opcoes.map((o) => (Array.isArray(o) ? <option key={o[0]} value={o[0]}>{o[1]}</option> : <option key={o} value={o}>{o}</option>))}
+    </select>
+  );
+
+  return (
+    <div className="p-4 rounded-lg border space-y-3" style={{ borderColor: editando ? C.gold : C.line, background: editando ? "#CBA13514" : "#00000006" }}>
+      <p className="text-xs font-mono" style={{ color: C.stone }}>{editando ? "EDITANDO LANÇAMENTO — as alterações ficam registradas no histórico" : "Novo lançamento"}</p>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Field label="Tipo">{sel("tipo", ["Entrada", "Saída"], { onChange: (e) => setF((x) => ({ ...x, tipo: e.target.value, categoria: e.target.value === "Saída" ? CAIXA_GRUPOS_SAIDA[x.grupo].categorias[0] : "" })) })}</Field>
+        <Field label="Data"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={f.data} onChange={(e) => setF((x) => ({ ...x, data: e.target.value, culto: x.classe === "Oferta" && !editando ? cultoPadraoDoDia(e.target.value) || x.culto : x.culto }))} /></Field>
+        {f.tipo === "Entrada" ? <Field label="Classe">{sel("classe", CAIXA_CATEGORIAS_ENTRADA)}</Field> : (
+          <Field label="Grupo">{sel("grupo", Object.entries(CAIXA_GRUPOS_SAIDA).map(([k, g]) => [k, g.rotulo]), { onChange: (e) => setF((x) => ({ ...x, grupo: e.target.value, categoria: CAIXA_GRUPOS_SAIDA[e.target.value].categorias[0] })) })}</Field>
+        )}
+      </div>
+
+      {f.tipo === "Entrada" && (
+        <div className="grid sm:grid-cols-3 gap-3">
+          {f.classe !== "Outra entrada" && (
+            <Field label={f.classe === "Dízimo" ? "Dizimista" : "Ofertante (vazio = oferta geral do culto)"}>
+              <select className={inputCls} style={{ borderColor: C.line }} value={f.contribuinteId} onChange={(e) => set("contribuinteId", e.target.value)}>
+                <option value="">{f.classe === "Dízimo" ? "— escolher / digitar abaixo —" : "— oferta geral (sem nome) —"}</option>
+                {ativos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </Field>
+          )}
+          {!f.contribuinteId && f.classe !== "Outra entrada" && (
+            <Field label="Nome (se não estiver no cadastro)"><input className={inputCls} style={{ borderColor: C.line }} value={f.pessoaLivre} onChange={(e) => set("pessoaLivre", e.target.value)} /></Field>
+          )}
+          {f.classe === "Dízimo" && <Field label="Competência (mês do dízimo)"><input type="month" className={inputCls} style={{ borderColor: C.line }} value={f.competencia} onChange={(e) => set("competencia", e.target.value)} /></Field>}
+          {f.classe === "Oferta" && <Field label="Culto">{sel("culto", ["", ...CULTOS_TIPOS])}</Field>}
+          <Field label="Valor (R$)"><input type="number" step="0.01" className={inputCls} style={{ borderColor: C.line }} value={f.valor} onChange={(e) => set("valor", e.target.value)} /></Field>
+          <Field label="Descrição (opcional)"><input className={inputCls} style={{ borderColor: C.line }} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} /></Field>
+          {f.classe !== "Outra entrada" && (
+            <label className="text-xs flex items-center gap-2 self-end pb-2" style={{ color: C.ink }}>
+              <input type="checkbox" checked={f.anonimo} onChange={(e) => set("anonimo", e.target.checked)} /> Ocultar o nome nos relatórios
+            </label>
+          )}
+        </div>
+      )}
+
+      {f.tipo === "Saída" && (
+        <div className="space-y-3">
+          <div className="grid sm:grid-cols-3 gap-3">
+            <Field label="Categoria">{sel("categoria", CAIXA_GRUPOS_SAIDA[f.grupo].categorias)}</Field>
+            <Field label="Descrição / beneficiário"><input className={inputCls} style={{ borderColor: C.line }} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} /></Field>
+            {f.grupo === "rotina" && <Field label="Valor pago (R$)"><input type="number" step="0.01" className={inputCls} style={{ borderColor: C.line }} value={f.valor} onChange={(e) => set("valor", e.target.value)} /></Field>}
+          </div>
+          {f.grupo !== "rotina" && (
+            <div className="p-3 rounded-lg border" style={{ borderColor: C.gold + "88", background: "#fff" }}>
+              <p className="text-xs font-mono font-semibold mb-2" style={{ color: C.goldDeep }}>COMPROVANTE / CONTA</p>
+              <div className="grid sm:grid-cols-4 gap-3">
+                <Field label="Valor total (R$)"><input type="number" step="0.01" className={inputCls} style={{ borderColor: C.line }} value={f.valorTotal} onChange={(e) => set("valorTotal", e.target.value)} /></Field>
+                <Field label="Valor pago pela igreja (R$)"><input type="number" step="0.01" className={inputCls} style={{ borderColor: C.line }} placeholder="vazio = total" value={f.valorIgreja} onChange={(e) => set("valorIgreja", e.target.value)} /></Field>
+                <Field label="% pago pela igreja (automático)"><div className={`${inputCls} flex items-center font-semibold`} style={{ borderColor: C.line, background: "#00000008" }}>{pct == null ? "—" : pct.toFixed(1).replace(".", ",") + "%"}</div></Field>
+                <Field label="Vencimento"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={f.vencimento} onChange={(e) => set("vencimento", e.target.value)} /></Field>
+              </div>
+              <div className="grid sm:grid-cols-[1fr_auto] gap-3 mt-3 items-end">
+                <Field label="Linha digitável / código de barras"><input className={inputCls} style={{ borderColor: C.line }} value={f.linhaDigitavel} onChange={(e) => set("linhaDigitavel", e.target.value)} onBlur={() => { if (f.linhaDigitavel.trim()) aoLer(f.linhaDigitavel); }} /></Field>
+                <Btn color={C.gold} onClick={() => setLeitor(true)}>📷 Ler boleto / QR</Btn>
+              </div>
+              {msgLeitura && <p className="text-xs mt-2 font-semibold" style={{ color: "#2E7D4F" }}>{msgLeitura}</p>}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <input ref={anexoRef} type="file" accept="image/*" className="hidden" onChange={(e) => { anexar(e.target.files[0]); e.target.value = ""; }} />
+                <Btn variant="ghost" color={C.goldDeep} onClick={() => anexoRef.current && anexoRef.current.click()}>{enviando ? "Enviando…" : f.anexo ? "📎 Trocar foto do comprovante" : "📎 Foto do comprovante"}</Btn>
+                {f.anexo && <FotoKv src={f.anexo} alt="Comprovante" className="h-14 w-14 object-cover rounded border" />}
+                {f.anexo && <button onClick={() => set("anexo", "")} className="text-xs underline" style={{ color: "#B03428" }}>remover foto</button>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Field label="Observação (opcional)"><input className={inputCls} style={{ borderColor: C.line }} value={f.observacao} onChange={(e) => set("observacao", e.target.value)} /></Field>
+      {erro && <p className="text-xs font-semibold" style={{ color: "#B03428" }}>{erro}</p>}
+      <div className="flex gap-2">
+        <Btn onClick={salvar}><Save size={14} /> {editando ? "Salvar alterações" : "Lançar"}</Btn>
+        {editando && <Btn variant="ghost" onClick={onCancelar}>Cancelar</Btn>}
+      </div>
+      {leitor && <LeitorCodigo titulo="Ler boleto, conta ou PIX" dica="Aponte para o código de barras ou QR do boleto/conta." onResult={aoLer} onClose={() => setLeitor(false)} />}
+    </div>
+  );
+}
+
+// Janela de impressão com o HTML do relatório (A4)
+const imprimirHtml = (html) => {
+  const w = window.open("", "_blank", "width=900,height=1000");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+};
+const baixarCSV = (nome, linhas) => {
+  const esc = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const blob = new Blob(["﻿" + linhas.map((l) => l.map(esc).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+function Caixa({ items, save, extra: extraProp, saveExtra, adminMode, operador, cidadePadrao }) {
+  const extra = { ...CAIXA_EXTRA_VAZIO, ...(extraProp || {}) };
+  const contribuintes = extra.contribuintes || [];
+  const [aba, setAba] = useState("lancamentos");
+  const [editId, setEditId] = useState(null);
+  const [ampliada, setAmpliada] = useState(null);
+  const nomeOp = operador || "Administração";
+  const patchExtra = (p) => saveExtra({ ...extra, ...p });
+  const audit = (acao, desc) => ({ em: nowISO(), por: nomeOp, acao, desc });
+
+  // --- lançamentos ---
+  const [fTipo, setFTipo] = useState("todos");
+  const [fBusca, setFBusca] = useState("");
+  const [fPer, setFPer] = useState("tudo");
+  const [fRef, setFRef] = useState(diaISOhoje());
+  const [verTodos, setVerTodos] = useState(false);
+  const add = (v) => save([...items, { id: uid(), ...v, criadoEm: nowISO(), criadoPor: nomeOp, historico: [{ em: nowISO(), por: nomeOp, o: ["Lançamento criado"] }] }]);
+  const salvarEdicao = (v) => {
+    const velho = items.find((i) => i.id === editId);
+    if (!velho) return;
+    const mudou = diffLancamento(velho, v);
+    save(items.map((i) => (i.id === editId ? { ...velho, ...v, historico: [...(velho.historico || []), { em: nowISO(), por: nomeOp, o: mudou.length ? mudou : ["Editado sem mudanças"] }] } : i)));
+    setEditId(null);
+  };
+  const excluir = (i) => {
+    if (!window.confirm(`Excluir este lançamento (${i.categoria} · ${fmtBRL(num(i.valor))})? Se foi só um erro de digitação, prefira "editar". A exclusão fica registrada.`)) return;
+    save(items.filter((x) => x.id !== i.id));
+    patchExtra({ auditoria: [...(extra.auditoria || []), audit("Exclusão", `${i.tipo} ${i.categoria} ${fmtBRL(num(i.valor))} de ${fmtDate(i.data)} ${i.pessoa || i.descricao || ""}`)].slice(-200) });
+  };
+  const faixa = fPer === "tudo" ? null : periodoIntervalo(fPer, fRef, fRef, fRef);
+  const lista = [...items]
+    .filter((i) => (fTipo === "todos" || i.tipo === fTipo) && (!faixa || (i.data >= faixa.de && i.data <= faixa.ate)) && (!fBusca.trim() || semAcento(`${i.categoria} ${i.descricao || ""} ${i.pessoa || ""} ${i.culto || ""} ${i.beneficiario || ""}`).includes(semAcento(fBusca.trim()))))
+    .sort((a, b) => String(b.data).localeCompare(String(a.data)) || String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+  const listaVisivel = verTodos ? lista : lista.slice(0, 60);
+  const [histAberto, setHistAberto] = useState(null);
+
+  const mesAtual = periodoIntervalo("mensal", diaISOhoje());
+  const relMes = calcularRelatorio(items, extra, { de: mesAtual.de, ate: mesAtual.ate });
+  const relTudo = calcularRelatorio(items, extra, { de: "", ate: "" });
+
+  // --- cultos ---
+  const [cData, setCData] = useState(diaISOhoje());
+  const [cTipo, setCTipo] = useState(cultoPadraoDoDia(diaISOhoje()) || CULTOS_TIPOS[2]);
+  const [cValores, setCValores] = useState({});
+  const [cGeral, setCGeral] = useState("");
+  const [cMsg, setCMsg] = useState("");
+  const [cLeitor, setCLeitor] = useState(false);
+  const [cDestaque, setCDestaque] = useState(null);
+  const ofertantes = contribuintes.filter((c) => c.ativo !== false && c.classe !== "Dizimista");
+  const lancarCulto = () => {
+    const jaExiste = (extra.cultos || []).some((c) => c.data === cData && c.tipo === cTipo);
+    if (jaExiste && !window.confirm("Este culto já foi lançado nesta data. Lançar novamente (os valores serão somados)?")) return;
+    const cultoId = uid();
+    const novos = [];
+    ofertantes.forEach((c) => {
+      const v = num(cValores[c.id]);
+      novos.push({ id: uid(), tipo: "Entrada", categoria: "Oferta", data: cData, culto: cTipo, cultoId, contribuinteId: c.id, pessoa: c.nome, valor: String(v), semOferta: v === 0, criadoEm: nowISO(), criadoPor: nomeOp, historico: [{ em: nowISO(), por: nomeOp, o: ["Lançado na chamada do culto"] }] });
+    });
+    if (num(cGeral) > 0) novos.push({ id: uid(), tipo: "Entrada", categoria: "Oferta", data: cData, culto: cTipo, cultoId, valor: String(num(cGeral)), criadoEm: nowISO(), criadoPor: nomeOp, historico: [{ em: nowISO(), por: nomeOp, o: ["Oferta geral do culto"] }] });
+    save([...items, ...novos]);
+    patchExtra({ cultos: [...(extra.cultos || []), { id: cultoId, data: cData, tipo: cTipo, criadoEm: nowISO(), por: nomeOp }] });
+    const total = novos.reduce((s, i) => s + num(i.valor), 0);
+    setCMsg(`Culto lançado: ${novos.filter((i) => num(i.valor) > 0).length} oferta(s), total ${fmtBRL(total)}.`);
+    setCValores({}); setCGeral("");
+  };
+  const aoLerCartao = (txt) => {
+    setCLeitor(false);
+    const m = String(txt).match(/AVIVAR-CONTRIB:([A-Za-z0-9]+)/);
+    const c = m && contribuintes.find((x) => x.id === m[1]);
+    if (!c) { setCMsg("Cartão não reconhecido."); return; }
+    setCDestaque(c.id);
+    setCMsg(`Cartão lido: ${c.nome}. Digite o valor ofertado (ou deixe vazio para registrar presença sem oferta).`);
+    setTimeout(() => { const el = document.getElementById("cv-" + c.id); if (el) { el.focus(); el.scrollIntoView({ block: "center" }); } }, 100);
+  };
+  const cultosRecentes = [...(extra.cultos || [])].sort((a, b) => String(b.data).localeCompare(String(a.data)) || String(b.criadoEm).localeCompare(String(a.criadoEm))).slice(0, 12);
+
+  // --- contribuintes ---
+  const [novoC, setNovoC] = useState({ nome: "", classe: "Dizimista e ofertante", telefone: "" });
+  const [editC, setEditC] = useState(null);
+  const [cartoes, setCartoes] = useState(false);
+  const [mesDizimo, setMesDizimo] = useState(diaISOhoje().slice(0, 7));
+  const cartoesRef = useRef(null);
+  const addContribuinte = () => {
+    if (!novoC.nome.trim()) return;
+    patchExtra({ contribuintes: [...contribuintes, { id: uid(), nome: novoC.nome.trim(), classe: novoC.classe, telefone: novoC.telefone.trim(), ativo: true, criadoEm: nowISO() }] });
+    setNovoC({ nome: "", classe: novoC.classe, telefone: "" });
+  };
+  const salvarContribuinte = () => {
+    patchExtra({ contribuintes: contribuintes.map((c) => (c.id === editC.id ? { ...c, nome: editC.nome.trim() || c.nome, classe: editC.classe, telefone: editC.telefone } : c)) });
+    setEditC(null);
+  };
+  const dizimistas = contribuintes.filter((c) => c.ativo !== false && c.classe !== "Ofertante");
+  const dizimoPago = (c) => items.some((i) => classeEntrada(i) === "dizimo" && i.tipo === "Entrada" && (i.contribuinteId === c.id || (!i.contribuinteId && semAcento(i.pessoa || "") === semAcento(c.nome))) && (i.competencia || (i.data || "").slice(0, 7)) === mesDizimo);
+  const imprimirCartoes = () => {
+    if (!cartoesRef.current) return;
+    printReport("Cartões dos contribuintes", `<div style="display:flex;flex-wrap:wrap;gap:10px">${cartoesRef.current.innerHTML}</div>`);
+  };
+
+  // --- relatórios ---
+  const [rPer, setRPer] = useState("mensal");
+  const [rRef, setRRef] = useState(diaISOhoje());
+  const [rDe, setRDe] = useState("");
+  const [rAte, setRAte] = useState(diaISOhoje());
+  const [rOcultar, setROcultar] = useState(extra.ocultarNomesPadrao !== false);
+  const [rMostrar, setRMostrar] = useState({ resumo: true, dizimos: true, ofertas: true, porCulto: true, despesas: true });
+  const [rOperador, setROperador] = useState(extra.operadorPadrao || operador || "");
+  const [rCidade, setRCidade] = useState(extra.cidade || cidadePadrao || "");
+  const rInt = periodoIntervalo(rPer, rRef, rDe, rAte);
+  const rel = calcularRelatorio(items, extra, { de: rInt.de, ate: rInt.ate, ocultarNomes: rOcultar });
+  const htmlRel = htmlRelatorio(rel, { titulo: "Relatório financeiro", rotuloPeriodo: rInt.rotulo, mostrar: rMostrar, cidade: rCidade, operador: rOperador });
+  const salvarIdentificacao = () => patchExtra({ operadorPadrao: rOperador, cidade: rCidade });
+  const csvRelatorio = () => {
+    const noPer = items.filter((i) => i.data && (!rInt.de || i.data >= rInt.de) && (!rInt.ate || i.data <= rInt.ate)).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    baixarCSV(`caixa-${rInt.de || "inicio"}-${rInt.ate || "hoje"}.csv`, [
+      ["Data", "Tipo", "Categoria", "Pessoa", "Culto", "Competência", "Descrição", "Valor total", "Valor pago pela igreja", "% igreja", "Valor"],
+      ...noPer.map((i) => [fmtDate(i.data), i.tipo, i.categoria, rOcultar || i.anonimo ? (i.pessoa ? "(oculto)" : "") : i.pessoa || "", i.culto || "", i.competencia || "", i.descricao || "", i.valorTotal || "", i.valorIgreja || "", i.valorTotal && num(i.valorTotal) > 0 ? ((num(i.valorIgreja) / num(i.valorTotal)) * 100).toFixed(1) : "", i.valor]),
+    ]);
+  };
+
+  // --- publicação ---
+  const PUB_VAZIA = { titulo: "", areas: ["colaboradores"], publico: "codigo", codigo: "", grupo: "Irmãos cadastrados", periodoTipo: "mensal", rolante: true, ref: diaISOhoje(), de: "", ate: "", mostrar: { resumo: true, dizimos: false, ofertas: false, porCulto: true, despesas: true }, ocultarNomes: true, exibirDe: diaISOhoje(), exibirAte: "", ativo: true };
+  const [pubForm, setPubForm] = useState(null);
+  const salvarPub = () => {
+    if (!pubForm.titulo.trim()) return;
+    const p = { ...pubForm, titulo: pubForm.titulo.trim(), codigo: pubForm.publico === "codigo" ? (pubForm.codigo.trim() || gerarCodigoAcesso("CONTAS")) : "" };
+    const lista2 = pubForm.id ? extra.publicacoes.map((x) => (x.id === pubForm.id ? p : x)) : [...(extra.publicacoes || []), { ...p, id: uid(), criadoEm: nowISO(), por: nomeOp }];
+    patchExtra({ publicacoes: lista2 });
+    setPubForm(null);
+  };
+  const statusPub = (p) => {
+    const hoje = diaISOhoje();
+    if (p.ativo === false) return ["desativada", "#6b6b6b"];
+    if (p.exibirDe && hoje < p.exibirDe) return ["agendada", C.goldDeep];
+    if (p.exibirAte && hoje > p.exibirAte) return ["expirada", "#B03428"];
+    return ["no ar", "#2E7D4F"];
   };
 
   if (!adminMode) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
         <Lock size={28} className="mx-auto" color={C.stone} />
-        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo.</p>
+        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — acesso administrativo ou de quem recebeu a função "caixa".</p>
       </div>
     );
   }
 
+  const ABAS = [["lancamentos", "Lançamentos"], ["cultos", "Cultos (ofertas)"], ["contribuintes", "Contribuintes"], ["relatorios", "Relatórios"], ["publicacao", "Prestação pública"]];
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Área administrativa</Eyebrow>
@@ -4635,44 +5789,367 @@ function Caixa({ items, save, adminMode }) {
 
       <div className="grid sm:grid-cols-3 gap-4 mt-6">
         <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#2E7D4F11" }}>
-          <p className="text-xs font-mono" style={{ color: C.stone }}>Entradas</p>
-          <p className="font-display font-bold text-lg" style={{ color: "#2E7D4F" }}>{fmtR(totalEntradas)}</p>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>Entradas · {mesAtual.rotulo}</p>
+          <p className="font-display font-bold text-lg" style={{ color: "#2E7D4F" }}>{fmtBRL(relMes.totalEntradas)}</p>
+          <p className="text-[10px]" style={{ color: C.stone }}>acumulado: {fmtBRL(relTudo.totalEntradas)}</p>
         </div>
         <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: "#B0342811" }}>
-          <p className="text-xs font-mono" style={{ color: C.stone }}>Saídas</p>
-          <p className="font-display font-bold text-lg" style={{ color: "#B03428" }}>{fmtR(totalSaidas)}</p>
+          <p className="text-xs font-mono" style={{ color: C.stone }}>Saídas · {mesAtual.rotulo}</p>
+          <p className="font-display font-bold text-lg" style={{ color: "#B03428" }}>{fmtBRL(relMes.totalSaidas)}</p>
+          <p className="text-[10px]" style={{ color: C.stone }}>acumulado: {fmtBRL(relTudo.totalSaidas)}</p>
         </div>
         <div className="p-4 rounded-lg border" style={{ borderColor: C.line, background: C.parchment }}>
           <p className="text-xs font-mono" style={{ color: C.stone }}>Saldo</p>
-          <p className="font-display font-bold text-lg" style={{ color: C.ink }}>{fmtR(saldo)}</p>
+          <p className="font-display font-bold text-lg" style={{ color: C.ink }}>{fmtBRL(relTudo.saldo)}</p>
+          <p className="text-[10px]" style={{ color: C.stone }}>no mês: {fmtBRL(relMes.saldo)}</p>
         </div>
       </div>
 
-      <Btn className="mt-4" onClick={gerarPDF}>Baixar / imprimir relatório (PDF)</Btn>
-
-      <div className="mt-6 space-y-2">
-        {sorted.length === 0 && <Empty text="Nenhum lançamento ainda." />}
-        {sorted.map((i) => (
-          <div key={i.id} className="flex items-center justify-between p-3 rounded-lg border text-sm" style={{ borderColor: C.line }}>
-            <div>
-              <p className="font-medium">{i.categoria} {i.descricao && `· ${i.descricao}`}</p>
-              <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(i.data)}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="font-display font-semibold" style={{ color: i.tipo === "Entrada" ? "#2E7D4F" : "#B03428" }}>{i.tipo === "Saída" ? "-" : "+"}{fmtR(parseFloat(i.valor) || 0)}</span>
-              <button onClick={() => del(i.id)}><Trash2 size={14} color={C.stone} /></button>
-            </div>
-          </div>
+      <div className="flex flex-wrap gap-1.5 mt-6 border-b pb-2" style={{ borderColor: C.line }}>
+        {ABAS.map(([k, r]) => (
+          <button key={k} onClick={() => setAba(k)} className="px-3 py-1.5 rounded-md text-sm font-semibold" style={{ background: aba === k ? C.violet : "transparent", color: aba === k ? "#fff" : C.violet }}>{r}</button>
         ))}
       </div>
 
-      <div className="mt-8">
-        <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Novo lançamento</p>
-        <DynamicForm fields={CAIXA_FIELDS} onSubmit={(v) => v.tipo && v.categoria && add(v)} submitLabel="Lançar" />
-      </div>
+      {/* ============ LANÇAMENTOS ============ */}
+      {aba === "lancamentos" && (
+        <div className="mt-5">
+          {editId ? (
+            <FormLancamento key={editId} inicial={formDeLancamento(items.find((i) => i.id === editId) || {})} contribuintes={contribuintes} editando onSalvar={salvarEdicao} onCancelar={() => setEditId(null)} />
+          ) : (
+            <FormLancamento contribuintes={contribuintes} onSalvar={add} />
+          )}
+
+          <div className="flex flex-wrap items-end gap-3 mt-6">
+            <Field label="Tipo"><select className={inputCls} style={{ borderColor: C.line }} value={fTipo} onChange={(e) => setFTipo(e.target.value)}><option value="todos">Todos</option><option>Entrada</option><option>Saída</option></select></Field>
+            <Field label="Período"><select className={inputCls} style={{ borderColor: C.line }} value={fPer} onChange={(e) => setFPer(e.target.value)}><option value="tudo">Tudo</option>{CAIXA_PERIODOS.filter(([k]) => k !== "custom").map(([k, r]) => <option key={k} value={k}>{r}</option>)}</select></Field>
+            {fPer !== "tudo" && <Field label="Data de referência"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={fRef} onChange={(e) => setFRef(e.target.value)} /></Field>}
+            <Field label="Buscar"><input className={inputCls} style={{ borderColor: C.line }} value={fBusca} onChange={(e) => setFBusca(e.target.value)} placeholder="nome, categoria, culto…" /></Field>
+            {faixa && <span className="text-xs font-mono pb-2" style={{ color: C.stone }}>{faixa.rotulo}</span>}
+          </div>
+
+          <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: C.line }}>
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-[11px] font-mono uppercase" style={{ background: C.parchment, color: C.stone }}>
+                <th className="px-2 py-2">Data</th><th className="px-2">Categoria</th><th className="px-2">Detalhe</th><th className="px-2 text-right">Valor total</th><th className="px-2 text-right">Pago igreja</th><th className="px-2 text-right">%</th><th className="px-2">Ações</th>
+              </tr></thead>
+              <tbody>
+                {listaVisivel.length === 0 && <tr><td colSpan={7} className="px-3 py-4 text-xs italic text-center" style={{ color: C.stone }}>Nenhum lançamento neste filtro.</td></tr>}
+                {listaVisivel.map((i) => {
+                  const ent = i.tipo === "Entrada";
+                  const vt = i.valorTotal !== undefined && i.valorTotal !== "" ? num(i.valorTotal) : null;
+                  const vi = valorEfetivo(i);
+                  const detalhe = [i.pessoa ? (i.anonimo ? `${i.pessoa} (oculto nos relatórios)` : i.pessoa) : "", i.culto || "", i.competencia ? "comp. " + i.competencia : "", i.descricao || "", i.semOferta ? "presente, sem oferta" : ""].filter(Boolean).join(" · ");
+                  return (
+                    <React.Fragment key={i.id}>
+                      <tr className="border-t align-top" style={{ borderColor: C.line }}>
+                        <td className="px-2 py-1.5 whitespace-nowrap text-xs">{fmtDate(i.data)}</td>
+                        <td className="px-2"><span className="text-xs font-semibold" style={{ color: ent ? "#2E7D4F" : "#B03428" }}>{ent ? "▲" : "▼"} {i.categoria}</span>{!ent && <span className="block text-[10px]" style={{ color: C.stone }}>{CAIXA_GRUPOS_SAIDA[grupoSaida(i)].rotulo}</span>}</td>
+                        <td className="px-2 text-xs" style={{ color: C.stone }}>{detalhe}{i.vencimento && ` · venc. ${fmtDate(i.vencimento)}`}</td>
+                        <td className="px-2 text-right text-xs whitespace-nowrap">{vt != null ? fmtBRL(vt) : ""}</td>
+                        <td className="px-2 text-right font-semibold whitespace-nowrap" style={{ color: ent ? "#2E7D4F" : "#B03428" }}>{ent ? "+" : "−"}{fmtBRL(vi)}</td>
+                        <td className="px-2 text-right text-xs whitespace-nowrap">{vt && vt > 0 ? ((vi / vt) * 100).toFixed(0) + "%" : ""}</td>
+                        <td className="px-2 whitespace-nowrap text-xs">
+                          <button onClick={() => { setEditId(i.id); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="underline mr-2" style={{ color: C.violet }}>editar</button>
+                          {i.anexo && <button onClick={() => setAmpliada(i.anexo)} className="mr-2" title="Ver comprovante">📎</button>}
+                          <button onClick={() => setHistAberto(histAberto === i.id ? null : i.id)} className="underline mr-2" style={{ color: C.stone }}>histórico</button>
+                          <button onClick={() => excluir(i)} aria-label="Excluir"><Trash2 size={13} color={C.stone} className="inline" /></button>
+                        </td>
+                      </tr>
+                      {histAberto === i.id && (
+                        <tr style={{ background: "#00000006" }}><td colSpan={7} className="px-3 py-2">
+                          <p className="text-[11px] font-mono uppercase mb-1" style={{ color: C.stone }}>Histórico do lançamento{i.criadoPor ? ` · criado por ${i.criadoPor}` : ""}</p>
+                          {(i.historico || []).length === 0 ? <p className="text-xs italic" style={{ color: C.stone }}>Sem registros (lançamento antigo).</p> : (
+                            <ul className="text-xs space-y-0.5">{[...i.historico].reverse().map((h, k) => <li key={k}><span className="font-mono" style={{ color: C.stone }}>{new Date(h.em).toLocaleString("pt-BR")}</span> — <strong>{h.por}</strong>: {(h.o || []).join("; ")}</li>)}</ul>
+                          )}
+                        </td></tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {lista.length > 60 && <button onClick={() => setVerTodos((v) => !v)} className="text-xs underline mt-2" style={{ color: C.violet }}>{verTodos ? "mostrar só os 60 mais recentes" : `mostrar todos (${lista.length})`}</button>}
+          {(extra.auditoria || []).length > 0 && (
+            <details className="mt-4">
+              <summary className="text-xs font-mono cursor-pointer" style={{ color: C.stone }}>Registro de exclusões ({extra.auditoria.length})</summary>
+              <ul className="text-xs mt-1 space-y-0.5">{[...extra.auditoria].reverse().map((a, k) => <li key={k}><span className="font-mono" style={{ color: C.stone }}>{new Date(a.em).toLocaleString("pt-BR")}</span> — {a.por}: {a.acao} — {a.desc}</li>)}</ul>
+            </details>
+          )}
+        </div>
+      )}
+
+      {/* ============ CULTOS ============ */}
+      {aba === "cultos" && (
+        <div className="mt-5">
+          <div className="p-4 rounded-lg border-2" style={{ borderColor: C.gold, background: C.cream }}>
+            <p className="font-display font-semibold">Chamada de ofertantes do culto</p>
+            <p className="text-xs mt-1" style={{ color: C.stone }}>Os ofertantes ofertam em todos os cultos — mesmo quando a oferta é zero. Escolha o culto, preencha o valor de quem ofertou e deixe em branco quem não ofertou: o sistema registra a presença (oferta 0) e calcula, nos relatórios, "ofertou em X de Y cultos". Cartão com QR: toque em "Escanear cartão" para achar a pessoa na hora.</p>
+            <div className="grid sm:grid-cols-3 gap-3 mt-3">
+              <Field label="Data do culto"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={cData} onChange={(e) => { setCData(e.target.value); const p = cultoPadraoDoDia(e.target.value); if (p) setCTipo(p); }} /></Field>
+              <Field label="Culto"><select className={inputCls} style={{ borderColor: C.line }} value={cTipo} onChange={(e) => setCTipo(e.target.value)}>{CULTOS_TIPOS.map((t) => <option key={t}>{t}</option>)}</select></Field>
+              <div className="self-end"><Btn variant="ghost" color={C.goldDeep} onClick={() => setCLeitor(true)}>📷 Escanear cartão do ofertante</Btn></div>
+            </div>
+            <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {ofertantes.length === 0 && <p className="text-xs italic sm:col-span-3" style={{ color: C.stone }}>Nenhum ofertante cadastrado ainda — cadastre na aba "Contribuintes". Você pode lançar só a oferta geral abaixo.</p>}
+              {ofertantes.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md border" style={{ borderColor: cDestaque === c.id ? C.gold : C.line, background: cDestaque === c.id ? "#CBA13522" : "#fff" }}>
+                  <span className="text-sm flex-1 min-w-0 truncate">{c.nome}</span>
+                  <input id={"cv-" + c.id} type="number" step="0.01" placeholder="0,00" value={cValores[c.id] || ""} onChange={(e) => setCValores((v) => ({ ...v, [c.id]: e.target.value }))} className="w-24 text-sm rounded-md border px-2 py-1 text-right" style={{ borderColor: C.line }} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 max-w-xs"><Field label="Oferta geral do culto (sem nome) — R$"><input type="number" step="0.01" className={inputCls} style={{ borderColor: C.line }} value={cGeral} onChange={(e) => setCGeral(e.target.value)} /></Field></div>
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <Btn color={C.gold} onClick={lancarCulto}><Save size={14} /> Lançar culto</Btn>
+              <span className="text-xs" style={{ color: C.stone }}>Total digitado: {fmtBRL(ofertantes.reduce((s, c) => s + num(cValores[c.id]), 0) + num(cGeral))}</span>
+              {cMsg && <span className="text-xs font-semibold" style={{ color: "#2E7D4F" }}>{cMsg}</span>}
+            </div>
+          </div>
+          <p className="text-sm font-display font-semibold mt-6 mb-2">Últimos cultos lançados</p>
+          {cultosRecentes.length === 0 ? <Empty text="Nenhum culto lançado pela chamada ainda." /> : (
+            <div className="space-y-1.5">
+              {cultosRecentes.map((c) => {
+                const ofs = items.filter((i) => i.cultoId === c.id);
+                const total = ofs.reduce((s, i) => s + num(i.valor), 0);
+                return (
+                  <div key={c.id} className="px-3 py-2 rounded-lg border text-sm flex flex-wrap items-center justify-between gap-2" style={{ borderColor: C.line }}>
+                    <span><strong>{fmtDate(c.data)}</strong> · {c.tipo}</span>
+                    <span className="text-xs" style={{ color: C.stone }}>{ofs.filter((i) => num(i.valor) > 0).length} ofertaram · {ofs.filter((i) => i.semOferta).length} sem oferta · <strong style={{ color: C.ink }}>{fmtBRL(total)}</strong></span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {cLeitor && <LeitorCodigo titulo="Escanear cartão do ofertante" dica="Aponte para o QR do cartão do contribuinte." onResult={aoLerCartao} onClose={() => setCLeitor(false)} />}
+        </div>
+      )}
+
+      {/* ============ CONTRIBUINTES ============ */}
+      {aba === "contribuintes" && (
+        <div className="mt-5">
+          <div className="grid sm:grid-cols-4 gap-3 p-4 rounded-lg border items-end" style={{ borderColor: C.line, background: "#00000006" }}>
+            <Field label="Nome"><input className={inputCls} style={{ borderColor: C.line }} value={novoC.nome} onChange={(e) => setNovoC((x) => ({ ...x, nome: e.target.value }))} /></Field>
+            <Field label="Classe"><select className={inputCls} style={{ borderColor: C.line }} value={novoC.classe} onChange={(e) => setNovoC((x) => ({ ...x, classe: e.target.value }))}><option>Dizimista</option><option>Ofertante</option><option>Dizimista e ofertante</option></select></Field>
+            <Field label="Telefone (opcional)"><input className={inputCls} style={{ borderColor: C.line }} value={novoC.telefone} onChange={(e) => setNovoC((x) => ({ ...x, telefone: e.target.value }))} /></Field>
+            <Btn onClick={addContribuinte}><Plus size={14} /> Cadastrar</Btn>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Btn variant="ghost" onClick={() => setCartoes(true)}>🪪 Cartões com QR ({contribuintes.length})</Btn>
+          </div>
+          {["Dizimista", "Ofertante"].map((classe) => {
+            const grupo = contribuintes.filter((c) => (classe === "Dizimista" ? c.classe !== "Ofertante" : c.classe !== "Dizimista"));
+            return (
+              <div key={classe} className="mt-5">
+                <p className="text-sm font-display font-semibold mb-1">{classe === "Dizimista" ? "Dizimistas" : "Ofertantes"} <span className="text-xs font-normal" style={{ color: C.stone }}>· {grupo.length}</span></p>
+                {grupo.length === 0 ? <p className="text-xs italic" style={{ color: C.stone }}>Ninguém cadastrado nesta classe.</p> : (
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {grupo.map((c) => (
+                      <div key={c.id} className="px-3 py-2 rounded-lg border text-sm" style={{ borderColor: C.line, opacity: c.ativo === false ? 0.55 : 1 }}>
+                        {editC && editC.id === c.id ? (
+                          <div className="space-y-2">
+                            <input className={inputCls} style={{ borderColor: C.line }} value={editC.nome} onChange={(e) => setEditC((x) => ({ ...x, nome: e.target.value }))} />
+                            <select className={inputCls} style={{ borderColor: C.line }} value={editC.classe} onChange={(e) => setEditC((x) => ({ ...x, classe: e.target.value }))}><option>Dizimista</option><option>Ofertante</option><option>Dizimista e ofertante</option></select>
+                            <input className={inputCls} style={{ borderColor: C.line }} value={editC.telefone || ""} placeholder="Telefone" onChange={(e) => setEditC((x) => ({ ...x, telefone: e.target.value }))} />
+                            <div className="flex gap-2"><Btn onClick={salvarContribuinte}><Save size={13} /> Salvar</Btn><Btn variant="ghost" onClick={() => setEditC(null)}>Cancelar</Btn></div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0"><p className="font-medium truncate">{c.nome}</p><p className="text-[11px]" style={{ color: C.stone }}>{c.classe}{c.telefone ? ` · ${c.telefone}` : ""}{c.ativo === false ? " · inativo" : ""}</p></div>
+                            <div className="text-xs whitespace-nowrap">
+                              <button onClick={() => setEditC({ ...c })} className="underline mr-2" style={{ color: C.violet }}>editar</button>
+                              <button onClick={() => patchExtra({ contribuintes: contribuintes.map((x) => (x.id === c.id ? { ...x, ativo: x.ativo === false } : x)) })} className="underline" style={{ color: C.ember }}>{c.ativo === false ? "reativar" : "desativar"}</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div className="mt-8 p-4 rounded-lg border" style={{ borderColor: C.gold, background: C.cream }}>
+            <div className="flex flex-wrap items-end gap-3">
+              <p className="font-display font-semibold">Controle do dízimo (mensal)</p>
+              <Field label="Mês"><input type="month" className={inputCls} style={{ borderColor: C.line }} value={mesDizimo} onChange={(e) => setMesDizimo(e.target.value)} /></Field>
+              <span className="text-xs pb-2" style={{ color: C.stone }}>{dizimistas.filter(dizimoPago).length} de {dizimistas.length} dizimistas já registraram</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {dizimistas.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Cadastre dizimistas acima.</span>}
+              {dizimistas.map((c) => { const ok = dizimoPago(c); return <span key={c.id} className="text-xs px-2.5 py-1 rounded-full border" style={{ borderColor: ok ? "#2E7D4F" : C.line, background: ok ? "#2E7D4F18" : "#fff", color: ok ? "#2E7D4F" : C.ink }}>{ok ? "✔ " : "○ "}{c.nome}</span>; })}
+            </div>
+          </div>
+          {cartoes && (
+            <div className="fixed inset-0 z-[70] overflow-y-auto p-4" style={{ background: "#000000aa" }} onClick={() => setCartoes(false)}>
+              <div className="max-w-3xl mx-auto my-6 rounded-xl p-4" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-3"><p className="font-display font-semibold">Cartões dos contribuintes (QR)</p><div className="flex gap-2"><Btn color={C.gold} onClick={imprimirCartoes}>Imprimir</Btn><button onClick={() => setCartoes(false)}><X size={18} /></button></div></div>
+                <div ref={cartoesRef} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {contribuintes.filter((c) => c.ativo !== false).map((c) => (
+                    <div key={c.id} style={{ border: "1px solid #999", borderRadius: 8, padding: 8, textAlign: "center", width: 170 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700 }}>Ministério Avivar do Espírito</div>
+                      <QRCodeSVG value={`AVIVAR-CONTRIB:${c.id}`} size={96} />
+                      <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{c.nome}</div>
+                      <div style={{ fontSize: 9 }}>{c.classe}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============ RELATÓRIOS ============ */}
+      {aba === "relatorios" && (
+        <div className="mt-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+            <Field label="Período"><select className={inputCls} style={{ borderColor: C.line }} value={rPer} onChange={(e) => setRPer(e.target.value)}>{CAIXA_PERIODOS.map(([k, r]) => <option key={k} value={k}>{r}</option>)}</select></Field>
+            {rPer !== "custom" ? <Field label="Data de referência"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={rRef} onChange={(e) => setRRef(e.target.value)} /></Field> : (
+              <>
+                <Field label="De"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={rDe} onChange={(e) => setRDe(e.target.value)} /></Field>
+                <Field label="Até"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={rAte} onChange={(e) => setRAte(e.target.value)} /></Field>
+              </>
+            )}
+            <Field label="Operador(a) responsável (sai no rodapé)"><input className={inputCls} style={{ borderColor: C.line }} value={rOperador} onChange={(e) => setROperador(e.target.value)} onBlur={salvarIdentificacao} placeholder="Nome de quem emite" /></Field>
+            <Field label="Cidade (sai no rodapé)"><input className={inputCls} style={{ borderColor: C.line }} value={rCidade} onChange={(e) => setRCidade(e.target.value)} onBlur={salvarIdentificacao} /></Field>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs" style={{ color: C.ink }}>
+            <label className="flex items-center gap-1.5 font-semibold"><input type="checkbox" checked={rOcultar} onChange={(e) => { setROcultar(e.target.checked); patchExtra({ ocultarNomesPadrao: e.target.checked }); }} /> Ocultar nomes de dizimistas e ofertantes</label>
+            {[["resumo", "Resumo"], ["dizimos", "Dizimistas"], ["ofertas", "Ofertantes"], ["porCulto", "Por culto"], ["despesas", "Saídas"]].map(([k, r]) => (
+              <label key={k} className="flex items-center gap-1.5"><input type="checkbox" checked={rMostrar[k]} onChange={(e) => setRMostrar((m) => ({ ...m, [k]: e.target.checked }))} /> {r}</label>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Btn color={C.gold} onClick={() => imprimirHtml(htmlRel)}><FileText size={14} /> Imprimir / salvar PDF (A4)</Btn>
+            <Btn variant="ghost" onClick={csvRelatorio}>Baixar planilha (CSV)</Btn>
+            <span className="text-xs self-center font-mono" style={{ color: C.stone }}>{rInt.rotulo} · {rel.nLancamentos} lançamento(s)</span>
+          </div>
+          <iframe title="Prévia do relatório" srcDoc={htmlRel} className="w-full mt-3 rounded-lg border bg-white" style={{ borderColor: C.line, height: "75vh" }} />
+        </div>
+      )}
+
+      {/* ============ PUBLICAÇÃO ============ */}
+      {aba === "publicacao" && (
+        <div className="mt-5">
+          <p className="text-sm" style={{ color: C.stone }}>Aqui você escolhe o que da prestação de contas fica visível, para quem, em qual área do site e por quanto tempo. Por padrão os nomes ficam ocultos.</p>
+          <Btn className="mt-3" onClick={() => setPubForm({ ...PUB_VAZIA })}><Plus size={14} /> Nova publicação</Btn>
+          {pubForm && (
+            <div className="mt-4 p-4 rounded-lg border space-y-3" style={{ borderColor: C.gold, background: C.cream }}>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Título (aparece para quem vê)"><input className={inputCls} style={{ borderColor: C.line }} value={pubForm.titulo} onChange={(e) => setPubForm((p) => ({ ...p, titulo: e.target.value }))} /></Field>
+                <Field label="Quem pode ver">
+                  <select className={inputCls} style={{ borderColor: C.line }} value={pubForm.publico} onChange={(e) => setPubForm((p) => ({ ...p, publico: e.target.value }))}>
+                    <option value="todos">Qualquer visitante do site</option>
+                    <option value="codigo">Só quem tiver o código (grupo escolhido)</option>
+                  </select>
+                </Field>
+                {pubForm.publico === "codigo" && <Field label="Grupo (informativo)"><select className={inputCls} style={{ borderColor: C.line }} value={pubForm.grupo} onChange={(e) => setPubForm((p) => ({ ...p, grupo: e.target.value }))}>{["Irmãos cadastrados", "Membros", "Colaboradores", "Obreiros", "Liderança"].map((g) => <option key={g}>{g}</option>)}</select></Field>}
+                {pubForm.publico === "codigo" && <Field label="Código de visualização (vazio = gerar)"><input className={inputCls} style={{ borderColor: C.line }} value={pubForm.codigo} onChange={(e) => setPubForm((p) => ({ ...p, codigo: e.target.value }))} /></Field>}
+              </div>
+              <div>
+                <p className="text-[10px] font-mono uppercase" style={{ color: C.stone }}>Em quais áreas do site aparece</p>
+                <div className="flex flex-wrap gap-4 mt-1 text-xs">
+                  {[["home", "Página inicial"], ["colaboradores", "Colaboradores"], ["membros", "Membros"]].map(([k, r]) => (
+                    <label key={k} className="flex items-center gap-1.5"><input type="checkbox" checked={pubForm.areas.includes(k)} onChange={(e) => setPubForm((p) => ({ ...p, areas: e.target.checked ? [...p.areas, k] : p.areas.filter((x) => x !== k) }))} /> {r}</label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-4 gap-3">
+                <Field label="Período mostrado"><select className={inputCls} style={{ borderColor: C.line }} value={pubForm.periodoTipo} onChange={(e) => setPubForm((p) => ({ ...p, periodoTipo: e.target.value }))}>{CAIXA_PERIODOS.map(([k, r]) => <option key={k} value={k}>{r}</option>)}</select></Field>
+                {pubForm.periodoTipo !== "custom" ? (
+                  <>
+                    <label className="text-xs flex items-center gap-2 self-end pb-2"><input type="checkbox" checked={pubForm.rolante} onChange={(e) => setPubForm((p) => ({ ...p, rolante: e.target.checked }))} /> Sempre o período atual</label>
+                    {!pubForm.rolante && <Field label="Data de referência"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={pubForm.ref} onChange={(e) => setPubForm((p) => ({ ...p, ref: e.target.value }))} /></Field>}
+                  </>
+                ) : (
+                  <>
+                    <Field label="De"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={pubForm.de} onChange={(e) => setPubForm((p) => ({ ...p, de: e.target.value }))} /></Field>
+                    <Field label="Até"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={pubForm.ate} onChange={(e) => setPubForm((p) => ({ ...p, ate: e.target.value }))} /></Field>
+                  </>
+                )}
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Fica visível a partir de"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={pubForm.exibirDe} onChange={(e) => setPubForm((p) => ({ ...p, exibirDe: e.target.value }))} /></Field>
+                <Field label="Fica visível até (tempo de exposição — vazio = sem prazo)"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={pubForm.exibirAte} onChange={(e) => setPubForm((p) => ({ ...p, exibirAte: e.target.value }))} /></Field>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                <span className="font-mono uppercase text-[10px] self-center" style={{ color: C.stone }}>O que mostrar:</span>
+                {[["resumo", "Resumo (entradas, saídas, saldo)"], ["dizimos", "Dizimistas"], ["ofertas", "Ofertantes"], ["porCulto", "Ofertas por culto"], ["despesas", "Saídas"]].map(([k, r]) => (
+                  <label key={k} className="flex items-center gap-1.5"><input type="checkbox" checked={!!pubForm.mostrar[k]} onChange={(e) => setPubForm((p) => ({ ...p, mostrar: { ...p.mostrar, [k]: e.target.checked } }))} /> {r}</label>
+                ))}
+                <label className="flex items-center gap-1.5 font-semibold"><input type="checkbox" checked={pubForm.ocultarNomes} onChange={(e) => setPubForm((p) => ({ ...p, ocultarNomes: e.target.checked }))} /> Ocultar nomes</label>
+              </div>
+              <div className="flex gap-2"><Btn onClick={salvarPub}><Save size={14} /> Salvar publicação</Btn><Btn variant="ghost" onClick={() => setPubForm(null)}>Cancelar</Btn></div>
+            </div>
+          )}
+          <div className="mt-5 space-y-2">
+            {(extra.publicacoes || []).length === 0 && <Empty text="Nenhuma publicação criada. Nada da prestação de contas aparece no site." />}
+            {(extra.publicacoes || []).map((p) => {
+              const [st, corSt] = statusPub(p);
+              return (
+                <div key={p.id} className="px-3 py-2.5 rounded-lg border text-sm" style={{ borderColor: C.line }}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div><p className="font-semibold">{p.titulo} <span className="text-[10px] font-mono px-2 py-0.5 rounded-full ml-1" style={{ background: corSt + "22", color: corSt }}>{st}</span></p>
+                      <p className="text-[11px]" style={{ color: C.stone }}>{p.publico === "todos" ? "Qualquer visitante" : `${p.grupo} · código ${p.codigo}`} · áreas: {p.areas.join(", ") || "nenhuma"} · {p.exibirDe ? fmtDate(p.exibirDe) : "—"} a {p.exibirAte ? fmtDate(p.exibirAte) : "sem prazo"} · {p.ocultarNomes ? "nomes ocultos" : "nomes visíveis"}</p></div>
+                    <div className="text-xs whitespace-nowrap">
+                      <button onClick={() => setPubForm({ ...PUB_VAZIA, ...p })} className="underline mr-2" style={{ color: C.violet }}>editar</button>
+                      <button onClick={() => patchExtra({ publicacoes: extra.publicacoes.map((x) => (x.id === p.id ? { ...x, ativo: x.ativo === false } : x)) })} className="underline mr-2" style={{ color: C.ember }}>{p.ativo === false ? "ativar" : "desativar"}</button>
+                      <button onClick={() => { if (window.confirm("Excluir esta publicação?")) patchExtra({ publicacoes: extra.publicacoes.filter((x) => x.id !== p.id) }); }}><Trash2 size={13} color={C.stone} className="inline" /></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] italic mt-4" style={{ color: C.stone }}>Atenção: o código de visualização protege só contra curiosos — como o site ainda não tem login no servidor, quem entender de tecnologia consegue ver os dados. Para sigilo de verdade, use "Ocultar nomes".</p>
+        </div>
+      )}
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
     </div>
   );
 }
+
+// Prestação de contas pública — aparece nas áreas escolhidas pelo admin, no prazo definido.
+function PrestacaoPublica({ area, items, extra: extraProp }) {
+  const extra = { ...CAIXA_EXTRA_VAZIO, ...(extraProp || {}) };
+  const hoje = diaISOhoje();
+  const ativas = (extra.publicacoes || []).filter((p) => p.ativo !== false && (p.areas || []).includes(area) && (!p.exibirDe || hoje >= p.exibirDe) && (!p.exibirAte || hoje <= p.exibirAte));
+  const [liberadas, setLiberadas] = useState({});
+  const [codigos, setCodigos] = useState({});
+  const [erros, setErros] = useState({});
+  if (ativas.length === 0) return null;
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      {ativas.map((p) => {
+        const aberta = p.publico === "todos" || liberadas[p.id];
+        const int = p.periodoTipo === "custom" ? periodoIntervalo("custom", "", p.de, p.ate) : periodoIntervalo(p.periodoTipo, p.rolante ? diaISOhoje() : p.ref);
+        const html = aberta ? htmlRelatorio(calcularRelatorio(items, extra, { de: int.de, ate: int.ate, ocultarNomes: p.ocultarNomes !== false }), { titulo: p.titulo, rotuloPeriodo: int.rotulo, mostrar: p.mostrar, cidade: extra.cidade, operador: extra.operadorPadrao }) : "";
+        return (
+          <div key={p.id} className="rounded-xl border-2 p-4 mb-4" style={{ borderColor: C.gold, background: C.cream }}>
+            <p className="font-display font-semibold"><Wallet size={14} className="inline mr-1" />Prestação de contas — {p.titulo}</p>
+            {p.exibirAte && <p className="text-[11px]" style={{ color: C.stone }}>Visível até {fmtDate(p.exibirAte)}</p>}
+            {!aberta ? (
+              <div className="mt-2 max-w-sm">
+                <p className="text-xs" style={{ color: C.stone }}>Conteúdo reservado a: {p.grupo}. Digite o código que a liderança lhe passou.</p>
+                <div className="flex gap-2 mt-2 items-start">
+                  <div className="flex-1"><SenhaInput value={codigos[p.id] || ""} onChange={(e) => setCodigos((c) => ({ ...c, [p.id]: e.target.value }))} onEnter={() => (String(codigos[p.id] || "").trim().toUpperCase() === String(p.codigo).toUpperCase() ? setLiberadas((l) => ({ ...l, [p.id]: true })) : setErros((x) => ({ ...x, [p.id]: "Código incorreto." })))} placeholder="Código de visualização" /></div>
+                  <Btn color={C.gold} onClick={() => (String(codigos[p.id] || "").trim().toUpperCase() === String(p.codigo).toUpperCase() ? setLiberadas((l) => ({ ...l, [p.id]: true })) : setErros((x) => ({ ...x, [p.id]: "Código incorreto." })))}>Ver</Btn>
+                </div>
+                {erros[p.id] && <p className="text-xs mt-1 font-semibold" style={{ color: "#B03428" }}>{erros[p.id]}</p>}
+              </div>
+            ) : (
+              <iframe title={p.titulo} srcDoc={html} className="w-full mt-3 rounded-lg border bg-white" style={{ borderColor: C.line, height: "70vh" }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 
 /* ---------------------------------------------------------------- */
 /* Bens (patrimônio) — área restrita ao admin                           */
@@ -6248,7 +7725,13 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
           rotulo="Orações nos Lares"
           encontro={encontroAberto}
           cor={C.purple}
-          canManage={canManageAgenda}
+          podeEditarBase={canManageAgenda}
+          isAdmin={canManageAgenda}
+          isCoord={false}
+          quem={{ nome: adminReal ? "Administração" : "Autorizado (Oração nos Lares)", papel: "admin" }}
+          coordenadorNome=""
+          verificarSenhaCoord={() => false}
+          sugestoesPresentes={[]}
           onSave={(upd) => saveEncontros(encontros.map((e) => (e.id === upd.id ? upd : e)))}
           onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
           onVoltar={() => setEncontroAbertoId(null)}
@@ -8099,7 +9582,7 @@ export default function App() {
   // Todo clique de "chamada" para os Códigos Avivar leva ao app (link em codigos.appUrl,
   // cadastrado pelo admin); sem link ainda, volta para a seção Códigos Avivar.
   const abrirAppCodigos = () => {
-    const u = ((codigos && codigos.appUrl) || "").trim();
+    const u = ((codigos && codigos.appUrl) || CODIGOS_APP_URL_PADRAO).trim();
     if (u) window.open(/^https?:\/\//i.test(u) ? u : "https://" + u, "_blank", "noopener,noreferrer");
     else { setPaginaAvivarNewsTVOpen(false); scrollToSection("codigos"); }
   };
@@ -8128,9 +9611,13 @@ export default function App() {
   // setor a setor, se admin ou o operador logado pode mexer naquela área — permite dar
   // código de acesso restrito a só um setor (ex: só Oração nos Lares, só Avivar Music).
   const [operatorAuth, setOperatorAuth] = useState(null);
-  const podeSetor = (setor) => adminMode || (!!operatorAuth && (operatorAuth.setores.includes("todos") || operatorAuth.setores.includes(setor)));
+  // "caixa" (finanças) nunca vem em "todos": precisa estar marcado explicitamente no código do operador.
+  const podeSetor = (setor) => adminMode || (!!operatorAuth && ((setor !== "caixa" && operatorAuth.setores.includes("todos")) || operatorAuth.setores.includes(setor)));
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
   const [operatorCodes, setOperatorCodes] = useState([]);
+  // Sessão do Coordenador/Líder das Células (senha gerada pelo admin) — vale para todas as páginas de célula.
+  const [celulaAuth, setCelulaAuth] = useState(null);
+  const [relatorioCelulasOpen, setRelatorioCelulasOpen] = useState(false);
   // Registra no histórico da pessoa autorizada cada vez que ela entra com o código.
   const registrarAcessoOperador = (id, evento) => {
     if (!id) return;
@@ -8162,6 +9649,7 @@ export default function App() {
   const [mensagens, setMensagens] = useState([]);
   const [forumPosts, setForumPosts] = useState([]);
   const [caixa, setCaixa] = useState([]);
+  const [caixaExtra, setCaixaExtra] = useState(CAIXA_EXTRA_VAZIO);
   const [bens, setBens] = useState([]);
   const [membros, setMembros] = useState([]);
   const [repertorio, setRepertorio] = useState([]);
@@ -8248,6 +9736,7 @@ export default function App() {
       setMensagens(await loadKey("avivar:mensagens", []));
       setForumPosts(await loadKey("avivar:forum", []));
       setCaixa(await loadKey("avivar:caixa", []));
+      setCaixaExtra({ ...CAIXA_EXTRA_VAZIO, ...(await loadKey("avivar:caixaextra", CAIXA_EXTRA_VAZIO)) });
       setBens(await loadKey("avivar:bens", []));
       setMembros(await loadKey("avivar:membros", []));
       setRepertorio(await loadKey("avivar:repertorio", []));
@@ -9618,6 +11107,16 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.operadoresLimpar1 = true;
     }
+    // Coordenador das Células: "Pr. Gilvan" (antes constava "Diácono Gilvan").
+    if (!seeds.celulaCoordPr1) {
+      const ca = celulas || DEFAULT_CELULAS;
+      if (!ca.coordenador || /di[aá]cono/i.test(ca.coordenador)) {
+        const nova = { ...ca, coordenador: "Pr. Gilvan" };
+        setCelulas(nova);
+        saveKey("avivar:celulas", nova);
+      }
+      todo.celulaCoordPr1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -9649,6 +11148,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     mensagens: (v) => { setMensagens(v); saveKey("avivar:mensagens", v); },
     forum: (v) => { setForumPosts(v); saveKey("avivar:forum", v); },
     caixa: (v) => { setCaixa(v); saveKey("avivar:caixa", v); },
+    caixaExtra: (v) => { setCaixaExtra(v); saveKey("avivar:caixaextra", v); },
     bens: (v) => { setBens(v); saveKey("avivar:bens", v); },
     membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
@@ -9737,10 +11237,13 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <PaginaCelula
         chave={paginaCelulaKey}
         celula={(celulas && celulas[paginaCelulaKey]) || CELULA_VAZIA(paginaCelulaKey)}
+        todasCelulas={celulas}
         coordenador={celulas && celulas.coordenador}
         liderCode={celulas && celulas.liderCode}
         liderCodeActive={celulas && celulas.liderCodeActive}
         adminMode={adminMode}
+        auth={celulaAuth}
+        setAuth={setCelulaAuth}
         onSave={(v) => persist.celulas({ ...celulas, [paginaCelulaKey]: v })}
         onPatchTop={(patch) => persist.celulas({ ...celulas, ...patch })}
         onVoltar={() => setPaginaCelulaKey(null)}
@@ -9846,12 +11349,12 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
 
       <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} /></section>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} podeRelatorioCelulas={adminMode || (!!celulaAuth && celulaAuth.papel === "coordenador")} onRelatorioCelulas={() => setRelatorioCelulasOpen(true)} /><PrestacaoPublica area="home" items={caixa} extra={caixaExtra} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="loja" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
         <section id="igrejas" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Igrejas igrejas={igrejas} save={persist.igrejas} adminMode={adminMode} onOpenIgreja={setPaginaIgrejaId} /></section>
-        <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} kidsItems={avivarKids} saveKids={persist.avivarKids} lideranca={lideranca} saveLideranca={persist.lideranca} /></section>
+        <section id="colaboradores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Colaboradores items={colaboradores} save={persist.colaboradores} adminMode={adminMode} kidsItems={avivarKids} saveKids={persist.avivarKids} lideranca={lideranca} saveLideranca={persist.lideranca} /><PrestacaoPublica area="colaboradores" items={caixa} extra={caixaExtra} /></section>
         {/* Serviço na Casa de Deus (esquerda) e Cadastro de Visitantes (direita) no mesmo nível —
             independentes entre si, cada um com o seu próprio controle de acesso. */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-8 items-start">
@@ -9862,8 +11365,8 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
         <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
-        <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-        <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Caixa items={caixa} save={persist.caixa} adminMode={adminMode} /></section>
+        <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /><PrestacaoPublica area="membros" items={caixa} extra={caixaExtra} /></section>
+        <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="caixa" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Caixa items={caixa} save={persist.caixa} extra={caixaExtra} saveExtra={persist.caixaExtra} adminMode={adminMode || podeSetor("caixa")} operador={operatorAuth?.nome || "Administração"} cidadePadrao={doacoes?.cidade || ""} /></section>
         <section id="operadores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
         <section id="contato" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>
@@ -9871,6 +11374,8 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
 
       <Footer churchName={site.churchName} />
       <BotaoFlutuanteWhatsapp numero={site.whatsappMinisterio} />
+
+      {relatorioCelulasOpen && <RelatorioCelulas celulas={celulas} coordenador={celulas && celulas.coordenador} onClose={() => setRelatorioCelulasOpen(false)} />}
 
       <ReportagemModal
         news={(avivarNews || []).find((n) => n.id === newsAbrirId) || null}
