@@ -1649,7 +1649,7 @@ function HeroNewsColumn({ news, bgImage, onClick, onOpenNews }) {
   );
 }
 
-function HeroDoacoesCard({ data, bgImage, onClick }) {
+function HeroDoacoesCard({ data, bgImage, onClick, compacto = false }) {
   const [copiado, setCopiado] = useState(false);
   const [copiadoImg, setCopiadoImg] = useState(false);
   const [erroImg, setErroImg] = useState(false);
@@ -1709,6 +1709,36 @@ function HeroDoacoesCard({ data, bgImage, onClick }) {
       setTimeout(() => setErroImg(false), 2500);
     }
   };
+  if (compacto) {
+    // Versão do topo da Home (ao lado da Escala de Serviço): verde, chave Pix + QR Code lado a lado.
+    return (
+      <div className="relative rounded-xl overflow-hidden border-2 h-full" style={{ borderColor: "#2E8B57", background: "#14583A" }}>
+        {bgImage && <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #14583Aee, #0B3B26f2)" }} />
+        <div onClick={onClick} className="relative p-3 sm:p-4 flex items-center gap-3 h-full">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#9FE3B9" }}><HandHeart size={11} className="inline mr-1" />Semeando com generosidade</p>
+            <p className="font-display font-semibold text-base text-white leading-tight mt-0.5">Dízimo e Oferta</p>
+            <p className="text-[10px] font-mono uppercase mt-2" style={{ color: "#ffffff88" }}>Chave PIX</p>
+            <p className="text-xs font-mono break-all text-white leading-snug">{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
+            <button onClick={copiar} className="mt-2 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: "#ffffff22", color: "#fff" }}>
+              <Copy size={11} /> {copiado ? "Copiado!" : "Copiar chave PIX"}
+            </button>
+          </div>
+          {payload && (
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div onClick={copiarQRComoImagem} title="Toque para copiar o QR Code como imagem" className="bg-white p-1.5 rounded-lg cursor-pointer">
+                <QRCodeSVG value={payload} size={92} bgColor="#ffffff" fgColor="#0B0B0C" />
+              </div>
+              <span className="text-[9px] text-center max-w-[100px] leading-tight" style={{ color: erroImg ? "#F2A6A6" : "#ffffff99" }}>
+                {copiadoImg ? "Copiado!" : erroImg ? "não foi possível copiar a imagem" : "toque no QR para copiar"}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative rounded-2xl overflow-hidden border h-full min-h-[280px]" style={{ borderColor: C.line }}>
       {bgImage ? (
@@ -1840,10 +1870,25 @@ function VisitantesDiaBanner({ vd }) {
   );
 }
 
+// Card do topo da Home (coluna da direita, ao lado da Escala de Serviço): cor de brasa, abre o formulário.
+function PedidoOracaoTopo({ onClick }) {
+  return (
+    <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex items-center gap-3 px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
+      <HandHeart size={26} color="#fff" className="shrink-0" />
+      <span className="flex-1 min-w-0">
+        <span className="block text-[10px] font-mono uppercase tracking-wider" style={{ color: "#ffffffbb" }}>Intercessão</span>
+        <span className="block font-display font-bold text-base sm:text-lg text-white leading-tight">Pedido de Oração</span>
+        <span className="block text-[11px] mt-0.5" style={{ color: "#ffffffdd" }}>Toque e preencha o seu pedido — vamos orar com você.</span>
+      </span>
+      <span className="purple-light-pulse shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
+    </button>
+  );
+}
+
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas, doacoes, bgPix, onPedidoOracao }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
@@ -1909,7 +1954,6 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
     temAcao = !!m.link;
   }
 
-  if (!temVisitantesHoje && !dataEscalaDestaque && !m.ativo && !adminMode) return null;
   const mostrarEscalaNaHome = dataEscalaDestaque && vd.exibirEscala && !temVisitantesHoje;
 
   // Monta as 3 colunas de postos (3 funções cada) na ordem fixa de exibição, igual à
@@ -1931,38 +1975,61 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-      {temVisitantesHoje ? (
-        <VisitantesDiaBanner vd={vd} />
-      ) : mostrarEscalaNaHome ? (
-        <div className="w-full rounded-lg border-2 overflow-hidden grid grid-cols-2 sm:grid-cols-4" style={{ borderColor: C.gold }}>
-          <div className="p-3 flex flex-col justify-center col-span-2 sm:col-span-1" style={{ background: C.violet, color: "#fff" }}>
-            <span className="text-[9px] font-mono uppercase tracking-wider opacity-80">Escala de Serviço</span>
-            <p className="font-display font-bold text-sm sm:text-base leading-tight mt-0.5">{diaSemanaDestaque}</p>
-            <p className="text-xs opacity-90">{fmtDate(dataEscalaDestaque)}{horarioDestaque ? ` · ${horarioDestaque.inicio}` : ""}</p>
-          </div>
-          {gruposColunas.map((grupo, i) => (
-            <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
-              {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
-              {grupo.map((l) => (
-                <p key={l.posto} className="text-[10px] sm:text-[11px] leading-tight" style={{ color: C.ink }}>
-                  <span className="font-bold uppercase">{l.posto}:</span> {l.nomes}
-                </p>
-              ))}
+      {(() => {
+        const cardPedido = <PedidoOracaoTopo onClick={onPedidoOracao} />;
+        const cardPix = <HeroDoacoesCard compacto data={doacoes || DEFAULT_DOACOES} bgImage={bgPix} onClick={() => {}} />;
+        // Escala de Serviço (cabeçalho violeta + tabela de postos) — duas colunas: à esquerda a escala,
+        // à direita Pedido de Oração (alinhado ao cabeçalho) e, abaixo, Dízimo e Oferta com Pix e QR Code.
+        if (!temVisitantesHoje && mostrarEscalaNaHome) {
+          return (
+            <div className="grid gap-3 lg:grid-cols-[1.8fr_1fr] lg:grid-rows-[auto_1fr]">
+              <div className="rounded-xl border-2 p-3 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ borderColor: C.gold, background: C.violet, color: "#fff" }}>
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{diaSemanaDestaque}</span></div>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+              </div>
+              {cardPedido}
+              <div className="rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
+                {gruposColunas.map((grupo, i) => (
+                  <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
+                    {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
+                    {grupo.map((l) => (
+                      <p key={l.posto} className="text-[11px] leading-tight" style={{ color: C.ink }}>
+                        <span className="font-bold uppercase">{l.posto}:</span> {l.nomes}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              {cardPix}
             </div>
-          ))}
-        </div>
-      ) : (
-        (m.ativo || adminMode) && (
+          );
+        }
+        // Sem escala em destaque: o banner de visitantes (ou a manchete) ocupa a esquerda; os dois cards à direita.
+        const esquerda = temVisitantesHoje ? (
+          <VisitantesDiaBanner vd={vd} />
+        ) : (m.ativo || adminMode) ? (
           <button
             onClick={aoClicar}
-            className={`w-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${temAcao ? "cursor-pointer" : "cursor-default"}`}
+            className={`w-full h-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${temAcao ? "cursor-pointer" : "cursor-default"}`}
             style={{ background: C.parchment, borderColor: C.gold, opacity: m.ativo ? 1 : 0.5 }}
           >
             {!m.ativo && adminMode && <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.emberDeep }}>(inativa — só visível pra você, admin)</span>}
             <p className="font-display font-bold text-base sm:text-lg mt-0.5" style={{ color: C.ink }}>{textoExibido}</p>
           </button>
-        )
-      )}
+        ) : null;
+        if (!esquerda) {
+          return (<div className="grid gap-3 lg:grid-cols-2">{cardPedido}{cardPix}</div>);
+        }
+        return (
+          <div className="grid gap-3 lg:grid-cols-[1.8fr_1fr]">
+            <div className="lg:row-span-2">{esquerda}</div>
+            {cardPedido}
+            {cardPix}
+          </div>
+        );
+      })()}
       {adminMode && (
         <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
           {!editing ? (
@@ -2126,8 +2193,8 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} podeVisitantesDia={podeVisitantesDia} />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr_1fr] gap-3 sm:gap-4 items-stretch">
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} podeVisitantesDia={podeVisitantesDia} doacoes={doacoes} bgPix={site.heroRightBg} onPedidoOracao={() => setPage("pedidooracao")} />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr] gap-3 sm:gap-4 items-stretch">
         {/* Coluna 1 — Ministério: nome, logo e um breve histórico. O nome/logo é
             clicável e leva para a página "Nossa História" (histórico completo,
             fotos antigas e diretoria). Só no celular ela vem depois da coluna
@@ -2157,14 +2224,6 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
           </div>
         </div>
 
-        <div className="order-3 lg:order-3 flex flex-col gap-3 h-full">
-          <div className="flex-[7] min-h-0">
-            <HeroDoacoesCard data={doacoes || DEFAULT_DOACOES} bgImage={site.heroRightBg} onClick={() => {}} />
-          </div>
-          <div className="flex-[3] min-h-0">
-            <PedidoOracaoCard compact onClick={() => setPage("pedidooracao")} />
-          </div>
-        </div>
       </div>
 
       {adminMode && (
@@ -2173,7 +2232,7 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
           <div className="grid sm:grid-cols-3 gap-3">
             <Field label="Fundo — coluna 1 (Ministério)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroMiddleBg || ""} onChange={(e) => saveSite({ ...site, heroMiddleBg: e.target.value })} /></Field>
             <Field label="Fundo — Notícias (metade de baixo da coluna central)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroLeftBg || ""} onChange={(e) => saveSite({ ...site, heroLeftBg: e.target.value })} /></Field>
-            <Field label="Fundo — coluna Doações (direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
+            <Field label="Fundo — card Dízimo e Oferta (topo, à direita)"><input className={inputCls} style={{ borderColor: C.line }} value={site.heroRightBg || ""} onChange={(e) => saveSite({ ...site, heroRightBg: e.target.value })} /></Field>
             <Field label="Histórico breve — coluna 1 (Ministério)"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={site.heroHistoricoBreve || ""} onChange={(e) => saveSite({ ...site, heroHistoricoBreve: e.target.value })} /></Field>
             <Field label="WhatsApp do Ministério (com DDD, só números)"><input className={inputCls} style={{ borderColor: C.line }} value={site.whatsappMinisterio || ""} onChange={(e) => saveSite({ ...site, whatsappMinisterio: e.target.value })} /></Field>
           </div>
@@ -2412,6 +2471,34 @@ function FotoAmpliadaKv({ src, onClose }) {
 
 // Faixa rolante com os encontros já registrados: a pessoa escolhe uma data (rolando e
 // clicando, ou digitando a data) e abre a página daquele dia.
+// Link direto (abre o site já na célula / no encontro / na oração enviada) e botões de envio.
+const linkDireto = (qs) => `${window.location.origin}${window.location.pathname}?${qs}`;
+function BotaoCompartilhar({ url, titulo, texto, cor, rotulo = "Enviar este link" }) {
+  const [copiado, setCopiado] = useState(false);
+  const msg = `${titulo}${texto ? " — " + texto : ""}`;
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(url); }
+    catch (e) {
+      try { const t = document.createElement("textarea"); t.value = url; document.body.appendChild(t); t.select(); document.execCommand("copy"); document.body.removeChild(t); } catch (e2) { window.prompt("Copie o link:", url); return; }
+    }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2200);
+  };
+  const nativo = typeof navigator !== "undefined" && typeof navigator.share === "function"
+    ? () => navigator.share({ title: titulo, text: msg, url }).catch(() => {})
+    : null;
+  const estilo = { borderColor: cor, color: cor, background: "#fff" };
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="font-mono uppercase tracking-wide" style={{ color: C.stone }}>{rotulo}:</span>
+      <a href={`https://wa.me/?text=${encodeURIComponent(`${msg}\n${url}`)}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full border font-semibold inline-flex items-center gap-1" style={{ borderColor: "#1F8A4C", color: "#1F8A4C", background: "#fff" }}><MessageCircle size={13} /> WhatsApp</a>
+      <a href={`mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(`${msg}\n\nAbra o link:\n${url}`)}`} className="px-3 py-1.5 rounded-full border font-semibold inline-flex items-center gap-1" style={estilo}><Mail size={13} /> E-mail</a>
+      <button onClick={copiar} className="px-3 py-1.5 rounded-full border font-semibold" style={estilo}>{copiado ? "✔ Link copiado" : "🔗 Copiar link"}</button>
+      {nativo && <button onClick={nativo} className="px-3 py-1.5 rounded-full border font-semibold" style={estilo}>Outros apps…</button>}
+    </div>
+  );
+}
+
 function FaixaEncontros({ encontros, cor, onAbrir, vazio = "Nenhum encontro registrado ainda." }) {
   const [busca, setBusca] = useState("");
   const [aviso, setAviso] = useState("");
@@ -2472,7 +2559,22 @@ const estiloPauta = (cor, linhas = 3) => ({
   backgroundAttachment: "local",
 });
 
-function CampoFilete({ label, value, onChange, type = "text", editavel, cor, multilinha = false, linhas = 3 }) {
+function CampoFilete({ label, value, onChange, type = "text", editavel, cor, multilinha = false, linhas = 3, plano = false }) {
+  // plano: campo de formulário comum (caixa de digitação), sem as linhas de caderno — usado em Oração nos Lares.
+  if (plano) {
+    return (
+      <div className="min-w-0">
+        <p className="text-[10px] font-mono uppercase tracking-wide mb-1" style={{ color: C.stone }}>{label}</p>
+        {editavel ? (
+          multilinha
+            ? <textarea rows={linhas} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 resize-y" style={{ borderColor: cor + "88", background: "#fff", color: C.ink }} />
+            : <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: cor + "88", background: "#fff", color: C.ink }} />
+        ) : (
+          <div className="text-sm whitespace-pre-wrap rounded-lg px-3 py-2" style={{ background: cor + "0d", color: C.ink, minHeight: multilinha ? "3rem" : "2.2rem" }}>{type === "date" && value ? fmtDate(value) : value}</div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.stone }}>{label}</p>
@@ -2497,9 +2599,10 @@ function CampoFilete({ label, value, onChange, type = "text", editavel, cor, mul
 // com "como foi" ao lado, até 5 fotos enviadas do aparelho, vídeos estilo YouTube,
 // lista de presentes e — nas células — assinatura de encerramento do Coordenador, com
 // registro de qualquer edição feita depois.
-function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord, quem, coordenadorNome, verificarSenhaCoord, sugestoesPresentes = [], onSave, onDelete, onVoltar, rotulo }) {
+function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord, quem, coordenadorNome, verificarSenhaCoord, sugestoesPresentes = [], participantesAnteriores = [], linkCompartilhar = "", onSave, onDelete, onVoltar, rotulo }) {
   const campos = FICHA_CAMPOS[tipo] || FICHA_CAMPOS.celula;
   const ehCelula = tipo === "celula";
+  const ehOracao = tipo === "oracao";
   const podeAssinar = isAdmin || isCoord;
   const encerrado = encontro.encerrado || null;
   const canEdit = !!podeEditarBase && (!encerrado || podeAssinar);
@@ -2513,6 +2616,7 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
     diaSemana: e.diaSemana || "", endereco: e.endereco || "", contato: e.contato || "",
     estudo: { ...ESTUDO_VAZIO, ...(e.estudo || {}) },
     observacoes: e.observacoes || "", relato: e.relato || "", presentes: e.presentes || "",
+    pedidos: e.pedidos || "", testemunhos: e.testemunhos || "", participantes: e.participantes || [],
   });
   const [draft, setDraft] = useState(() => rascunhoDe(encontro));
   const [salvoOk, setSalvoOk] = useState(false);
@@ -2543,6 +2647,9 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
     });
     if ((base.estudo || {}).historico !== draft.estudo.historico && ((base.estudo || {}).historico || draft.estudo.historico)) mudancas.push("Histórico do estudo alterado");
     if ((base.observacoes || "") !== draft.observacoes) mudancas.push("Observações alteradas");
+    if ((base.pedidos || "") !== draft.pedidos) mudancas.push("Pedidos de oração alterados");
+    if ((base.testemunhos || "") !== draft.testemunhos) mudancas.push("Testemunhos alterados");
+    if (JSON.stringify(base.participantes || []) !== JSON.stringify(draft.participantes)) mudancas.push(`Participantes alterados (${(base.participantes || []).length} → ${draft.participantes.length})`);
     if ((base.relato || "") !== draft.relato) mudancas.push(ehCelula ? "“Como foi a célula” alterado" : "“Como foi o encontro” alterado");
     const pa = linhasTexto(base.presentes).length, pb = linhasTexto(draft.presentes).length;
     if ((base.presentes || "") !== draft.presentes) mudancas.push(`Lista de presentes alterada (${pa} → ${pb})`);
@@ -2630,6 +2737,54 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
     setNovoPresente("");
   };
 
+  // --- Participantes (Oração nos Lares): nome, WhatsApp, tipo e observação ---
+  const PART_VAZIO = { nome: "", whatsapp: "", tipo: "Participante", obs: "" };
+  const [novoPart, setNovoPart] = useState(PART_VAZIO);
+  const [erroPart, setErroPart] = useState("");
+  const partes = draft.participantes || [];
+  const setPartes = (lista) => setDraft((d) => ({ ...d, participantes: lista }));
+  const addParte = (p) => {
+    const nome = String((p || novoPart).nome || "").trim();
+    if (!nome) { setErroPart("Escreva o nome do participante."); return; }
+    if (partes.some((x) => semAcento(x.nome.toLowerCase()) === semAcento(nome.toLowerCase()))) { setErroPart(`${nome} já está na lista deste encontro.`); return; }
+    setErroPart("");
+    setPartes([...partes, { ...PART_VAZIO, ...(p || novoPart), nome, id: uid() }]);
+    if (!p) setNovoPart(PART_VAZIO);
+  };
+  const updParte = (id, campo, v) => setPartes(partes.map((x) => (x.id === id ? { ...x, [campo]: v } : x)));
+  const delParte = (id) => setPartes(partes.filter((x) => x.id !== id));
+  const jaNaLista = (nome) => partes.some((x) => semAcento(x.nome.toLowerCase()) === semAcento(String(nome).toLowerCase()));
+  const anterioresLivres = (participantesAnteriores || []).filter((p) => !jaNaLista(p.nome));
+  const totalVisitantes = partes.filter((x) => x.tipo === "Visitante").length;
+  const mascaraTel = (v) => {
+    const d = digitsOnly(v).slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  };
+  const linkZap = (tel) => { const d = digitsOnly(tel); return d.length >= 10 ? `https://wa.me/${d.startsWith("55") && d.length > 11 ? d : "55" + d}` : ""; };
+
+  // --- Imprimir a ficha (PDF) ---
+  const imprimirFicha = () => {
+    const e = escHtml;
+    const linhasCampos = campos.map((def) => `<tr><th style="width:28%">${e(def.l)}</th><td>${e(def.t === "date" ? fmtDate(valorFicha(draft, def)) : valorFicha(draft, def))}</td></tr>`).join("");
+    const bloco = (t, txt) => (txt ? `<h3 style="margin:14px 0 4px;font-size:14px">${e(t)}</h3><p style="font-size:13px;white-space:pre-wrap;margin:0">${e(txt)}</p>` : "");
+    let corpo = `<table>${linhasCampos}</table>`;
+    corpo += bloco("Histórico do estudo", draft.estudo.historico);
+    corpo += bloco(ehOracao ? "Resumo da oração" : "Como foi a célula", draft.relato);
+    if (ehOracao) { corpo += bloco("Pedidos de oração", draft.pedidos); corpo += bloco("Testemunhos", draft.testemunhos); }
+    corpo += bloco("Observações", draft.observacoes);
+    if (ehOracao) {
+      corpo += `<h3 style="margin:14px 0 4px;font-size:14px">Participantes (${partes.length}${totalVisitantes ? `, sendo ${totalVisitantes} visitante(s)` : ""})</h3><table><thead><tr><th>#</th><th>Nome</th><th>WhatsApp</th><th>Tipo</th><th>Observação</th></tr></thead><tbody>${partes.map((p, i) => `<tr><td>${i + 1}</td><td>${e(p.nome)}</td><td>${e(p.whatsapp)}</td><td>${e(p.tipo)}</td><td>${e(p.obs)}</td></tr>`).join("")}</tbody></table>`;
+    } else {
+      const pl = linhasTexto(draft.presentes);
+      corpo += `<h3 style="margin:14px 0 4px;font-size:14px">Presentes (${pl.length})</h3><p style="font-size:13px">${pl.map(e).join(" · ") || "—"}</p>`;
+    }
+    corpo += `<p style="margin-top:28px;font-size:12px">Registrado por: ${e(nomeQuem)}</p>`;
+    printReport(`${rotulo || "Encontro"} — ${draft.titulo || (ehOracao ? "Oração nos Lares" : "Encontro")} ${draft.data ? fmtDate(draft.data) : ""}`, corpo);
+  };
+
   // --- Encerramento ---
   const [senhaAss, setSenhaAss] = useState("");
   const [erroAss, setErroAss] = useState("");
@@ -2660,6 +2815,11 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <Eyebrow color={cor}><Calendar size={12} className="inline mr-1" />{encontro.data ? fmtDate(encontro.data) : "Encontro"}{encontro.hora ? ` · ${encontro.hora}` : ""}</Eyebrow>
         <h2 className="font-display text-2xl sm:text-3xl font-semibold" style={{ color: C.ink }}>{titulo}</h2>
+        {linkCompartilhar && (
+          <div className="mt-2">
+            <BotaoCompartilhar url={linkCompartilhar} cor={cor} titulo={`${rotulo || (ehCelula ? "Célula Avivar" : "Oração nos Lares")} — ${titulo}${encontro.data ? " (" + fmtDate(encontro.data) + ")" : ""}`} texto="toque no link para abrir a página deste encontro" />
+          </div>
+        )}
         {encerrado && (
           <p className="text-xs mt-1 font-semibold" style={{ color: "#2E7D4F" }}>✔ Encerrada por {encerrado.por} em {new Date(encerrado.em).toLocaleString("pt-BR")}{(encontro.auditoria || []).length > 0 ? ` · editada depois do encerramento (${encontro.auditoria.length}×)` : ""}</p>
         )}
@@ -2670,13 +2830,15 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
             {campos.map((def) => (
               <div key={def.k} className={def.span === 2 ? "sm:col-span-2" : ""}>
-                <CampoFilete label={def.l} type={def.t || "text"} value={valorFicha(draft, def)} onChange={(v) => setCampo(def, v)} editavel={canEdit} cor={cor} />
+                <CampoFilete plano={ehOracao} label={def.l} type={def.t || "text"} value={valorFicha(draft, def)} onChange={(v) => setCampo(def, v)} editavel={canEdit} cor={cor} />
               </div>
             ))}
           </div>
           <div className="grid md:grid-cols-2 gap-x-6 gap-y-4 mt-4">
-            <CampoFilete label="Histórico do estudo" multilinha linhas={3} value={draft.estudo.historico} onChange={(v) => setDraft((d) => ({ ...d, estudo: { ...d.estudo, historico: v } }))} editavel={canEdit} cor={cor} />
-            <CampoFilete label="Observações" multilinha linhas={3} value={draft.observacoes} onChange={(v) => setDraft((d) => ({ ...d, observacoes: v }))} editavel={canEdit} cor={cor} />
+            <CampoFilete plano={ehOracao} label="Histórico do estudo" multilinha linhas={3} value={draft.estudo.historico} onChange={(v) => setDraft((d) => ({ ...d, estudo: { ...d.estudo, historico: v } }))} editavel={canEdit} cor={cor} />
+            <CampoFilete plano={ehOracao} label="Observações" multilinha linhas={3} value={draft.observacoes} onChange={(v) => setDraft((d) => ({ ...d, observacoes: v }))} editavel={canEdit} cor={cor} />
+            {ehOracao && canEdit && <CampoFilete plano label="Pedidos de oração apresentados" multilinha linhas={3} value={draft.pedidos} onChange={(v) => setDraft((d) => ({ ...d, pedidos: v }))} editavel={canEdit} cor={cor} />}
+            {ehOracao && <CampoFilete plano label="Testemunhos / vitórias" multilinha linhas={3} value={draft.testemunhos} onChange={(v) => setDraft((d) => ({ ...d, testemunhos: v }))} editavel={canEdit} cor={cor} />}
           </div>
         </div>
 
@@ -2697,7 +2859,7 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
             )}
           </div>
           <div className="rounded-xl border-2 p-4" style={{ borderColor: cor + "88", background: cor + "0d" }}>
-            <CampoFilete label={ehCelula ? "Como foi a célula (histórico do dia)" : "Como foi o encontro (histórico do dia)"} multilinha linhas={11} value={draft.relato} onChange={(v) => setDraft((d) => ({ ...d, relato: v }))} editavel={canEdit} cor={cor} />
+            <CampoFilete plano={ehOracao} label={ehCelula ? "Como foi a célula (histórico do dia)" : "Resumo da oração nos lares — como foi o encontro"} multilinha linhas={11} value={draft.relato} onChange={(v) => setDraft((d) => ({ ...d, relato: v }))} editavel={canEdit} cor={cor} />
           </div>
         </div>
 
@@ -2767,6 +2929,92 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
           </div>
         )}
 
+        {ehOracao ? (
+          <>
+        {/* Participantes — Oração nos Lares: formulário (nome, WhatsApp, tipo, observação) */}
+        <div className="mt-6 rounded-xl border-2 p-4" style={{ borderColor: cor, background: "#fff" }}>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-display font-semibold" style={{ color: C.ink }}><Users size={14} className="inline mr-1" />Participantes da oração{!canEdit && <span className="text-[10px] font-normal ml-2" style={{ color: C.stone }}>(WhatsApp e observações ficam reservados à equipe)</span>}</p>
+            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full" style={{ background: cor + "1a", color: cor }}>Total: {partes.length}{totalVisitantes ? ` · ${totalVisitantes} visitante(s)` : ""}</span>
+          </div>
+          {canEdit && (
+            <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-[2fr_1.4fr_1fr_2fr_auto] gap-2 items-end">
+              <Field label="Nome do participante"><input className={inputCls} style={{ borderColor: C.line }} value={novoPart.nome} onChange={(e) => setNovoPart((p) => ({ ...p, nome: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addParte(); }} /></Field>
+              <Field label="WhatsApp"><input inputMode="tel" placeholder="(61) 9 9999-9999" className={inputCls} style={{ borderColor: C.line }} value={novoPart.whatsapp} onChange={(e) => setNovoPart((p) => ({ ...p, whatsapp: mascaraTel(e.target.value) }))} onKeyDown={(e) => { if (e.key === "Enter") addParte(); }} /></Field>
+              <Field label="Tipo">
+                <select className={inputCls} style={{ borderColor: C.line }} value={novoPart.tipo} onChange={(e) => setNovoPart((p) => ({ ...p, tipo: e.target.value }))}>
+                  <option>Participante</option><option>Visitante</option><option>Anfitrião</option><option>Intercessor</option>
+                </select>
+              </Field>
+              <Field label="Observação (pedido, bairro…)"><input className={inputCls} style={{ borderColor: C.line }} value={novoPart.obs} onChange={(e) => setNovoPart((p) => ({ ...p, obs: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addParte(); }} /></Field>
+              <Btn color={cor} onClick={() => addParte()}><Plus size={14} /> Adicionar</Btn>
+            </div>
+          )}
+          {erroPart && <p className="text-xs mt-1 font-semibold" style={{ color: "#B03428" }}>{erroPart}</p>}
+          {canEdit && anterioresLivres.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Já participaram de outras orações — toque para incluir hoje</p>
+              <div className="flex flex-wrap gap-1.5">
+                {anterioresLivres.slice(0, 40).map((p) => (
+                  <button key={p.nome} onClick={() => addParte({ nome: p.nome, whatsapp: p.whatsapp || "", tipo: "Participante", obs: "" })} className="text-xs px-2.5 py-1 rounded-full border" style={{ borderColor: C.line, background: "#fff", color: C.ink }}>+ {p.nome}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {partes.length === 0 ? (
+            <p className="text-xs italic mt-3" style={{ color: C.stone }}>Nenhum participante registrado neste encontro ainda.</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm min-w-[560px]">
+                <thead>
+                  <tr className="text-[10px] font-mono uppercase text-left" style={{ color: C.stone }}>
+                    <th className="py-1 pr-2 w-8">#</th><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">WhatsApp</th><th className="py-1 pr-2">Tipo</th><th className="py-1 pr-2">Observação</th><th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partes.map((p, i) => (
+                    <tr key={p.id || i} className="border-t align-top" style={{ borderColor: C.line }}>
+                      <td className="py-1.5 pr-2 text-xs font-mono" style={{ color: C.stone }}>{i + 1}</td>
+                      {canEdit ? (
+                        <>
+                          <td className="py-1 pr-2"><input className="w-full rounded-md border px-2 py-1 text-sm" style={{ borderColor: C.line }} value={p.nome} onChange={(e) => updParte(p.id, "nome", e.target.value)} /></td>
+                          <td className="py-1 pr-2"><input inputMode="tel" className="w-full rounded-md border px-2 py-1 text-sm" style={{ borderColor: C.line }} value={p.whatsapp} onChange={(e) => updParte(p.id, "whatsapp", mascaraTel(e.target.value))} /></td>
+                          <td className="py-1 pr-2">
+                            <select className="rounded-md border px-1 py-1 text-sm" style={{ borderColor: C.line }} value={p.tipo} onChange={(e) => updParte(p.id, "tipo", e.target.value)}>
+                              <option>Participante</option><option>Visitante</option><option>Anfitrião</option><option>Intercessor</option>
+                            </select>
+                          </td>
+                          <td className="py-1 pr-2"><input className="w-full rounded-md border px-2 py-1 text-sm" style={{ borderColor: C.line }} value={p.obs} onChange={(e) => updParte(p.id, "obs", e.target.value)} /></td>
+                          <td className="py-1"><button onClick={() => delParte(p.id)} aria-label="Remover participante"><X size={14} color={C.stone} /></button></td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-1.5 pr-2">{p.nome}</td>
+                          <td className="py-1.5 pr-2 text-xs italic" style={{ color: C.stone }}>reservado</td>
+                          <td className="py-1.5 pr-2">{p.tipo}</td>
+                          <td className="py-1.5 pr-2 text-xs italic" style={{ color: C.stone }}>reservado</td>
+                          <td></td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {canEdit && partes.some((p) => linkZap(p.whatsapp)) && (
+            <p className="text-[11px] mt-2" style={{ color: C.stone }}>
+              Falar no WhatsApp:{" "}
+              {partes.filter((p) => linkZap(p.whatsapp)).map((p) => (
+                <a key={p.id} href={linkZap(p.whatsapp)} target="_blank" rel="noopener noreferrer" className="underline mr-2" style={{ color: "#1F8A4C" }}>{p.nome.split(" ")[0]}</a>
+              ))}
+            </p>
+          )}
+        </div>
+
+          </>
+        ) : (
+          <>
         {/* Lista de presentes */}
         <div className="mt-6 rounded-xl border-2 p-4" style={{ borderColor: cor, background: "#fff" }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2805,9 +3053,13 @@ function PaginaEncontro({ tipo, encontro, cor, podeEditarBase, isAdmin, isCoord,
           </ol>
         </div>
 
+          </>
+        )}
+
         {canEdit && (
           <div className="mt-4 flex items-center gap-3 flex-wrap">
             <Btn color={cor} onClick={salvarFicha}><Save size={14} /> Salvar ficha do encontro</Btn>
+            <Btn variant="ghost" color={cor} onClick={imprimirFicha}><FileText size={14} /> Imprimir / PDF</Btn>
             {sujo && <span className="text-xs font-semibold" style={{ color: C.ember }}>há alterações não salvas</span>}
             {salvoOk && <span className="text-xs font-semibold" style={{ color: "#2E7D4F" }}>Salvo!</span>}
           </div>
@@ -2984,7 +3236,7 @@ function SenhaComOlho({ codigo }) {
   );
 }
 
-function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, liderCodeActive, adminMode, auth, setAuth, onSave, onPatchTop, onVoltar }) {
+function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, liderCodeActive, adminMode, auth, setAuth, onSave, onPatchTop, onVoltar, encontroInicialId = null }) {
   const cor = CELULA_CORES[chave] || C.gold;
   // Acesso: o Coordenador das Células (Pr. Gilvan) entra com a senha dele e edita as 3
   // células; cada célula pode ter um Líder com senha própria, que edita só a sua. As duas
@@ -3030,7 +3282,7 @@ function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, lid
   const encontros = celula.encontros || [];
   const addEncontro = (v) => onSave({ ...celula, encontros: [...encontros, { id: uid(), ...v, estudo: { ...ESTUDO_VAZIO }, fotos: [], videos: [] }] });
   const delEncontro = (id) => onSave({ ...celula, encontros: encontros.filter((e) => e.id !== id) });
-  const [encontroAbertoId, setEncontroAbertoId] = useState(null);
+  const [encontroAbertoId, setEncontroAbertoId] = useState(encontroInicialId);
   const encontroAberto = encontros.find((e) => e.id === encontroAbertoId) || null;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
 
@@ -3065,6 +3317,10 @@ function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, lid
           {celula.anfitriao && <>Anfitrião(ã): <strong style={{ color: C.ink }}>{celula.anfitriao}</strong> · </>}
           {lider && lider.ativo !== false && lider.nome ? <>Líder: <strong style={{ color: C.ink }}>{lider.nome}</strong></> : <span className="italic">sem líder cadastrado — o Coordenador preenche os encontros</span>}
         </p>
+
+        <div className="mt-3">
+          <BotaoCompartilhar url={linkDireto(`celula=${chave}`)} cor={cor} titulo={`${celula.nome} — Células Avivar`} texto="veja a célula, os encontros, fotos e vídeos" rotulo="Enviar esta célula" />
+        </div>
 
         {celula.historia && <p className="text-sm mt-4 max-w-2xl leading-relaxed" style={{ color: C.stone }}>{celula.historia}</p>}
 
@@ -3156,6 +3412,7 @@ function PaginaCelula({ chave, celula, todasCelulas, coordenador, liderCode, lid
             coordenadorNome={coordenador}
             verificarSenhaCoord={verificarSenhaCoord}
             sugestoesPresentes={participantesLista}
+            linkCompartilhar={linkDireto(`celula=${chave}&encontro=${encontroAberto.id}`)}
             onSave={(upd) => onSave({ ...celula, encontros: encontros.map((e) => (e.id === upd.id ? upd : e)) })}
             onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
             onVoltar={() => setEncontroAbertoId(null)}
@@ -6474,6 +6731,7 @@ function PaginaIgreja({ igreja, all, save, adminMode, onVoltar }) {
 
       {/* Orações nos Lares da unidade */}
       <OracoesLares
+        compartilhar={false}
         items={igreja.oracoes || []}
         save={(v) => patch({ oracoes: v })}
         encontros={igreja.oracaoEncontros || []}
@@ -7642,7 +7900,7 @@ const ENCONTRO_FIELDS = [
 // no JSX abaixo de onde é usado).
 const CORES_COLUNAS_ORACAO = ["#FBF1DE" /* creme */, "#E7F0FB" /* azul claro */, "#FBE9F0" /* rosé claro */];
 
-function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminReal, operatorMode, onRequestOperator, localDia, saveLocalDia }) {
+function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminReal, operatorMode, onRequestOperator, localDia, saveLocalDia, abrirId = null, onFecharLink, compartilhar = true }) {
   // Código do setor "oracoes" = poderes completos de admin dentro de Oração nos Lares.
   const adminMode = adminReal || operatorMode;
   const canManageAgenda = adminMode;
@@ -7651,7 +7909,7 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
 
   const addEncontro = (v) => saveEncontros([...encontros, { id: uid(), ...v, fotos: [] }]);
   const delEncontro = (id) => saveEncontros(encontros.filter((e) => e.id !== id));
-  const [encontroAbertoId, setEncontroAbertoId] = useState(null);
+  const [encontroAbertoId, setEncontroAbertoId] = useState(abrirId && abrirId !== "lares" ? abrirId : null);
   const encontroAberto = encontros.find((e) => e.id === encontroAbertoId) || null;
 
   const [editandoLocal, setEditandoLocal] = useState(false);
@@ -7671,6 +7929,9 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Intercessão</Eyebrow>
       <SectionTitle>Orações nos Lares</SectionTitle>
+      {compartilhar && <div className="mb-4">
+        <BotaoCompartilhar url={linkDireto("oracao=lares")} cor={C.purple} titulo="Orações nos Lares — Ministério Avivar do Espírito" texto="veja os encontros de oração, fotos e vídeos" rotulo="Enviar Oração nos Lares" />
+      </div>}
 
       {/* Banner reduzido pela metade — apenas ilustrativo */}
       <div className="rounded-xl overflow-hidden border mb-4" style={{ borderColor: C.line }}>
@@ -7732,9 +7993,11 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
           coordenadorNome=""
           verificarSenhaCoord={() => false}
           sugestoesPresentes={[]}
+          linkCompartilhar={compartilhar ? linkDireto(`oracao=${encontroAberto.id}`) : ""}
+          participantesAnteriores={(() => { const m = new Map(); [...encontros].sort((a, b) => String(b.data).localeCompare(String(a.data))).forEach((e) => (e.participantes || []).forEach((p) => { const k = semAcento(p.nome.toLowerCase()); if (!m.has(k)) m.set(k, { nome: p.nome, whatsapp: p.whatsapp || "" }); })); return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome)); })()}
           onSave={(upd) => saveEncontros(encontros.map((e) => (e.id === upd.id ? upd : e)))}
           onDelete={() => { delEncontro(encontroAberto.id); setEncontroAbertoId(null); }}
-          onVoltar={() => setEncontroAbertoId(null)}
+          onVoltar={() => { setEncontroAbertoId(null); onFecharLink && onFecharLink(); }}
         />
       )}
 
@@ -9667,7 +9930,11 @@ export default function App() {
   const [intercessao, setIntercessao] = useState([]);
   // Células Avivar (Alfa/Beta/Gama) — substituiu a seção "Sobre nós" na Home.
   const [celulas, setCelulas] = useState(DEFAULT_CELULAS);
-  const [paginaCelulaKey, setPaginaCelulaKey] = useState(null);
+  // Links diretos (?celula=alfa&encontro=ID  |  ?oracao=ID) — abrem o site já na célula / encontro enviado.
+  const [paginaCelulaKey, setPaginaCelulaKey] = useState(() => { const p = new URLSearchParams(window.location.search).get("celula"); return CELULA_KEYS.includes(p) ? p : null; });
+  const [encontroCelulaInicial] = useState(() => (new URLSearchParams(window.location.search).get("celula") ? new URLSearchParams(window.location.search).get("encontro") : null));
+  const [oracaoLinkId] = useState(() => new URLSearchParams(window.location.search).get("oracao"));
+  const limparLinkDireto = () => { try { const u = new URL(window.location.href); ["celula", "encontro", "oracao"].forEach((k) => u.searchParams.delete(k)); window.history.replaceState({}, "", u.pathname + (u.search || "") + u.hash); } catch (e) {} };
   // "Nossa História" — aberta ao clicar no nome/logo do Ministério no Hero.
   const [historia, setHistoria] = useState(DEFAULT_HISTORIA);
   const [paginaHistoriaOpen, setPaginaHistoriaOpen] = useState(false);
@@ -9756,6 +10023,14 @@ export default function App() {
       setLoading(false);
     })();
   }, []);
+
+  // Link direto de Oração nos Lares (?oracao=...): depois de carregar, rola até a seção.
+  useEffect(() => {
+    if (loading || !oracaoLinkId) return;
+    setPage("oracoes");
+    const t = setTimeout(() => { const el = document.getElementById("oracoes"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 350);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   // Semeadura única de conteúdo inicial (reportagens de Códigos Avivar, eventos, etc.)
   // — usa a flag avivar:seeds pra nunca duplicar, mesmo que a página recarregue várias vezes,
@@ -11246,7 +11521,8 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         setAuth={setCelulaAuth}
         onSave={(v) => persist.celulas({ ...celulas, [paginaCelulaKey]: v })}
         onPatchTop={(patch) => persist.celulas({ ...celulas, ...patch })}
-        onVoltar={() => setPaginaCelulaKey(null)}
+        encontroInicialId={encontroCelulaInicial}
+        onVoltar={() => { setPaginaCelulaKey(null); limparLinkDireto(); }}
       />
     );
   }
@@ -11363,7 +11639,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         </div>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
+        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares abrirId={oracaoLinkId} onFecharLink={limparLinkDireto} items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /><PrestacaoPublica area="membros" items={caixa} extra={caixaExtra} /></section>
         <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="caixa" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Caixa items={caixa} save={persist.caixa} extra={caixaExtra} saveExtra={persist.caixaExtra} adminMode={adminMode || podeSetor("caixa")} operador={operatorAuth?.nome || "Administração"} cidadePadrao={doacoes?.cidade || ""} /></section>
