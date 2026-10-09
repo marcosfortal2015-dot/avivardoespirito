@@ -7119,6 +7119,20 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
   );
 }
 
+// Código pessoal (4 dígitos) de cada obreiro para confirmar na tabela da escala. O site guarda só o
+// "hash" (impressão digital) do código dentro da escala — o código em si, que o admin precisa ver para
+// repassar, fica numa chave à parte, lida só pela tela de administração.
+async function hashPinObreiro(nome, pin) {
+  const txt = `avivar-escala|${String(nome).trim().toLowerCase()}|${String(pin).trim()}`;
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    let h = 5381; for (let i = 0; i < txt.length; i++) h = ((h << 5) + h + txt.charCodeAt(i)) >>> 0; return "x" + h.toString(16);
+  }
+}
+const gerarPin4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+
 // Página pública com a ESCALA INTEIRA do dia (link único mandado no grupo do WhatsApp): a pessoa
 // acha o próprio nome na tabela e toca em Disponível / Não vou poder. O site não sabe quem está
 // tocando — por isso pede uma confirmação ("Você é Fulano?") antes de gravar.
@@ -7127,6 +7141,11 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
   const dia = safe.escalasPorDia[dataStr] || null;
   const [ocupado, setOcupado] = useState(null);
   const [msg, setMsg] = useState("");
+  const [pedido, setPedido] = useState(null); // { e, status } aguardando o código pessoal
+  const [pinDigitado, setPinDigitado] = useState("");
+  const [erroPin, setErroPin] = useState("");
+  const [tentativas, setTentativas] = useState(0);
+  const [bloqueadoAte, setBloqueadoAte] = useState(0);
   useEffect(() => {
     if (!recarregar) return;
     const t = setInterval(() => recarregar(), 20000);
@@ -7156,9 +7175,27 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
   const nIndisp = escalados.filter((e) => e.status === "indisponivel").length;
   const nAguard = escalados.length - nDisp - nIndisp;
 
+  const pedirConfirmacao = (e, status) => { setPedido({ e, status }); setPinDigitado(""); setErroPin(""); };
+  const temPin = (nome) => !!(safe.pinsObreiros && safe.pinsObreiros[nome]);
+  const confirmarPedido = async () => {
+    if (!pedido) return;
+    const { e, status } = pedido;
+    if (Date.now() < bloqueadoAte) { setErroPin("Muitas tentativas. Aguarde um minuto e tente de novo."); return; }
+    if (temPin(e.obreiroNome)) {
+      const h = await hashPinObreiro(e.obreiroNome, pinDigitado);
+      if (h !== safe.pinsObreiros[e.obreiroNome]) {
+        const n = tentativas + 1;
+        setTentativas(n);
+        if (n >= 5) { setBloqueadoAte(Date.now() + 60000); setTentativas(0); setErroPin("Código errado 5 vezes. Aguarde um minuto."); }
+        else setErroPin(`Código incorreto (${n}/5). Confira com a liderança.`);
+        return;
+      }
+    }
+    setPedido(null);
+    setTentativas(0);
+    await marcar(e, status);
+  };
   const marcar = async (e, status) => {
-    const rotulo = status === "disponivel" ? "DISPONÍVEL" : "INDISPONÍVEL";
-    if (!window.confirm(`Você é ${e.obreiroNome}?\n\nConfirmar ${rotulo} para ${e.posto}.`)) return;
     setOcupado(e.id);
     setMsg("");
     try {
@@ -7206,7 +7243,7 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
                           <div className="flex items-center gap-1.5">
                             <button
                               disabled={ocupado === e.id}
-                              onClick={() => marcar(e, "disponivel")}
+                              onClick={() => pedirConfirmacao(e, "disponivel")}
                               className="text-xs font-semibold px-3 py-2 rounded-md min-h-[40px] disabled:opacity-50"
                               style={{ background: e.status === "disponivel" ? "#2E7D4F" : "#2E7D4F18", color: e.status === "disponivel" ? "#fff" : "#2E7D4F", border: "1px solid #2E7D4F" }}
                             >
@@ -7214,7 +7251,7 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
                             </button>
                             <button
                               disabled={ocupado === e.id}
-                              onClick={() => marcar(e, "indisponivel")}
+                              onClick={() => pedirConfirmacao(e, "indisponivel")}
                               className="text-xs font-semibold px-3 py-2 rounded-md min-h-[40px] disabled:opacity-50"
                               style={{ background: e.status === "indisponivel" ? C.liveRed : "#C1272D14", color: e.status === "indisponivel" ? "#fff" : C.liveRed, border: `1px solid ${C.liveRed}` }}
                             >
@@ -7235,6 +7272,44 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
           <button onClick={onVoltar} className="text-xs underline mt-5 block mx-auto" style={{ color: C.stone }}>ver o site completo</button>
         </div>
       </div>
+      {pedido && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#000000aa" }} onClick={() => setPedido(null)}>
+          <div className="w-full max-w-xs rounded-2xl p-5 text-center" style={{ background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
+            <p className="font-display font-semibold text-lg">{pedido.e.obreiroNome}</p>
+            <p className="text-xs mt-0.5" style={{ color: C.stone }}>{pedido.e.posto} · {pedido.status === "disponivel" ? "Disponível" : "Não vou poder"}</p>
+            {temPin(pedido.e.obreiroNome) ? (
+              <>
+                <p className="text-sm mt-3" style={{ color: C.ink }}>Digite o seu <b>código de 4 dígitos</b></p>
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinDigitado}
+                  onChange={(ev) => { setPinDigitado(ev.target.value.replace(/\D/g, "").slice(0, 4)); setErroPin(""); }}
+                  onKeyDown={(ev) => { if (ev.key === "Enter" && pinDigitado.length === 4) confirmarPedido(); }}
+                  className="mt-2 w-full text-center text-2xl tracking-[0.5em] font-mono rounded-lg border px-3 py-2"
+                  style={{ borderColor: erroPin ? C.liveRed : C.line }}
+                  placeholder="••••"
+                />
+              </>
+            ) : (
+              <p className="text-sm mt-3" style={{ color: C.ink }}>Você é <b>{pedido.e.obreiroNome}</b>? <span className="block text-[11px] mt-1" style={{ color: C.stone }}>(esta pessoa ainda não tem código — peça à administração)</span></p>
+            )}
+            {erroPin && <p className="text-xs mt-2 font-semibold" style={{ color: C.liveRed }}>{erroPin}</p>}
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => setPedido(null)} className="flex-1 text-sm py-2.5 rounded-lg" style={{ background: C.parchmentDeep, color: C.ink }}>Cancelar</button>
+              <button
+                onClick={confirmarPedido}
+                disabled={temPin(pedido.e.obreiroNome) && pinDigitado.length !== 4}
+                className="flex-1 text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50"
+                style={{ background: pedido.status === "disponivel" ? "#2E7D4F" : C.liveRed, color: "#fff" }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -7410,13 +7485,48 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
       .join("\n");
     return (
       `📋 *Escala de Serviços Ministeriais*\n${dia}, ${fmtDate(dataCulto)}${h ? ` · ${h.inicio}–${h.fim}` : ""}\n\n${linhas}\n\n` +
-      `✅ Toque no link, ache o seu nome e marque *Disponível* ou *Não vou poder*:\n${linkEscalaDia()}`
+      `✅ Toque no link, ache o seu nome e marque *Disponível* ou *Não vou poder* (vai pedir o seu código pessoal de 4 dígitos):\n${linkEscalaDia()}`
     );
   };
   // Grupo do WhatsApp: o WhatsApp não permite que um site escreva dentro de um grupo sozinho.
   // Com o link de convite do grupo cadastrado: a mensagem é copiada e o grupo abre — é só colar
   // e enviar. Sem o link: abre a lista do WhatsApp com a mensagem já preenchida, e você escolhe o grupo.
   const [avisoGrupo, setAvisoGrupo] = useState("");
+  // Códigos pessoais (4 dígitos): o código legível fica em "avivar:escalapins:<unidade>"; dentro da
+  // escala vai só o hash (pinsObreiros), que é o que a página pública usa para conferir.
+  const chavePins = `avivar:escalapins:${igrejaId || "principal"}`;
+  const [pinsVisiveis, setPinsVisiveis] = useState({});
+  useEffect(() => {
+    if (!canManage) return;
+    let vivo = true;
+    loadKey(chavePins, {}).then((v) => { if (vivo) setPinsVisiveis(v || {}); });
+    return () => { vivo = false; };
+  }, [canManage, chavePins]);
+  const definirPins = async (mapa) => {
+    // mapa: { nome: "1234" | null }
+    const novosVis = { ...pinsVisiveis };
+    const novosHash = { ...(safeData.pinsObreiros || {}) };
+    for (const [nome, pin] of Object.entries(mapa)) {
+      if (pin) { novosVis[nome] = pin; novosHash[nome] = await hashPinObreiro(nome, pin); }
+      else { delete novosVis[nome]; delete novosHash[nome]; }
+    }
+    setPinsVisiveis(novosVis);
+    saveKey(chavePins, novosVis);
+    save({ ...safeData, pinsObreiros: novosHash });
+  };
+  const gerarPinsFaltantes = () => {
+    const mapa = {};
+    safeData.obreiros.forEach((o) => { if (!pinsVisiveis[o] || !(safeData.pinsObreiros || {})[o]) mapa[o] = gerarPin4(); });
+    if (Object.keys(mapa).length) definirPins(mapa);
+  };
+  const enviarPinWhatsapp = (nome) => {
+    const pin = pinsVisiveis[nome];
+    if (!pin) return;
+    const tel = safeData.telefonesObreiros[nome];
+    const primeiro = nome.split(" ")[0] || nome;
+    const txt = `Olá, ${primeiro}! Seu código pessoal para confirmar a escala dos obreiros é *${pin}*. Guarde e não passe para ninguém. 🙏`;
+    window.open(tel && digitsOnly(tel) ? waLink(telParaWa(tel), txt) : `https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank", "noopener,noreferrer");
+  };
   const grupoLink = (() => {
     const g = String(safeData.grupoWhatsapp || "").trim();
     if (!g) return "";
@@ -7877,6 +7987,47 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
                     />
                   </div>
                 ))}
+              </div>
+            </details>
+            <details className="mt-3">
+              <summary className="text-xs font-mono cursor-pointer" style={{ color: C.stone }}>
+                Código pessoal de cada obreiro (4 dígitos) — usado para confirmar na tabela da escala
+              </summary>
+              <div className="mt-2 max-w-xl">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <button onClick={gerarPinsFaltantes} className="text-xs font-semibold px-3 py-1.5 rounded-md" style={{ background: C.violet, color: "#fff" }}>Gerar códigos para quem ainda não tem</button>
+                  <span className="text-[10px]" style={{ color: C.stone }}>{safeData.obreiros.filter((o) => (safeData.pinsObreiros || {})[o]).length} de {safeData.obreiros.length} com código</span>
+                </div>
+                <div className="space-y-1.5">
+                  {safeData.obreiros.map((o) => {
+                    const tem = !!(safeData.pinsObreiros || {})[o];
+                    return (
+                      <div key={o} className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs w-40 truncate flex-shrink-0" style={{ color: C.stone }}>{o}</span>
+                        <input
+                          inputMode="numeric"
+                          maxLength={4}
+                          placeholder="----"
+                          value={pinsVisiveis[o] || ""}
+                          onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPinsVisiveis((p) => ({ ...p, [o]: v })); }}
+                          onBlur={(e) => { const v = e.target.value.trim(); if (v.length === 4) definirPins({ [o]: v }); else if (v.length === 0 && tem) definirPins({ [o]: null }); }}
+                          className="text-sm font-mono tracking-widest text-center w-20 rounded-md border px-2 py-1"
+                          style={{ borderColor: tem ? C.line : C.ember }}
+                        />
+                        <button onClick={() => definirPins({ [o]: gerarPin4() })} className="text-[11px] underline" style={{ color: C.violet }}>{tem ? "novo código" : "gerar"}</button>
+                        {tem && pinsVisiveis[o] && (
+                          <button onClick={() => enviarPinWhatsapp(o)} className="text-[11px] px-2 py-1 rounded-md flex items-center gap-1" style={{ background: "#25D36622", color: "#1B8A55" }}>
+                            <MessageCircle size={11} /> enviar código
+                          </button>
+                        )}
+                        {!tem && <span className="text-[10px]" style={{ color: C.ember }}>sem código — qualquer um poderia confirmar por esta pessoa</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: C.stone }}>
+                  Cada obreiro usa o MESMO código em todas as escalas. Errou 5 vezes, a página trava por 1 minuto. Para trocar, toque em “novo código” e envie de novo.
+                </p>
               </div>
             </details>
           </div>
