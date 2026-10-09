@@ -6745,6 +6745,7 @@ function PaginaIgreja({ igreja, all, save, adminMode, onVoltar }) {
 
       {/* Escala de Obreiros da unidade — mesmos links de confirmação via WhatsApp */}
       <EscalaObreiros
+        igrejaId={igreja.id}
         data={igreja.escala || DEFAULT_ESCALA_OBREIROS}
         save={(v) => patch({ escala: v })}
         adminMode={canManage}
@@ -7118,11 +7119,131 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
   );
 }
 
+// Página pública com a ESCALA INTEIRA do dia (link único mandado no grupo do WhatsApp): a pessoa
+// acha o próprio nome na tabela e toca em Disponível / Não vou poder. O site não sabe quem está
+// tocando — por isso pede uma confirmação ("Você é Fulano?") antes de gravar.
+function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar }) {
+  const safe = { ...DEFAULT_ESCALA_OBREIROS, ...(escala || {}), escalasPorDia: (escala && escala.escalasPorDia) || {} };
+  const dia = safe.escalasPorDia[dataStr] || null;
+  const [ocupado, setOcupado] = useState(null);
+  const [msg, setMsg] = useState("");
+  useEffect(() => {
+    if (!recarregar) return;
+    const t = setInterval(() => recarregar(), 20000);
+    return () => clearInterval(t);
+  }, []);
+  if (!dia || (dia.escalados || []).length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: C.cream }}>
+        <div className="max-w-sm text-center">
+          <ClipboardList size={28} className="mx-auto" color={C.stone} />
+          <p className="font-display text-lg font-semibold mt-3">Escala não encontrada</p>
+          <p className="text-sm mt-1" style={{ color: C.stone }}>Não há escala cadastrada para esta data. Fale com a administração.</p>
+          <button onClick={onVoltar} className="text-sm underline mt-4" style={{ color: C.violet }}>Ver o site completo</button>
+        </div>
+      </div>
+    );
+  }
+  const escalados = dia.escalados || [];
+  const fechado = !!dia.conferidoEm;
+  const diaSemana = diaSemanaFromData(dataStr);
+  const horario = horarioDoDia(diaSemana, safe.horarios);
+  const postos = [
+    ...ORDEM_POSTOS_TABELA.filter((p) => safe.postos.includes(p)),
+    ...safe.postos.filter((p) => !ORDEM_POSTOS_TABELA.includes(p)),
+  ].filter((p) => escalados.some((e) => e.posto === p));
+  const nDisp = escalados.filter((e) => e.status === "disponivel").length;
+  const nIndisp = escalados.filter((e) => e.status === "indisponivel").length;
+  const nAguard = escalados.length - nDisp - nIndisp;
+
+  const marcar = async (e, status) => {
+    const rotulo = status === "disponivel" ? "DISPONÍVEL" : "INDISPONÍVEL";
+    if (!window.confirm(`Você é ${e.obreiroNome}?\n\nConfirmar ${rotulo} para ${e.posto}.`)) return;
+    setOcupado(e.id);
+    setMsg("");
+    try {
+      await onMarcar(e.id, status);
+      setMsg(`Pronto, ${e.obreiroNome.split(" ")[0]}! Sua resposta foi registrada.`);
+    } catch (err) {
+      setMsg("Não consegui registrar agora. Tente de novo em instantes.");
+    }
+    setOcupado(null);
+  };
+
+  return (
+    <div className="min-h-screen p-3 sm:p-6" style={{ background: C.cream }}>
+      <div className="max-w-2xl mx-auto rounded-2xl border overflow-hidden" style={{ borderColor: C.gold, background: "#fff" }}>
+        <div className="p-4 text-center" style={{ background: C.violet, color: "#fff" }}>
+          <ClipboardList size={24} className="mx-auto" />
+          <p className="text-[10px] font-mono uppercase tracking-wider mt-1 opacity-80">Escala de Serviços Ministeriais</p>
+          <p className="font-display font-bold text-xl leading-tight">{diaSemana}, {fmtDate(dataStr)}</p>
+          {horario && <p className="text-sm opacity-90">{horario.inicio}–{horario.fim}</p>}
+        </div>
+        <div className="p-3 sm:p-4">
+          <p className="text-sm text-center" style={{ color: C.ink }}>Ache o <b>seu nome</b> e toque em <b>Disponível</b> ou <b>Não vou poder</b>.</p>
+          <p className="text-[11px] text-center mt-1 font-mono" style={{ color: C.stone }}>
+            <span style={{ color: "#2E7D4F" }}>{nDisp} disponível(is)</span> · <span style={{ color: C.liveRed }}>{nIndisp} indisponível(is)</span> · {nAguard} aguardando
+          </p>
+          {msg && <p className="text-sm text-center font-semibold mt-2" style={{ color: msg.startsWith("Pronto") ? "#2E7D4F" : C.liveRed }}>{msg}</p>}
+          {fechado && <p className="text-xs text-center italic mt-2" style={{ color: C.stone }}>Esta escala já foi conferida pela administração. Para mudar algo, fale com a liderança.</p>}
+
+          <div className="mt-3 space-y-3">
+            {postos.map((posto) => (
+              <div key={posto} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
+                <p className="px-3 py-1.5 text-[11px] font-mono font-bold uppercase" style={{ background: C.parchmentDeep, color: C.ink }}>{posto}</p>
+                <div className="divide-y" style={{ borderColor: C.line }}>
+                  {escalados.filter((e) => e.posto === posto).map((e) => {
+                    const respondeu = e.status === "disponivel" || e.status === "indisponivel";
+                    const bloqueado = fechado || e.travado;
+                    return (
+                      <div key={e.id} className="px-3 py-2 flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: C.line }}>
+                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
+                        {bloqueado ? (
+                          <span className="text-xs font-semibold" style={{ color: e.status === "disponivel" ? "#2E7D4F" : e.status === "indisponivel" ? C.liveRed : C.stone }}>
+                            {e.status === "disponivel" ? "✔ Disponível" : e.status === "indisponivel" ? "✖ Indisponível" : "aguardando"}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              disabled={ocupado === e.id}
+                              onClick={() => marcar(e, "disponivel")}
+                              className="text-xs font-semibold px-3 py-2 rounded-md min-h-[40px] disabled:opacity-50"
+                              style={{ background: e.status === "disponivel" ? "#2E7D4F" : "#2E7D4F18", color: e.status === "disponivel" ? "#fff" : "#2E7D4F", border: "1px solid #2E7D4F" }}
+                            >
+                              {e.status === "disponivel" ? "✔ Disponível" : "Disponível"}
+                            </button>
+                            <button
+                              disabled={ocupado === e.id}
+                              onClick={() => marcar(e, "indisponivel")}
+                              className="text-xs font-semibold px-3 py-2 rounded-md min-h-[40px] disabled:opacity-50"
+                              style={{ background: e.status === "indisponivel" ? C.liveRed : "#C1272D14", color: e.status === "indisponivel" ? "#fff" : C.liveRed, border: `1px solid ${C.liveRed}` }}
+                            >
+                              {e.status === "indisponivel" ? "✖ Indisponível" : "Não vou poder"}
+                            </button>
+                          </div>
+                        )}
+                        {respondeu && !bloqueado && e.horarioConfirmacao && (
+                          <span className="w-full text-[10px]" style={{ color: C.stone }}>respondeu às {new Date(e.horarioConfirmacao).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — pode tocar de novo para mudar</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={onVoltar} className="text-xs underline mt-5 block mx-auto" style={{ color: C.stone }}>ver o site completo</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Escala de Obreiros — fluxo por posto: cada posto tem uma caixa de obreiros
 // disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
 // naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
 // com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
-function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator, embutido = false }) {
+function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator, embutido = false, igrejaId = null }) {
   // Código do setor "escala" = poderes completos de admin dentro da Escala.
   const adminMode = adminReal || operatorMode;
   const canManage = adminMode;
@@ -7276,18 +7397,51 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   // WhatsApp) em vez de mandar um link de cada vez. Cada obreiro só deve clicar no
   // link com o próprio nome; quem clicar no link de outra pessoa confirma em nome dela,
   // já que o link não sabe quem está clicando, só qual escalado ele representa.
+  // Link ÚNICO da tabela inteira do dia: abre a página com todos os nomes e os botões
+  // Disponível / Não vou poder (cada pessoa toca na própria linha).
+  const linkEscalaDia = () =>
+    `${window.location.origin}${window.location.pathname}?escalaDia=${dataCulto}${igrejaId ? `&igreja=${encodeURIComponent(igrejaId)}` : ""}`;
   const mensagemEscalaCompletaWhatsapp = () => {
     const dia = diaSemanaFromData(dataCulto);
     const h = horarioDoDia(dia, safeData.horarios);
-    const linhas = escalados.map((e) => `• ${e.obreiroNome} (${e.posto}): ${linkConfirmacaoEscala(e.id)}`).join("\n");
+    const linhas = postosTabela
+      .filter((p) => escalados.some((e) => e.posto === p))
+      .map((p) => `*${p}:* ${escalados.filter((e) => e.posto === p).map((e) => e.obreiroNome).join(", ")}`)
+      .join("\n");
     return (
-      `📋 *Escala de Serviços Ministeriais* — ${dia}, ${fmtDate(dataCulto)}${h ? ` · ${h.inicio}–${h.fim}` : ""}\n\n` +
-      `Cada um, confirme clicando SÓ no seu próprio link (Disponível/Indisponível):\n\n${linhas}`
+      `📋 *Escala de Serviços Ministeriais*\n${dia}, ${fmtDate(dataCulto)}${h ? ` · ${h.inicio}–${h.fim}` : ""}\n\n${linhas}\n\n` +
+      `✅ Toque no link, ache o seu nome e marque *Disponível* ou *Não vou poder*:\n${linkEscalaDia()}`
     );
   };
-  const enviarEscalaCompletaWhatsapp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensagemEscalaCompletaWhatsapp())}`, "_blank", "noopener,noreferrer");
+  // Grupo do WhatsApp: o WhatsApp não permite que um site escreva dentro de um grupo sozinho.
+  // Com o link de convite do grupo cadastrado: a mensagem é copiada e o grupo abre — é só colar
+  // e enviar. Sem o link: abre a lista do WhatsApp com a mensagem já preenchida, e você escolhe o grupo.
+  const [avisoGrupo, setAvisoGrupo] = useState("");
+  const grupoLink = (() => {
+    const g = String(safeData.grupoWhatsapp || "").trim();
+    if (!g) return "";
+    if (/^https?:\/\//i.test(g)) return g;
+    if (/^chat\.whatsapp\.com\//i.test(g)) return "https://" + g;
+    return /^[A-Za-z0-9]{16,30}$/.test(g) ? `https://chat.whatsapp.com/${g}` : "";
+  })();
+  const copiarTexto = async (txt) => {
+    try { await navigator.clipboard.writeText(txt); return true; }
+    catch (e) {
+      try { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); const ok = document.execCommand("copy"); document.body.removeChild(t); return ok; } catch (e2) { return false; }
+    }
   };
+  const enviarEscalaCompletaWhatsapp = async () => {
+    const texto = mensagemEscalaCompletaWhatsapp();
+    if (grupoLink) {
+      const ok = await copiarTexto(texto);
+      setAvisoGrupo(ok ? "Mensagem copiada! No grupo que abriu, toque e segure no campo de texto, escolha COLAR e envie." : "Não consegui copiar sozinho — use “Escolher o grupo” abaixo.");
+      setTimeout(() => setAvisoGrupo(""), 9000);
+      window.open(grupoLink, "_blank", "noopener,noreferrer");
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
+    }
+  };
+  const escolherGrupoEEnviar = () => window.open(`https://wa.me/?text=${encodeURIComponent(mensagemEscalaCompletaWhatsapp())}`, "_blank", "noopener,noreferrer");
 
   const StatusObreiro = ({ e }) => {
     if (e.travado) {
@@ -7460,14 +7614,24 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
               )}
               {canManage && (!fechado || adminMode) && (
                 <div className="mt-3">
-                  <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Obreiros disponíveis — clique pra escalar</p>
+                  <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Todos os obreiros — toque para escalar em {postoAberto} (✔ = já escalado aqui; toque de novo para tirar)</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {disponiveis.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Todos já foram escalados hoje.</span>}
-                    {disponiveis.map((nome) => (
-                      <button key={nome} onClick={() => escalarObreiro(nome, postoAberto)} className="text-xs px-2 py-1 rounded-full border" style={{ borderColor: C.line, color: C.ink, background: C.parchment }}>
-                        {nome}
-                      </button>
-                    ))}
+                    {safeData.obreiros.length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Nenhum obreiro cadastrado.</span>}
+                    {safeData.obreiros.map((nome) => {
+                      const aqui = escalados.find((e) => e.obreiroNome === nome && e.posto === postoAberto);
+                      const outros = escalados.filter((e) => e.obreiroNome === nome && e.posto !== postoAberto).map((e) => e.posto);
+                      return (
+                        <button
+                          key={nome}
+                          onClick={() => (aqui ? removerEscalado(aqui.id) : escalarObreiro(nome, postoAberto))}
+                          className="text-xs px-2.5 py-1 rounded-full border text-left"
+                          style={{ borderColor: aqui ? "#2E7D4F" : C.line, color: aqui ? "#fff" : C.ink, background: aqui ? "#2E7D4F" : C.parchment }}
+                        >
+                          {aqui ? "✔ " : ""}{nome}
+                          {outros.length > 0 && <span className="ml-1 text-[9px] opacity-70">· {outros.join(", ")}</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -7609,15 +7773,26 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
 
           {canManage && escalados.length > 0 && (
             <div className="mt-4 pt-3 border-t" style={{ borderColor: C.line }}>
-              <button
-                onClick={enviarEscalaCompletaWhatsapp}
-                className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-md"
-                style={{ background: "#25D36622", color: "#1B8A55" }}
-              >
-                <MessageCircle size={13} /> Compartilhar escala do dia no grupo do WhatsApp
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={enviarEscalaCompletaWhatsapp}
+                  className="text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-md"
+                  style={{ background: "#1B8A55", color: "#fff" }}
+                >
+                  <MessageCircle size={13} /> {grupoLink ? "Enviar a tabela ao grupo do WhatsApp" : "Compartilhar a tabela da escala no WhatsApp"}
+                </button>
+                {grupoLink && (
+                  <button onClick={escolherGrupoEEnviar} className="text-xs px-3 py-2 rounded-md" style={{ background: "#25D36622", color: "#1B8A55" }}>
+                    Escolher o grupo (texto já preenchido)
+                  </button>
+                )}
+                <button onClick={() => window.open(linkEscalaDia(), "_blank", "noopener,noreferrer")} className="text-xs px-3 py-2 rounded-md" style={{ background: C.parchmentDeep, color: C.ink }}>
+                  Ver a página que os obreiros vão abrir
+                </button>
+              </div>
+              {avisoGrupo && <p className="text-xs mt-2 font-semibold" style={{ color: "#1B8A55" }}>{avisoGrupo}</p>}
               <p className="text-[10px] mt-1.5" style={{ color: C.stone }}>
-                Manda uma única mensagem com o nome de todo mundo e o link de confirmação de cada um. Avise a todos: cada pessoa deve clicar SÓ no link com o próprio nome — quem clicar no link de outra pessoa confirma em nome dela, não da sua conta.
+                Uma única mensagem com a tabela da escala e UM link. Quem abrir o link vê a tabela inteira e toca em Disponível / Não vou poder na própria linha (pede “Você é Fulano?” antes de gravar). O status atualiza aqui na hora.
               </p>
             </div>
           )}
@@ -7671,6 +7846,19 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
             <div className="flex gap-2 flex-wrap">
               <input className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} placeholder="Nome do(a) novo(a) obreiro(a)" value={novoObreiro} onChange={(e) => setNovoObreiro(e.target.value)} />
               <Btn onClick={addObreiro}><Plus size={14} /> Adicionar</Btn>
+            </div>
+            <div className="mb-3 max-w-xl">
+              <p className="text-xs font-mono mb-1" style={{ color: C.stone }}>Grupo de WhatsApp dos obreiros (opcional)</p>
+              <input
+                placeholder="Cole o link de convite: https://chat.whatsapp.com/XXXXXXXX"
+                value={safeData.grupoWhatsapp || ""}
+                onChange={(e) => save({ ...safeData, grupoWhatsapp: e.target.value })}
+                className="text-xs rounded-md border px-2 py-1.5 w-full"
+                style={{ borderColor: grupoLink || !safeData.grupoWhatsapp ? C.line : C.ember }}
+              />
+              <p className="text-[10px] mt-1" style={{ color: C.stone }}>
+                Grupo não tem “número”: use o link de convite (no WhatsApp: abra o grupo → nome do grupo → “Convidar via link”). Com ele cadastrado, o botão “Enviar a tabela ao grupo” copia a mensagem e abre o grupo para você colar.
+              </p>
             </div>
             <details className="mt-4">
               <summary className="text-xs font-mono cursor-pointer" style={{ color: C.stone }}>
@@ -9951,6 +10139,12 @@ export default function App() {
   // Lido uma vez do link de WhatsApp (?escalaId=...) — se presente, a tela de confirmação
   // de escala assume a página inteira em vez do site normal (ver mais abaixo).
   const [escalaConfirmId, setEscalaConfirmId] = useState(() => new URLSearchParams(window.location.search).get("escalaId"));
+  // Link da tabela inteira da escala do dia (?escalaDia=2026-10-09[&igreja=ID]) — vai no grupo do WhatsApp.
+  const [escalaDiaLink, setEscalaDiaLink] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    const d = p.get("escalaDia");
+    return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? { data: d, igreja: p.get("igreja") || "" } : null;
+  });
   // Página própria de uma Unidade Avivar (Igrejas) — quando setado, mostra essa página
   // no lugar do site inteiro; "voltar" limpa e retorna ao site principal.
   const [paginaIgrejaId, setPaginaIgrejaId] = useState(null);
@@ -11549,6 +11743,47 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
 
   // Link de confirmação de escala vindo do WhatsApp (?escalaId=...) — mostra só a
   // telinha de confirmação, sem o site inteiro em volta, pra ser rápido no celular.
+  if (escalaDiaLink) {
+    const igrejaAlvo = escalaDiaLink.igreja ? (igrejas || []).find((ig) => ig.id === escalaDiaLink.igreja) : null;
+    const escalaAlvoDia = igrejaAlvo ? igrejaAlvo.escala : escala;
+    const aplicarStatus = (esc, id, status) => {
+      const e0 = { ...DEFAULT_ESCALA_OBREIROS, ...(esc || {}), escalasPorDia: (esc && esc.escalasPorDia) || {} };
+      const dia = e0.escalasPorDia[escalaDiaLink.data];
+      if (!dia || dia.conferidoEm) return e0;
+      return { ...e0, escalasPorDia: { ...e0.escalasPorDia, [escalaDiaLink.data]: { ...dia, escalados: (dia.escalados || []).map((x) => (x.id === id && !x.travado ? { ...x, status, horarioConfirmacao: nowISO() } : x)) } } };
+    };
+    // Lê o dado MAIS RECENTE antes de gravar — vários obreiros tocam ao mesmo tempo nos
+    // próprios celulares e não podem apagar a resposta uns dos outros com uma cópia velha.
+    const marcarFresco = async (id, status) => {
+      if (escalaDiaLink.igreja) {
+        const lista = await loadKey("avivar:igrejas", []);
+        persist.igrejas(lista.map((ig) => (ig.id === escalaDiaLink.igreja ? { ...ig, escala: aplicarStatus(ig.escala, id, status) } : ig)));
+      } else {
+        const atual = await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS);
+        persist.escala(aplicarStatus(atual, id, status));
+      }
+    };
+    const recarregarEscala = async () => {
+      setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
+      if (escalaDiaLink.igreja) setIgrejas(await loadKey("avivar:igrejas", []));
+    };
+    return (
+      <ConfirmarEscalaDia
+        escala={escalaAlvoDia}
+        dataStr={escalaDiaLink.data}
+        onMarcar={marcarFresco}
+        recarregar={recarregarEscala}
+        onVoltar={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("escalaDia");
+          url.searchParams.delete("igreja");
+          window.history.replaceState({}, "", url.toString());
+          setEscalaDiaLink(null);
+        }}
+      />
+    );
+  }
+
   if (escalaConfirmId) {
     const achaEmPrincipal = Object.values((escala && escala.escalasPorDia) || {}).some((d) =>
       (d.escalados || []).some((e) => e.id === escalaConfirmId)
