@@ -7140,6 +7140,8 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   const [mudandoIdeiaId, setMudandoIdeiaId] = useState(null);
   const [motivoDraft, setMotivoDraft] = useState("");
   const [nomeConferente, setNomeConferente] = useState("");
+  const [filaAberta, setFilaAberta] = useState(false); // fila de envio das confirmações por WhatsApp
+  const [soPendentesFila, setSoPendentesFila] = useState(true);
   const [obsAbertoId, setObsAbertoId] = useState(null); // id do escalado com o campo de texto de observação aberto
   const [obsTextoDraft, setObsTextoDraft] = useState("");
   const [postoAberto, setPostoAberto] = useState(null); // posto cujo quadro de obreiros está aberto
@@ -7243,12 +7245,32 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
       `${h ? ` às ${h.inicio}` : ""}.\n\nPor favor, confirme sua disponibilidade clicando no link abaixo:\n${linkConfirmacaoEscala(e.id)}`
     );
   };
+  // WhatsApp exige o código do país: número brasileiro com DDD (10 ou 11 dígitos) ganha o 55.
+  const telParaWa = (tel) => { const d = digitsOnly(tel); return d.length === 10 || d.length === 11 ? "55" + d : d; };
   const enviarWhatsappEscala = (e) => {
     const tel = safeData.telefonesObreiros[e.obreiroNome];
     const msg = mensagemWhatsappEscala(e);
-    const link = tel && digitsOnly(tel) ? waLink(tel, msg) : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    const link = tel && digitsOnly(tel) ? waLink(telParaWa(tel), msg) : `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(link, "_blank", "noopener,noreferrer");
   };
+  // Fila de envio: abre o WhatsApp de uma pessoa por vez, já com a mensagem pronta, e marca
+  // "enviado" com a hora. O WhatsApp não deixa um site disparar mensagens para várias
+  // pessoas sozinho (isso só existe na API paga do WhatsApp Business) — então o toque final
+  // em "Enviar" dentro do WhatsApp continua sendo seu, mas sem procurar nome nem digitar nada.
+  const marcarEnviada = (id) => salvarDia({ escalados: escalados.map((x) => (x.id === id ? { ...x, confirmacaoEnviadaEm: nowISO() } : x)) });
+  const enviarDaFila = (e) => {
+    const tel = safeData.telefonesObreiros[e.obreiroNome];
+    if (!tel || !digitsOnly(tel)) return;
+    window.open(waLink(telParaWa(tel), mensagemWhatsappEscala(e)), "_blank", "noopener,noreferrer");
+    marcarEnviada(e.id);
+  };
+  const filaItens = escalados
+    .filter((e) => !soPendentesFila || e.status === "aguardando" || !e.status)
+    .map((e) => ({ e, tel: safeData.telefonesObreiros[e.obreiroNome] || "" }));
+  const proximoDaFila = filaItens.find((x) => digitsOnly(x.tel) && !x.e.confirmacaoEnviadaEm);
+  const faltamNaFila = filaItens.filter((x) => digitsOnly(x.tel) && !x.e.confirmacaoEnviadaEm).length;
+  const semTelNaFila = filaItens.filter((x) => !digitsOnly(x.tel)).length;
+  const reiniciarFila = () => salvarDia({ escalados: escalados.map((x) => ({ ...x, confirmacaoEnviadaEm: null })) });
   // Mensagem única com a escala inteira do dia, cada nome com o SEU PRÓPRIO link de
   // confirmação — pensada pra postar de uma vez só num grupo (ex: grupo da igreja no
   // WhatsApp) em vez de mandar um link de cada vez. Cada obreiro só deve clicar no
@@ -7457,6 +7479,82 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
       {/* Quadro-resumo — movido pra antes dos postos; agora em formato de tabela com
           Ministério / Nome / Disponibilidade / Observações. Só aparece depois do
           primeiro obreiro escalado no dia. */}
+      {canManage && escalados.length > 0 && (
+        <div className="mt-4 p-3 rounded-lg border-2 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#25D366", background: "#25D36612" }}>
+          <div className="min-w-0">
+            <p className="text-sm font-display font-semibold" style={{ color: C.ink }}>Enviar a confirmação para todos os escalados</p>
+            <p className="text-[11px]" style={{ color: C.stone }}>Fila guiada: um toque abre o WhatsApp do próximo com a mensagem pronta e o link dele.</p>
+          </div>
+          <button onClick={() => setFilaAberta(true)} className="text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2" style={{ background: "#1B8A55", color: "#fff" }}>
+            <MessageCircle size={15} /> Enviar a todos ({escalados.length})
+          </button>
+        </div>
+      )}
+
+      {filaAberta && canManage && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: "#000000aa" }} onClick={() => setFilaAberta(false)}>
+          <div className="w-full sm:max-w-xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-4" style={{ background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-display font-semibold text-base" style={{ color: C.ink }}>Enviar confirmações — {diaSemanaFromData(dataCulto)}, {fmtDate(dataCulto)}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: C.stone }}>Cada pessoa recebe a SUA mensagem com o SEU link. Toque em “Enviar próximo”: o WhatsApp abre com tudo pronto; é só tocar em enviar e voltar aqui.</p>
+              </div>
+              <button onClick={() => setFilaAberta(false)} aria-label="Fechar"><X size={18} color={C.stone} /></button>
+            </div>
+
+            <label className="mt-3 flex items-center gap-2 text-xs" style={{ color: C.ink }}>
+              <input type="checkbox" checked={soPendentesFila} onChange={(ev) => setSoPendentesFila(ev.target.checked)} /> Só quem ainda não respondeu (aguardando)
+            </label>
+
+            <button
+              onClick={() => proximoDaFila && enviarDaFila(proximoDaFila.e)}
+              disabled={!proximoDaFila}
+              className="mt-3 w-full text-sm font-bold py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{ background: "#1B8A55", color: "#fff" }}
+            >
+              <MessageCircle size={16} />
+              {proximoDaFila ? `Enviar próximo: ${proximoDaFila.e.obreiroNome} (faltam ${faltamNaFila})` : filaItens.length === 0 ? "Ninguém aguardando confirmação" : "Todos com número já foram enviados ✔"}
+            </button>
+            {semTelNaFila > 0 && <p className="text-[11px] mt-1.5 font-semibold" style={{ color: C.ember }}>{semTelNaFila} sem WhatsApp cadastrado — digite o número abaixo e a pessoa entra na fila.</p>}
+
+            <div className="mt-3 space-y-1.5">
+              {filaItens.map(({ e, tel }) => {
+                const temTel = !!digitsOnly(tel);
+                const enviada = e.confirmacaoEnviadaEm;
+                return (
+                  <div key={e.id} className="p-2 rounded-lg border flex items-center gap-2 flex-wrap" style={{ borderColor: enviada ? "#2E7D4F55" : C.line, background: enviada ? "#2E7D4F0d" : "#fff" }}>
+                    <div className="flex-1 min-w-[140px]">
+                      <p className="text-sm font-medium leading-tight" style={{ color: C.ink }}>{e.obreiroNome}</p>
+                      <p className="text-[11px]" style={{ color: C.stone }}>{e.posto}{enviada ? ` · ✔ enviada às ${new Date(enviada).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</p>
+                    </div>
+                    <input
+                      defaultValue={tel}
+                      key={e.id + tel}
+                      inputMode="tel"
+                      placeholder="(61) 9 9999-9999"
+                      onBlur={(ev) => { const v = ev.target.value.trim(); if (v !== tel) setTelefoneObreiro(e.obreiroNome, v); }}
+                      className="w-36 text-xs rounded-md border px-2 py-1.5"
+                      style={{ borderColor: temTel ? C.line : C.ember }}
+                    />
+                    <button onClick={() => enviarDaFila(e)} disabled={!temTel} className="text-xs font-semibold px-3 py-1.5 rounded-md disabled:opacity-40" style={{ background: "#25D36622", color: "#1B8A55" }}>
+                      {enviada ? "Reenviar" : "Enviar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: C.line }}>
+              <button onClick={reiniciarFila} className="text-[11px] underline" style={{ color: C.stone }}>limpar marcas de “enviada” (novo disparo)</button>
+              <button onClick={() => setFilaAberta(false)} className="text-xs font-semibold px-3 py-1.5 rounded-md" style={{ background: C.parchmentDeep, color: C.ink }}>Fechar</button>
+            </div>
+            <p className="text-[10px] mt-2" style={{ color: C.stone }}>
+              Quer que as mensagens saiam 100% sozinhas, sem tocar em nada? Isso só é possível pela API oficial do WhatsApp Business (paga, com número verificado e modelos de mensagem aprovados).
+            </p>
+          </div>
+        </div>
+      )}
+
       {escalados.length > 0 && (
         <details className="mt-4 p-3 rounded-lg border" style={{ borderColor: C.gold, background: "#00000006" }}>
           <summary className="cursor-pointer text-xs font-mono uppercase font-semibold" style={{ color: C.ember }}>Escala de Serviços Ministeriais — quadro completo do dia ({escalados.length})</summary>
