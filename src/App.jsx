@@ -347,13 +347,11 @@ const DEFAULT_VISITANTES_DIA = {
   exibir: true, // admin "parar exibição de visitantes"
   exibirEscala: true, // admin "parar exibição de escala" (na Home — a seção própria continua)
   mensagem: "Sejam muito bem-vindos(as), amados irmãos e irmãs em Cristo Jesus! É uma alegria recebê-los hoje entre nós. Agradecemos a Deus pela sua presença, em nome de Jesus Cristo e do Ministério Avivar do Espírito.",
-  audioUrl: "",
   // Banner "outdoor" celestial (ver BannerCeleste): estado em `banner`, configurações aqui.
   banner: null,
   eventos: [], // [{ id, titulo, subtitulo, mensagem }] — cadastrados pelo admin
   duracaoHoras: 12, // tempo de exposição; 0 = até desligar
   expandirClique: true,
-  musica: true,
 };
 
 /* ---------------------------------------------------------------- */
@@ -1855,155 +1853,6 @@ function bannerFimTexto(b) {
   return `até ${fim.toLocaleDateString("pt-BR")} ${fim.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-// Música de fundo do banner. Se o admin informou um mp3, toca o arquivo; senão gera
-// um "pad" ambiente (acordes suaves + sinos) com WebAudio, sem baixar nada. Os
-// navegadores só liberam áudio depois de um toque na tela — se o autoplay for
-// bloqueado, a música começa no primeiro toque/clique em qualquer lugar da página.
-function criarPadCeleste() {
-  const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
-  if (!AC) return null;
-  const ctx = new AC();
-  const master = ctx.createGain();
-  master.gain.value = 0;
-  master.connect(ctx.destination);
-  const filtro = ctx.createBiquadFilter();
-  filtro.type = "lowpass";
-  filtro.frequency.value = 1300;
-  filtro.connect(master);
-  const acorde = [146.83, 220, 293.66, 369.99, 440, 554.37]; // Ré maior (add9 suave)
-  const oscs = [];
-  acorde.forEach((f, i) => {
-    [-5, 5].forEach((det) => {
-      const o = ctx.createOscillator();
-      o.type = i % 2 ? "sine" : "triangle";
-      o.frequency.value = f;
-      o.detune.value = det;
-      const g = ctx.createGain();
-      g.gain.value = 0.045;
-      o.connect(g);
-      g.connect(filtro);
-      o.start();
-      oscs.push(o);
-    });
-  });
-  const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.07;
-  const lfoG = ctx.createGain();
-  lfoG.gain.value = 450;
-  lfo.connect(lfoG);
-  lfoG.connect(filtro.frequency);
-  lfo.start();
-  const sinos = [587.33, 659.25, 739.99, 880, 987.77, 1174.66];
-  const tocarSino = () => {
-    if (ctx.state !== "running") return;
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.value = sinos[Math.floor(Math.random() * sinos.length)];
-    const g = ctx.createGain();
-    const t = ctx.currentTime;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.05, t + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6);
-    o.connect(g);
-    g.connect(master);
-    o.start(t);
-    o.stop(t + 3.7);
-  };
-  const timer = setInterval(tocarSino, 2300);
-  return {
-    ctx,
-    suspenso: () => ctx.state !== "running",
-    ligar: async () => {
-      try { await ctx.resume(); } catch (e) { /* ignora */ }
-      master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 3);
-    },
-    mudo: (m) => {
-      master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.linearRampToValueAtTime(m ? 0 : 0.55, ctx.currentTime + 0.6);
-    },
-    encerrar: () => {
-      clearInterval(timer);
-      try {
-        master.gain.cancelScheduledValues(ctx.currentTime);
-        master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
-      } catch (e) { /* ignora */ }
-      setTimeout(() => {
-        oscs.forEach((o) => { try { o.stop(); } catch (e) { /* ignora */ } });
-        try { lfo.stop(); } catch (e) { /* ignora */ }
-        try { ctx.close(); } catch (e) { /* ignora */ }
-      }, 600);
-    },
-  };
-}
-
-function useMusicaBanner(habilitada, audioUrl) {
-  const [mudo, setMudo] = useState(false);
-  const [aguardandoToque, setAguardandoToque] = useState(false);
-  const motor = useRef(null);
-  const mudoRef = useRef(false);
-  mudoRef.current = mudo;
-  useEffect(() => {
-    if (!habilitada) return undefined;
-    let vivo = true;
-    let removeGesto = () => {};
-    let m = null;
-    if (audioUrl) {
-      const el = new Audio(audioUrl);
-      el.loop = true;
-      el.volume = 0.5;
-      m = {
-        ligar: () => el.play(),
-        mudo: (x) => { el.muted = x; },
-        encerrar: () => { el.pause(); el.src = ""; },
-        suspenso: () => el.paused,
-      };
-    } else {
-      m = criarPadCeleste();
-    }
-    if (!m) return undefined;
-    motor.current = m;
-    const tentar = async () => {
-      try { await m.ligar(); } catch (e) { /* bloqueado */ }
-      if (!vivo) return;
-      if (mudoRef.current) m.mudo(true);
-      if (m.suspenso()) {
-        setAguardandoToque(true);
-        const h = () => { removeGesto(); tentar(); };
-        ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, h, { once: true }));
-        removeGesto = () => ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.removeEventListener(ev, h));
-      } else {
-        setAguardandoToque(false);
-      }
-    };
-    tentar();
-    return () => {
-      vivo = false;
-      removeGesto();
-      m.encerrar();
-      motor.current = null;
-    };
-  }, [habilitada, audioUrl]);
-  const alternar = () => {
-    const novo = !mudo;
-    setMudo(novo);
-    if (motor.current) {
-      motor.current.mudo(novo);
-      if (!novo && motor.current.suspenso()) motor.current.ligar().catch(() => {});
-    }
-  };
-  return { mudo, alternar, aguardandoToque };
-}
-
-// Posições fixas (determinísticas) das estrelas — evitam "pular" a cada render.
-const BANNER_ESTRELAS = Array.from({ length: 34 }, (_, i) => ({
-  x: (i * 37 + 11) % 100,
-  y: (i * 53 + 7) % 92,
-  t: 2 + ((i * 13) % 5) * 0.5,
-  d: ((i * 7) % 10) * 0.35,
-  s: 2 + (i % 3),
-}));
-
 function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
   const [aberto, setAberto] = useState(false);
   const [, setTick] = useState(0);
@@ -2014,7 +1863,6 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
   const noAr = bannerNoAr(banner);
   useEffect(() => { if (!noAr) setAberto(false); }, [noAr]);
   useEffect(() => { setAberto(false); }, [banner && banner.inicio]);
-  const musica = useMusicaBanner(noAr && vd.musica !== false, vd.audioUrl || "");
   if (!noAr) return null;
   const podeAbrir = vd.expandirClique !== false;
   const ehVisitantes = banner.tipo !== "evento";
@@ -2023,7 +1871,6 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
   const subtitulo = banner.subtitulo || (ehVisitantes ? "A casa é sua — o Senhor ama você" : "");
   const mensagem = banner.mensagem || (ehVisitantes ? (vd.mensagem || MENSAGEM_VISITANTES_PADRAO) : "");
   const nomes = banner.nomes || [];
-  const bulbs = Array.from({ length: 26 });
   return (
     <div className="mb-3">
       <div
@@ -2035,23 +1882,17 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
         aria-expanded={podeAbrir ? aberto : undefined}
         title={podeAbrir ? (aberto ? "Toque para recolher" : "Toque para abrir a mensagem") : undefined}
       >
-        <div className="bn-halo" aria-hidden="true" />
-        {BANNER_ESTRELAS.map((s, i) => (
-          <span key={i} className="bn-star" aria-hidden="true" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, animationDuration: `${s.t}s`, animationDelay: `${s.d}s` }} />
-        ))}
-        <div className="bn-bulbs bn-bulbs-top" aria-hidden="true">{bulbs.map((_, i) => <i key={i} className="bn-bulb" style={{ animationDelay: `${(i % 2) * 0.6}s` }} />)}</div>
-        <div className="bn-bulbs bn-bulbs-bottom" aria-hidden="true">{bulbs.map((_, i) => <i key={i} className="bn-bulb" style={{ animationDelay: `${((i + 1) % 2) * 0.6}s` }} />)}</div>
-        <div className="bn-shimmer" aria-hidden="true" />
+        <div className="bn-fundo" aria-hidden="true" />
 
         <div className="relative z-10 text-center px-4 sm:px-8 pt-9 pb-9 sm:pt-11 sm:pb-11">
-          <p className="bn-kicker text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em]">✦ {kicker} ✦</p>
+          <p className="bn-kicker text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em]">{kicker}</p>
           <h2 className="bn-neon font-script text-4xl sm:text-6xl leading-tight mt-1.5">{titulo}</h2>
           {subtitulo && <p className="bn-sub text-sm sm:text-lg mt-1 font-display italic">{subtitulo}</p>}
 
           {ehVisitantes && nomes.length > 0 && (
             <div className="bn-nomes mt-3 flex flex-wrap justify-center gap-1.5 sm:gap-2">
               {nomes.slice(0, aberto ? 200 : 8).map((v, i) => (
-                <span key={v.id || i} className="bn-nome px-2.5 py-1 rounded-full text-xs sm:text-sm font-display font-semibold" style={{ animationDelay: `${(i % 6) * 0.25}s` }}>{v.nome}</span>
+                <span key={v.id || i} className="bn-nome px-2.5 py-1 rounded-full text-xs sm:text-sm font-display font-semibold">{v.nome}</span>
               ))}
               {!aberto && nomes.length > 8 && <span className="text-xs self-center" style={{ color: "#fff" }}>+{nomes.length - 8}</span>}
             </div>
@@ -2075,16 +1916,6 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
           )}
         </div>
 
-        {vd.musica !== false && (
-          <button
-            onClick={(e) => { e.stopPropagation(); musica.alternar(); }}
-            className="absolute z-20 top-5 right-3 sm:right-5 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold focus:outline-none focus:ring-2"
-            style={{ background: "#00000066", color: "#FFE9A8", border: "1px solid #FFE9A888" }}
-            title="Música de fundo"
-          >
-            <Music size={12} /> {musica.mudo ? "ligar música" : musica.aguardandoToque ? "toque p/ ouvir" : "música"}
-          </button>
-        )}
       </div>
       {podeGerir && (
         <p className="mt-1 text-[11px] flex flex-wrap items-center gap-2" style={{ color: C.stone }}>
@@ -2146,12 +1977,8 @@ function BannerAdminPanel({ vd, save, adminMode }) {
                 </Field>
                 <div className="space-y-1.5 self-end">
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.expandirClique !== false} onChange={(e) => setCfg({ expandirClique: e.target.checked })} /> Expande com um clique (desmarcado = só exibe, sem clique)</label>
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.musica !== false} onChange={(e) => setCfg({ musica: e.target.checked })} /> Música de fundo inspiradora</label>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.exibirEscala !== false} onChange={(e) => setCfg({ exibirEscala: e.target.checked })} /> Exibir a escala aqui na Home</label>
                 </div>
-                <Field label="URL de uma música (mp3) — opcional; vazio = música ambiente do próprio site">
-                  <input className={inputCls} style={{ borderColor: C.line }} value={vd.audioUrl || ""} onChange={(e) => setCfg({ audioUrl: e.target.value })} />
-                </Field>
                 <Field label="Mensagem aos visitantes (aparece ao expandir)">
                   <textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={vd.mensagem || ""} placeholder={MENSAGEM_VISITANTES_PADRAO} onChange={(e) => setCfg({ mensagem: e.target.value })} />
                 </Field>
@@ -12530,29 +12357,19 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(225,77,58,0.6); } 50% { box-shadow: 0 0 0 8px rgba(225,77,58,0); } }
         .live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
-        /* ---- Banner outdoor celestial ---- */
-        .bn-wrap { background: radial-gradient(ellipse at 50% -10%, #5b3fa8 0%, #2a1b66 40%, #120a38 100%); border: 2px solid #FFD66B; box-shadow: 0 0 22px #FFD66B88, 0 0 60px #7f5af055, inset 0 0 40px #00000066; animation: bnBorder 3s ease-in-out infinite; }
-        @keyframes bnBorder { 0%,100% { box-shadow: 0 0 18px #FFD66B77, 0 0 50px #7f5af044, inset 0 0 40px #00000066; } 50% { box-shadow: 0 0 34px #FFE9A8cc, 0 0 80px #9b7bff88, inset 0 0 40px #00000066; } }
-        .bn-halo { position: absolute; top: -30%; left: 50%; width: 70%; height: 90%; transform: translateX(-50%); background: radial-gradient(ellipse at 50% 30%, rgba(255,246,200,0.75), rgba(255,214,107,0.25) 40%, transparent 70%); animation: bnHalo 4s ease-in-out infinite; pointer-events: none; }
-        @keyframes bnHalo { 0%,100% { opacity: 0.65; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.12); } }
-        .bn-star { position: absolute; border-radius: 9999px; background: #fff; box-shadow: 0 0 6px 2px #fff8d0; animation: bnTwinkle 3s ease-in-out infinite; pointer-events: none; }
-        @keyframes bnTwinkle { 0%,100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.4); } }
-        .bn-bulbs { position: absolute; left: 10px; right: 10px; display: flex; justify-content: space-between; z-index: 5; pointer-events: none; }
-        .bn-bulbs-top { top: 6px; } .bn-bulbs-bottom { bottom: 6px; }
-        .bn-bulb { width: 8px; height: 8px; border-radius: 9999px; background: #FFE9A8; box-shadow: 0 0 8px 3px #FFD66B; animation: bnBulb 1.2s ease-in-out infinite; }
-        @keyframes bnBulb { 0%,100% { opacity: 1; background: #FFF7D0; } 50% { opacity: 0.2; background: #b8892b; box-shadow: 0 0 2px 0 #FFD66B; } }
-        .bn-shimmer { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.28) 50%, transparent 65%); background-size: 250% 100%; animation: bnShimmer 5s linear infinite; pointer-events: none; z-index: 6; mix-blend-mode: screen; }
-        @keyframes bnShimmer { from { background-position: 150% 0; } to { background-position: -100% 0; } }
-        .bn-kicker { color: #FFE9A8; text-shadow: 0 0 8px #FFD66B; animation: bnFlick 2.6s infinite; }
-        .bn-sub { color: #fff; text-shadow: 0 0 10px #c9b3ff; }
-        .bn-neon { color: #fff; text-shadow: 0 0 6px #fff, 0 0 14px #FFE9A8, 0 0 28px #FFD66B, 0 0 48px #b78bff; animation: bnNeon 2.8s ease-in-out infinite; }
-        .bn-neon-suave { color: #FFF3C4; text-shadow: 0 0 8px #FFD66B, 0 0 22px #b78bff; }
-        @keyframes bnNeon { 0%,100% { text-shadow: 0 0 6px #fff, 0 0 14px #FFE9A8, 0 0 28px #FFD66B, 0 0 48px #b78bff; } 50% { text-shadow: 0 0 10px #fff, 0 0 26px #FFF3C4, 0 0 54px #FFD66B, 0 0 90px #b78bff; } 92% { opacity: 1; } 94% { opacity: 0.82; } 96% { opacity: 1; } }
-        @keyframes bnFlick { 0%,100% { opacity: 1; } 45% { opacity: 1; } 47% { opacity: 0.45; } 50% { opacity: 1; } }
-        .bn-nome { background: linear-gradient(135deg, #FFF3C4, #FFD66B); color: #2a1b66; box-shadow: 0 0 12px #FFD66Baa; animation: visitantePulse 1.8s ease-in-out infinite; }
-        .bn-aberto { background: rgba(10,5,40,0.62); border: 1px solid #FFE9A8aa; box-shadow: 0 0 24px #7f5af066, inset 0 0 20px #ffffff14; animation: bnAbrir 0.5s ease-out; }
+        /* ---- Banner de boas-vindas: degradê pulsante (só o fundo se move) ---- */
+        .bn-wrap { background: #2a1b66; border: 2px solid #FFD66B; isolation: isolate; }
+        .bn-fundo { position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(120deg, #3b1d8f, #7b3fe4, #c04fd8, #f2a33a, #c04fd8, #7b3fe4, #3b1d8f); background-size: 300% 300%; animation: bnGrad 9s ease-in-out infinite, bnPulso 3.2s ease-in-out infinite; }
+        @keyframes bnGrad { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        @keyframes bnPulso { 0%,100% { filter: brightness(0.82) saturate(1); } 50% { filter: brightness(1.22) saturate(1.2); } }
+        .bn-kicker { color: #FFF3C4; text-shadow: 0 1px 6px #00000066; }
+        .bn-sub { color: #fff; text-shadow: 0 1px 8px #00000066; }
+        .bn-neon { color: #fff; text-shadow: 0 2px 10px #00000080, 0 0 24px #ffffff55; }
+        .bn-neon-suave { color: #FFF3C4; text-shadow: 0 2px 8px #00000080; }
+        .bn-nome { background: #FFF3C4; color: #2a1b66; box-shadow: 0 2px 8px #00000040; }
+        .bn-aberto { background: rgba(20,8,60,0.55); border: 1px solid #ffffff55; animation: bnAbrir 0.5s ease-out; }
         @keyframes bnAbrir { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
-        @media (prefers-reduced-motion: reduce) { .bn-wrap, .bn-halo, .bn-star, .bn-bulb, .bn-shimmer, .bn-kicker, .bn-neon, .bn-nome, .bn-aberto { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .bn-fundo, .bn-aberto { animation: none; } }
         @keyframes visitantePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.06); } }
         .visitante-pulse { animation: visitantePulse 1.8s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .visitante-pulse { animation: none; } }
