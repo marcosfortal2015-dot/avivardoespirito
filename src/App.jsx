@@ -1583,22 +1583,23 @@ function HeroSlidesAdmin({ slides, onSave }) {
 // (cargo, igreja, local e horário). A lista rola sozinha (marquee).
 function VisitantesCard({ recentVisitors }) {
   return (
-    <div className="rounded-xl border p-3 flex flex-col min-h-[11rem]" style={{ borderColor: C.line, background: "#EADFC6" }}>
-      <div className="flex items-center gap-2 mb-1.5" style={{ color: C.emberDeep }}>
-        <HandHeart size={16} />
-        <h3 className="font-display font-semibold text-sm">Visitantes recentes</h3>
+    <div className="rounded-xl border px-3 py-2 flex flex-col overflow-hidden h-32 sm:h-[149px]" style={{ borderColor: C.line, background: "#EADFC6" }}>
+      {/* Mesma altura do card de imagem dos outros menus (w-24/w-28 em 3:4), pra todos ficarem iguais. */}
+      <div className="flex items-center gap-1.5 mb-1 shrink-0" style={{ color: C.emberDeep }}>
+        <HandHeart size={14} />
+        <h3 className="font-display font-semibold text-xs">Visitantes recentes</h3>
       </div>
       {recentVisitors.length === 0 ? (
         <Empty text="Nenhum visitante registrado ainda." />
       ) : (
-        <div className="flex-1 min-h-[8rem] overflow-hidden relative">
+        <div className="flex-1 min-h-0 overflow-hidden relative">
           <div className="marquee-track">
             {[...recentVisitors, ...recentVisitors].map((v, idx) => (
-              <div key={idx} className="grid grid-cols-2 gap-2 py-1.5 items-start">
-                <span className="text-sm font-semibold leading-tight" style={{ color: C.ink }}>{v.nome}</span>
-                <span className="text-[11px] leading-tight" style={{ color: C.stone }}>
+              <div key={idx} className="grid grid-cols-2 gap-2 py-1 items-start">
+                <span className="text-xs font-semibold leading-tight" style={{ color: C.ink }}>{v.nome}</span>
+                <span className="text-[10px] leading-tight" style={{ color: C.stone }}>
                   {[v.cargoEclesiastico, v.igreja, v.local].filter(Boolean).join(" · ")}
-                  <span className="block font-mono text-[10px] mt-0.5">{fmtDateTime(v.timestamp)}</span>
+                  <span className="block font-mono text-[9px] mt-0.5">{fmtDateTime(v.timestamp)}</span>
                 </span>
               </div>
             ))}
