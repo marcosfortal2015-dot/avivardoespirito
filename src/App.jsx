@@ -2035,7 +2035,6 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
         aria-expanded={podeAbrir ? aberto : undefined}
         title={podeAbrir ? (aberto ? "Toque para recolher" : "Toque para abrir a mensagem") : undefined}
       >
-        <div className="bn-rays" aria-hidden="true" />
         <div className="bn-halo" aria-hidden="true" />
         {BANNER_ESTRELAS.map((s, i) => (
           <span key={i} className="bn-star" aria-hidden="true" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, animationDuration: `${s.t}s`, animationDelay: `${s.d}s` }} />
@@ -12534,8 +12533,6 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         /* ---- Banner outdoor celestial ---- */
         .bn-wrap { background: radial-gradient(ellipse at 50% -10%, #5b3fa8 0%, #2a1b66 40%, #120a38 100%); border: 2px solid #FFD66B; box-shadow: 0 0 22px #FFD66B88, 0 0 60px #7f5af055, inset 0 0 40px #00000066; animation: bnBorder 3s ease-in-out infinite; }
         @keyframes bnBorder { 0%,100% { box-shadow: 0 0 18px #FFD66B77, 0 0 50px #7f5af044, inset 0 0 40px #00000066; } 50% { box-shadow: 0 0 34px #FFE9A8cc, 0 0 80px #9b7bff88, inset 0 0 40px #00000066; } }
-        .bn-rays { position: absolute; top: -90%; left: 50%; width: 220%; aspect-ratio: 1/1; transform: translateX(-50%); background: repeating-conic-gradient(from 0deg, rgba(255,240,170,0.34) 0deg 5deg, rgba(255,240,170,0) 5deg 15deg); -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 62%); mask-image: radial-gradient(circle, #000 0%, transparent 62%); animation: bnSpin 60s linear infinite; pointer-events: none; }
-        @keyframes bnSpin { to { transform: translateX(-50%) rotate(360deg); } }
         .bn-halo { position: absolute; top: -30%; left: 50%; width: 70%; height: 90%; transform: translateX(-50%); background: radial-gradient(ellipse at 50% 30%, rgba(255,246,200,0.75), rgba(255,214,107,0.25) 40%, transparent 70%); animation: bnHalo 4s ease-in-out infinite; pointer-events: none; }
         @keyframes bnHalo { 0%,100% { opacity: 0.65; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.12); } }
         .bn-star { position: absolute; border-radius: 9999px; background: #fff; box-shadow: 0 0 6px 2px #fff8d0; animation: bnTwinkle 3s ease-in-out infinite; pointer-events: none; }
@@ -12555,7 +12552,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         .bn-nome { background: linear-gradient(135deg, #FFF3C4, #FFD66B); color: #2a1b66; box-shadow: 0 0 12px #FFD66Baa; animation: visitantePulse 1.8s ease-in-out infinite; }
         .bn-aberto { background: rgba(10,5,40,0.62); border: 1px solid #FFE9A8aa; box-shadow: 0 0 24px #7f5af066, inset 0 0 20px #ffffff14; animation: bnAbrir 0.5s ease-out; }
         @keyframes bnAbrir { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
-        @media (prefers-reduced-motion: reduce) { .bn-wrap, .bn-rays, .bn-halo, .bn-star, .bn-bulb, .bn-shimmer, .bn-kicker, .bn-neon, .bn-nome, .bn-aberto { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .bn-wrap, .bn-halo, .bn-star, .bn-bulb, .bn-shimmer, .bn-kicker, .bn-neon, .bn-nome, .bn-aberto { animation: none; } }
         @keyframes visitantePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.06); } }
         .visitante-pulse { animation: visitantePulse 1.8s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .visitante-pulse { animation: none; } }
