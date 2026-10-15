@@ -348,6 +348,12 @@ const DEFAULT_VISITANTES_DIA = {
   exibirEscala: true, // admin "parar exibição de escala" (na Home — a seção própria continua)
   mensagem: "Sejam muito bem-vindos(as), amados irmãos e irmãs em Cristo Jesus! É uma alegria recebê-los hoje entre nós. Agradecemos a Deus pela sua presença, em nome de Jesus Cristo e do Ministério Avivar do Espírito.",
   audioUrl: "",
+  // Banner "outdoor" celestial (ver BannerCeleste): estado em `banner`, configurações aqui.
+  banner: null,
+  eventos: [], // [{ id, titulo, subtitulo, mensagem }] — cadastrados pelo admin
+  duracaoHoras: 12, // tempo de exposição; 0 = até desligar
+  expandirClique: true,
+  musica: true,
 };
 
 /* ---------------------------------------------------------------- */
@@ -842,17 +848,21 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
   };
   // Pills sem preenchimento próprio — fundo transparente (a cor vem da barra roxa
   // por trás), filete branco fino e texto branco; o item ativo só destaca a borda.
+  // Botões dos menus: cor CREME, letra preta, largura só do texto (a pedido do Marcos).
+  const CREME = "#F6E8C8";
   const pillStyle = (active) => ({
-    background: "transparent",
-    color: "#fff",
-    border: `1px solid ${active ? C.goldBright : "#ffffff80"}`,
+    background: CREME,
+    color: "#1a1a1a",
+    border: `1px solid ${active ? C.goldBright : "#00000026"}`,
+    boxShadow: active ? `0 0 0 2px ${C.goldBright}` : undefined,
   });
   // Botões do menu no celular — fundo branco, letra preta, a pedido do Marcos
   // (diferente do estilo "pill" roxo/transparente usado no menu de telas grandes).
   const mobilePillStyle = (active) => ({
-    background: "#fff",
+    background: CREME,
     color: "#000",
     border: `1px solid ${active ? C.gold : "#00000022"}`,
+    boxShadow: active ? `0 0 0 2px ${C.goldBright}` : undefined,
   });
   return (
     <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
@@ -890,13 +900,13 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
             <ShoppingBag size={28} />
           </button>
         </div>
-        <nav className="hidden lg:flex flex-1 items-center justify-between pb-1">
+        <nav className="hidden lg:flex flex-1 items-center justify-between gap-1 pb-1">
           {NAV.map((n) => (
             <button
               key={n.key}
               onClick={() => go(n.key)}
-              className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-1 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2"
-              style={{ background: C.liveRed, color: "#fff", border: `1px solid ${page === n.key ? C.goldBright : C.liveRed}` }}
+              className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-0.5 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2"
+              style={pillStyle(page === n.key)}
             >
               {n.label}
             </button>
@@ -919,7 +929,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
         {SUBMENU.map((n) => {
           const isLoja = n.key === "loja";
           return (
-            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse min-w-[100px] justify-center text-center px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse justify-center text-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex items-center gap-1 whitespace-nowrap focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
               {isLoja ? (
                 <span className="relative flex items-center justify-center w-5 h-5 rounded-full shrink-0" style={{ background: C.liveRed }}>
                   <n.icon size={12} color="#fff" />
@@ -932,7 +942,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           );
         })}
         {adminMode && ADMIN_MENU.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
+          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-0.5 text-[11px] font-semibold rounded-full flex items-center gap-1 whitespace-nowrap focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
             <n.icon size={11} /> {n.label}
           </button>
         ))}
@@ -944,10 +954,10 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
           {/* No celular, botões ainda menores, em 2 colunas, fundo branco e letra
               preta (a pedido do Marcos) — cabe mais menu na tela sem precisar rolar
               tanto pra achar o item que se quer. */}
-          <div className="grid grid-cols-2 gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
-              <button key={n.key} onClick={() => go(n.key)} className="text-left px-1.5 py-1 text-[10px] rounded-full flex items-center gap-1 truncate" style={mobilePillStyle(page === n.key)}>
-                {n.icon && <n.icon size={11} className="shrink-0" />} <span className="truncate">{n.label}</span>
+              <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-1 text-[11px] font-medium rounded-full flex items-center gap-1 whitespace-nowrap" style={mobilePillStyle(page === n.key)}>
+                {n.icon && <n.icon size={11} className="shrink-0" />} <span>{n.label}</span>
               </button>
             ))}
           </div>
@@ -1019,7 +1029,19 @@ function AdminGateModal({ onClose, onSuccess }) {
   );
 }
 
-function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
+// Título do formulário de acesso, por setor/página (a pedido do Marcos).
+const TITULO_ACESSO_SETOR = {
+  oracoes: "VOCÊ É AUTORIZADO(A) — CADASTRE OS ENCONTROS E AS ORAÇÕES NOS LARES",
+  pedidooracao: "VOCÊ É AUTORIZADO(A) — CADASTRE E ACOMPANHE OS PEDIDOS DE ORAÇÃO",
+  visitantes: "VOCÊ É AUTORIZADO(A) — CADASTRE OS VISITANTES",
+  membros: "VOCÊ É AUTORIZADO(A) — CADASTRE OS MEMBROS",
+  escala: "VOCÊ É AUTORIZADO(A) — MONTE A ESCALA DOS OBREIROS",
+  loja: "VOCÊ É AUTORIZADO(A) — CADASTRE OS PRODUTOS DA LOJA",
+  avivarmusic: "VOCÊ É AUTORIZADO(A) — CADASTRE MÚSICOS E REPERTÓRIO",
+  caixa: "VOCÊ É AUTORIZADO(A) — FAÇA OS LANÇAMENTOS DO CAIXA",
+};
+const TITULO_ACESSO_PADRAO = "VOCÊ É AUTORIZADO(A) — CADASTRE";
+function OperatorGateModal({ operatorCodes, onClose, onSuccess, setor = "" }) {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
   const tentarEntrar = () => {
@@ -1041,7 +1063,7 @@ function OperatorGateModal({ operatorCodes, onClose, onSuccess }) {
       <div className="w-full max-w-sm rounded-xl p-6 border" style={{ background: "#fff", borderColor: C.line }}>
         <div className="flex items-center gap-2 mb-3" style={{ color: C.purple }}>
           <KeyRound size={20} />
-          <h3 className="font-display text-lg font-semibold">Acesso restrito</h3>
+          <h3 className="font-display text-sm sm:text-base font-bold leading-snug">{TITULO_ACESSO_SETOR[setor] || TITULO_ACESSO_PADRAO}</h3>
         </div>
         <p className="text-xs mb-4" style={{ color: C.stone }}>Digite o código que a administração da igreja lhe entregou. Um mesmo código abre todas as áreas em que você serve.</p>
         <Field label="Código de acesso">
@@ -1460,7 +1482,16 @@ function Forum({ posts, addPost }) {
 /* ---------------------------------------------------------------- */
 /* Home                                                               */
 /* ---------------------------------------------------------------- */
-function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage, adminMode }) {
+// Última foto cadastrada em Oração nos Lares: do encontro mais recente (pela data) que
+// tenha fotos, a última foto adicionada a ele. Devolve "" se ainda não houver nenhuma.
+function ultimaFotoEncontro(encontros) {
+  const comFoto = [...(encontros || [])].filter((e) => (e.fotos || []).length > 0).sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
+  if (comFoto.length === 0) return "";
+  const f = comFoto[0].fotos;
+  return f[f.length - 1] || "";
+}
+
+function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className = "", bgImage, adminMode, cobrir = false }) {
   const bg = tone === "violet" ? C.violet : tone === "red" ? C.liveRed : C.gold;
   const border = tone === "violet" ? C.violetDeep : tone === "red" ? "#8A241B" : C.goldDeep;
   return (
@@ -1473,7 +1504,7 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
         // object-contain (em vez de object-cover) pra nunca cortar a imagem — o fundo
         // colorido do card (cor do "tone") aparece nas bordas quando a imagem não
         // preenche a caixa toda, em vez de cortar pra preencher.
-        <img src={bgImage} alt={title} className="absolute inset-[0.3cm] w-[calc(100%-0.6cm)] h-[calc(100%-0.6cm)] object-contain rounded-lg" />
+        <img src={bgImage} alt={title} className={`absolute inset-[0.3cm] w-[calc(100%-0.6cm)] h-[calc(100%-0.6cm)] ${cobrir ? "object-cover" : "object-contain"} rounded-lg`} />
       ) : adminMode ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 border-2 border-dashed" style={{ borderColor: C.line, background: "#00000006", color: C.stone }}>
           <ImageIcon size={22} />
@@ -1488,11 +1519,14 @@ function QuickCard({ icon: Icon, title, desc, onClick, tone = "gold", className 
 // à esquerda, e ao lado um pequeno texto explicando o que é aquele menu, sobre um
 // fundo claro (cor varia por coluna, ver CORES_HOMECARDS). O texto fica esticado
 // (items-stretch) pra ficar alinhado do topo à base da imagem do card, como pedido.
-function HomeCardBlurb({ card, icon, onClick, adminMode, corFundo }) {
+function HomeCardBlurb({ card, icon, onClick, adminMode, corFundo, fotoOverride = "" }) {
+  // fotoOverride: foto "viva" que substitui a imagem fixa do card (ex.: última foto de Oração nos Lares).
+  const foto = useFotoUrl(fotoOverride || "");
+  const usaFoto = !!fotoOverride && !!foto.url;
   return (
     <div className="flex items-stretch gap-3">
       <div className="w-24 sm:w-28 shrink-0">
-        <QuickCard icon={icon} title={card.titulo} desc={card.desc} onClick={onClick} tone={card.tone} bgImage={card.imageUrl} adminMode={adminMode} />
+        <QuickCard icon={icon} title={card.titulo} desc={card.desc} onClick={onClick} tone={card.tone} bgImage={usaFoto ? foto.url : card.imageUrl} cobrir={usaFoto} adminMode={adminMode} />
       </div>
       <button onClick={onClick} className="flex-1 rounded-xl border text-left p-3 flex flex-col justify-center focus:outline-none focus:ring-2" style={{ borderColor: C.line, background: corFundo }}>
         <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>{card.titulo}</p>
@@ -1544,77 +1578,34 @@ function HeroSlidesAdmin({ slides, onSave }) {
   );
 }
 
-function LiveHomeCard({ aoVivo, onClick }) {
-  return (
-    <div className="rounded-xl overflow-hidden border-2 shadow-xl" style={{ borderColor: C.gold, background: C.black }}>
-      <div className="aspect-video bg-black relative">
-        {aoVivo.isLive && aoVivo.embedUrl ? (
-          <iframe title="ao-vivo-home" src={getEmbedUrl(aoVivo.embedUrl)} className="w-full h-full" allow="autoplay; encrypted-media" allowFullScreen />
-        ) : (
-          <button onClick={onClick} className="w-full h-full relative focus:outline-none">
-            <img src={AOVIVO_BANNER} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#00000066" }}>
-              <Radio size={32} color={C.gold} />
-            </div>
-          </button>
-        )}
-        {aoVivo.isLive && (
-          <span className="live-pulse absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-full text-white flex items-center gap-1" style={{ background: "#E14D3A" }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-white" /> LIVE
-          </span>
-        )}
-      </div>
-      <button onClick={onClick} className="w-full text-left p-3 focus:outline-none">
-        <p className="font-display font-semibold text-sm" style={{ color: C.goldBright }}>{aoVivo.isLive ? "Estamos ao vivo agora" : "Avivar News TV"}</p>
-        <p className="text-xs mt-0.5" style={{ color: "#ffffffaa" }}>Toque para ver transmissões anteriores e notícias.</p>
-      </button>
-    </div>
-  );
-}
-
-// Card "Visitantes recentes" — mesmo visual/tamanho dos outros cards da fileira
-// (ao lado do card Ao Vivo), fundo claro com borda, marquee com os últimos visitantes.
+// Card "Visitantes recentes" — fica na grade de cards da Home, ao lado do card Loja Avivar.
+// Fundo bege, duas colunas: à esquerda o nome do visitante; à direita os outros dados
+// (cargo, igreja, local e horário). A lista rola sozinha (marquee).
 function VisitantesCard({ recentVisitors }) {
   return (
-    <div className="rounded-xl border-2 shadow-xl p-4" style={{ borderColor: C.gold, background: C.cream }}>
-      <div className="flex items-center gap-2 mb-2" style={{ color: C.ember }}>
-        <HandHeart size={18} />
+    <div className="rounded-xl border p-3 flex flex-col min-h-[11rem]" style={{ borderColor: C.line, background: "#EADFC6" }}>
+      <div className="flex items-center gap-2 mb-1.5" style={{ color: C.emberDeep }}>
+        <HandHeart size={16} />
         <h3 className="font-display font-semibold text-sm">Visitantes recentes</h3>
       </div>
       {recentVisitors.length === 0 ? (
-        <Empty text="Nenhum visitante registrado ainda hoje." />
+        <Empty text="Nenhum visitante registrado ainda." />
       ) : (
-        <div className="h-40 overflow-hidden relative">
+        <div className="flex-1 min-h-[8rem] overflow-hidden relative">
           <div className="marquee-track">
             {[...recentVisitors, ...recentVisitors].map((v, idx) => (
-              <div key={idx} className="flex items-center justify-between py-1.5 text-sm border-b" style={{ borderColor: C.line }}>
-                <span className="font-medium" style={{ color: C.ink }}>{v.nome}</span>
-                <span className="text-xs font-mono" style={{ color: C.stone }}>{fmtDateTime(v.timestamp)}</span>
+              <div key={idx} className="grid grid-cols-2 gap-2 py-1.5 items-start">
+                <span className="text-sm font-semibold leading-tight" style={{ color: C.ink }}>{v.nome}</span>
+                <span className="text-[11px] leading-tight" style={{ color: C.stone }}>
+                  {[v.cargoEclesiastico, v.igreja, v.local].filter(Boolean).join(" · ")}
+                  <span className="block font-mono text-[10px] mt-0.5">{fmtDateTime(v.timestamp)}</span>
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
-      <p className="text-xs mt-2 font-mono" style={{ color: C.stone }}>Seja muito bem-vindo(a) — cadastre-se em Visitantes.</p>
     </div>
-  );
-}
-
-// Substituiu o antigo FeaturedBibliaCard (Bíblia Avivar foi pra grade de 9 cards —
-// ver DEFAULT_HOMECARDS). Card de destaque pro futuro espaço de Cursos dos Códigos
-// Avivar (cursos, PDFs e vídeos — ainda "em breve"; abre a PaginaCursos ao clicar).
-function CursosDestaqueCard({ onClick }) {
-  return (
-    <button onClick={onClick} className="rounded-xl overflow-hidden border-2 shadow-xl text-left relative focus:outline-none focus:ring-2" style={{ borderColor: C.gold }}>
-      <div className="w-full aspect-video flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.violetDeep}, ${C.purple})` }}>
-        <GraduationCap size={40} color={C.goldBright} />
-      </div>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, transparent 40%, #000000cc)" }} />
-      <div className="absolute bottom-0 left-0 right-0 p-3">
-        <p className="font-display font-semibold text-sm text-white">Cursos dos Códigos Avivar</p>
-        <p className="text-xs text-white/80">Cursos, PDFs e vídeos exclusivos — em breve</p>
-      </div>
-    </button>
   );
 }
 
@@ -1825,46 +1816,379 @@ function PedidoOracaoCard({ onClick, compact }) {
 // inspirador. A reprodução automática com som pode ser bloqueada pelo navegador
 // até o visitante interagir com a página — por isso o botão "tocar música" surge
 // como alternativa sempre que o autoplay falhar.
-function VisitantesDiaBanner({ vd }) {
-  const audioRef = useRef(null);
-  const [bloqueado, setBloqueado] = useState(false);
+/* ---------------------------------------------------------------- */
+/* Banner "outdoor" celestial — Visitantes do dia e eventos do admin     */
+/* ---------------------------------------------------------------- */
+const BANNER_DURACOES = [
+  { h: 1, label: "1 hora" },
+  { h: 2, label: "2 horas" },
+  { h: 3, label: "3 horas" },
+  { h: 6, label: "6 horas" },
+  { h: 12, label: "12 horas (padrão)" },
+  { h: 24, label: "24 horas" },
+  { h: 0, label: "Até eu desligar" },
+];
+const DEFAULT_BANNER = {
+  ativo: false,
+  tipo: "visitantes", // "visitantes" | "evento"
+  titulo: "",
+  subtitulo: "",
+  mensagem: "",
+  nomes: [], // [{ id, nome }]
+  inicio: "", // ISO — quando foi ao ar
+  duracaoHoras: 12, // 0 = até desligar
+};
+const MENSAGEM_VISITANTES_PADRAO = "Sejam muito bem-vindos(as), amados irmãos e irmãs em Cristo Jesus! É uma alegria recebê-los hoje entre nós. Que a paz do Senhor repouse sobre a sua vida e a sua família, e que o Espírito Santo avive o seu coração. Agradecemos a Deus pela sua presença — esta casa é sua casa.";
+
+// O banner está "no ar" se foi ligado e ainda não passou o tempo de exposição.
+function bannerNoAr(b, agora = Date.now()) {
+  if (!b || !b.ativo || !b.inicio) return false;
+  const h = Number(b.duracaoHoras);
+  if (!h) return true;
+  return agora < new Date(b.inicio).getTime() + h * 3600 * 1000;
+}
+function bannerFimTexto(b) {
+  const h = Number(b && b.duracaoHoras);
+  if (!h) return "até ser desligado";
+  const fim = new Date(new Date(b.inicio).getTime() + h * 3600 * 1000);
+  return `até ${fim.toLocaleDateString("pt-BR")} ${fim.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+// Música de fundo do banner. Se o admin informou um mp3, toca o arquivo; senão gera
+// um "pad" ambiente (acordes suaves + sinos) com WebAudio, sem baixar nada. Os
+// navegadores só liberam áudio depois de um toque na tela — se o autoplay for
+// bloqueado, a música começa no primeiro toque/clique em qualquer lugar da página.
+function criarPadCeleste() {
+  const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return null;
+  const ctx = new AC();
+  const master = ctx.createGain();
+  master.gain.value = 0;
+  master.connect(ctx.destination);
+  const filtro = ctx.createBiquadFilter();
+  filtro.type = "lowpass";
+  filtro.frequency.value = 1300;
+  filtro.connect(master);
+  const acorde = [146.83, 220, 293.66, 369.99, 440, 554.37]; // Ré maior (add9 suave)
+  const oscs = [];
+  acorde.forEach((f, i) => {
+    [-5, 5].forEach((det) => {
+      const o = ctx.createOscillator();
+      o.type = i % 2 ? "sine" : "triangle";
+      o.frequency.value = f;
+      o.detune.value = det;
+      const g = ctx.createGain();
+      g.gain.value = 0.045;
+      o.connect(g);
+      g.connect(filtro);
+      o.start();
+      oscs.push(o);
+    });
+  });
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.07;
+  const lfoG = ctx.createGain();
+  lfoG.gain.value = 450;
+  lfo.connect(lfoG);
+  lfoG.connect(filtro.frequency);
+  lfo.start();
+  const sinos = [587.33, 659.25, 739.99, 880, 987.77, 1174.66];
+  const tocarSino = () => {
+    if (ctx.state !== "running") return;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = sinos[Math.floor(Math.random() * sinos.length)];
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6);
+    o.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + 3.7);
+  };
+  const timer = setInterval(tocarSino, 2300);
+  return {
+    ctx,
+    suspenso: () => ctx.state !== "running",
+    ligar: async () => {
+      try { await ctx.resume(); } catch (e) { /* ignora */ }
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 3);
+    },
+    mudo: (m) => {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime(m ? 0 : 0.55, ctx.currentTime + 0.6);
+    },
+    encerrar: () => {
+      clearInterval(timer);
+      try {
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+      } catch (e) { /* ignora */ }
+      setTimeout(() => {
+        oscs.forEach((o) => { try { o.stop(); } catch (e) { /* ignora */ } });
+        try { lfo.stop(); } catch (e) { /* ignora */ }
+        try { ctx.close(); } catch (e) { /* ignora */ }
+      }, 600);
+    },
+  };
+}
+
+function useMusicaBanner(habilitada, audioUrl) {
+  const [mudo, setMudo] = useState(false);
+  const [aguardandoToque, setAguardandoToque] = useState(false);
+  const motor = useRef(null);
+  const mudoRef = useRef(false);
+  mudoRef.current = mudo;
   useEffect(() => {
-    if (!vd.audioUrl || !audioRef.current) return;
-    audioRef.current.volume = 0.5;
-    const p = audioRef.current.play();
-    if (p && p.catch) p.catch(() => setBloqueado(true));
-  }, [vd.audioUrl]);
+    if (!habilitada) return undefined;
+    let vivo = true;
+    let removeGesto = () => {};
+    let m = null;
+    if (audioUrl) {
+      const el = new Audio(audioUrl);
+      el.loop = true;
+      el.volume = 0.5;
+      m = {
+        ligar: () => el.play(),
+        mudo: (x) => { el.muted = x; },
+        encerrar: () => { el.pause(); el.src = ""; },
+        suspenso: () => el.paused,
+      };
+    } else {
+      m = criarPadCeleste();
+    }
+    if (!m) return undefined;
+    motor.current = m;
+    const tentar = async () => {
+      try { await m.ligar(); } catch (e) { /* bloqueado */ }
+      if (!vivo) return;
+      if (mudoRef.current) m.mudo(true);
+      if (m.suspenso()) {
+        setAguardandoToque(true);
+        const h = () => { removeGesto(); tentar(); };
+        ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, h, { once: true }));
+        removeGesto = () => ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.removeEventListener(ev, h));
+      } else {
+        setAguardandoToque(false);
+      }
+    };
+    tentar();
+    return () => {
+      vivo = false;
+      removeGesto();
+      m.encerrar();
+      motor.current = null;
+    };
+  }, [habilitada, audioUrl]);
+  const alternar = () => {
+    const novo = !mudo;
+    setMudo(novo);
+    if (motor.current) {
+      motor.current.mudo(novo);
+      if (!novo && motor.current.suspenso()) motor.current.ligar().catch(() => {});
+    }
+  };
+  return { mudo, alternar, aguardandoToque };
+}
+
+// Posições fixas (determinísticas) das estrelas — evitam "pular" a cada render.
+const BANNER_ESTRELAS = Array.from({ length: 34 }, (_, i) => ({
+  x: (i * 37 + 11) % 100,
+  y: (i * 53 + 7) % 92,
+  t: 2 + ((i * 13) % 5) * 0.5,
+  d: ((i * 7) % 10) * 0.35,
+  s: 2 + (i % 3),
+}));
+
+function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
+  const [aberto, setAberto] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const noAr = bannerNoAr(banner);
+  useEffect(() => { if (!noAr) setAberto(false); }, [noAr]);
+  useEffect(() => { setAberto(false); }, [banner && banner.inicio]);
+  const musica = useMusicaBanner(noAr && vd.musica !== false, vd.audioUrl || "");
+  if (!noAr) return null;
+  const podeAbrir = vd.expandirClique !== false;
+  const ehVisitantes = banner.tipo !== "evento";
+  const kicker = ehVisitantes ? "Visitantes do dia" : "Evento especial";
+  const titulo = banner.titulo || (ehVisitantes ? "Bem-vindos, visitantes!" : "Venha participar!");
+  const subtitulo = banner.subtitulo || (ehVisitantes ? "A casa é sua — o Senhor ama você" : "");
+  const mensagem = banner.mensagem || (ehVisitantes ? (vd.mensagem || MENSAGEM_VISITANTES_PADRAO) : "");
+  const nomes = banner.nomes || [];
+  const bulbs = Array.from({ length: 26 });
   return (
-    <div className="w-full rounded-lg border-2 overflow-hidden p-4 sm:p-5" style={{ borderColor: C.gold, background: `linear-gradient(135deg, ${C.violetDeep}, ${C.indigoDeep})` }}>
-      <div className="flex items-center gap-2 mb-2">
-        <HandHeart size={15} color={C.goldBright} />
-        <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: C.goldBright }}>Visitantes de hoje</span>
-      </div>
-      <p className="text-sm sm:text-base leading-relaxed" style={{ color: "#ffffffee" }}>{vd.mensagem || DEFAULT_VISITANTES_DIA.mensagem}</p>
-      <div className="flex flex-wrap gap-2 mt-3">
-        {(vd.nomes || []).map((v, i) => (
-          <span
-            key={v.id}
-            className="visitante-pulse px-3 py-1.5 rounded-full text-sm font-display font-semibold"
-            style={{ background: C.goldBright, color: C.violetDeep, animationDelay: `${(i % 6) * 0.2}s` }}
-          >
-            {v.nome}
-          </span>
+    <div className="mb-3">
+      <div
+        className={`bn-wrap relative rounded-2xl overflow-hidden ${podeAbrir ? "cursor-pointer" : ""}`}
+        role={podeAbrir ? "button" : undefined}
+        tabIndex={podeAbrir ? 0 : undefined}
+        onClick={() => podeAbrir && setAberto((v) => !v)}
+        onKeyDown={(e) => { if (podeAbrir && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setAberto((v) => !v); } }}
+        aria-expanded={podeAbrir ? aberto : undefined}
+        title={podeAbrir ? (aberto ? "Toque para recolher" : "Toque para abrir a mensagem") : undefined}
+      >
+        <div className="bn-rays" aria-hidden="true" />
+        <div className="bn-halo" aria-hidden="true" />
+        {BANNER_ESTRELAS.map((s, i) => (
+          <span key={i} className="bn-star" aria-hidden="true" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, animationDuration: `${s.t}s`, animationDelay: `${s.d}s` }} />
         ))}
-      </div>
-      {vd.audioUrl && (
-        <>
-          <audio ref={audioRef} src={vd.audioUrl} loop />
-          {bloqueado && (
-            <button
-              onClick={() => { audioRef.current?.play(); setBloqueado(false); }}
-              className="text-[11px] underline mt-3 flex items-center gap-1"
-              style={{ color: C.goldBright }}
-            >
-              <Music size={12} /> tocar música de fundo
-            </button>
+        <div className="bn-bulbs bn-bulbs-top" aria-hidden="true">{bulbs.map((_, i) => <i key={i} className="bn-bulb" style={{ animationDelay: `${(i % 2) * 0.6}s` }} />)}</div>
+        <div className="bn-bulbs bn-bulbs-bottom" aria-hidden="true">{bulbs.map((_, i) => <i key={i} className="bn-bulb" style={{ animationDelay: `${((i + 1) % 2) * 0.6}s` }} />)}</div>
+        <div className="bn-shimmer" aria-hidden="true" />
+
+        <div className="relative z-10 text-center px-4 sm:px-8 pt-9 pb-9 sm:pt-11 sm:pb-11">
+          <p className="bn-kicker text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em]">✦ {kicker} ✦</p>
+          <h2 className="bn-neon font-script text-4xl sm:text-6xl leading-tight mt-1.5">{titulo}</h2>
+          {subtitulo && <p className="bn-sub text-sm sm:text-lg mt-1 font-display italic">{subtitulo}</p>}
+
+          {ehVisitantes && nomes.length > 0 && (
+            <div className="bn-nomes mt-3 flex flex-wrap justify-center gap-1.5 sm:gap-2">
+              {nomes.slice(0, aberto ? 200 : 8).map((v, i) => (
+                <span key={v.id || i} className="bn-nome px-2.5 py-1 rounded-full text-xs sm:text-sm font-display font-semibold" style={{ animationDelay: `${(i % 6) * 0.25}s` }}>{v.nome}</span>
+              ))}
+              {!aberto && nomes.length > 8 && <span className="text-xs self-center" style={{ color: "#fff" }}>+{nomes.length - 8}</span>}
+            </div>
           )}
-        </>
+
+          {aberto && (
+            <div className="bn-aberto mt-5 mx-auto max-w-2xl rounded-xl px-4 py-4 sm:px-6 sm:py-5 text-left">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "#FFE9A8" }}>
+                {ehVisitantes ? "Mensagem do Ministério Avivar do Espírito aos Visitantes" : "Mensagem do Ministério Avivar do Espírito"}
+              </p>
+              {mensagem && <p className="text-sm sm:text-base leading-relaxed mt-2 whitespace-pre-line" style={{ color: "#fff" }}>{mensagem}</p>}
+              <p className="text-center font-script text-2xl sm:text-3xl mt-3 bn-neon-suave">Em nome de Jesus Cristo ✝</p>
+            </div>
+          )}
+
+          {podeAbrir && (
+            <p className="mt-4 text-[11px] sm:text-xs flex items-center justify-center gap-1" style={{ color: "#FFE9A8" }}>
+              <ChevronDown size={14} className={aberto ? "rotate-180 transition" : "transition"} />
+              {aberto ? "toque para recolher" : "toque para abrir a mensagem"}
+            </p>
+          )}
+        </div>
+
+        {vd.musica !== false && (
+          <button
+            onClick={(e) => { e.stopPropagation(); musica.alternar(); }}
+            className="absolute z-20 top-5 right-3 sm:right-5 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold focus:outline-none focus:ring-2"
+            style={{ background: "#00000066", color: "#FFE9A8", border: "1px solid #FFE9A888" }}
+            title="Música de fundo"
+          >
+            <Music size={12} /> {musica.mudo ? "ligar música" : musica.aguardandoToque ? "toque p/ ouvir" : "música"}
+          </button>
+        )}
+      </div>
+      {podeGerir && (
+        <p className="mt-1 text-[11px] flex flex-wrap items-center gap-2" style={{ color: C.stone }}>
+          <span>{adminMode ? "ADMIN" : "RECEPÇÃO"} · banner no ar {bannerFimTexto(banner)}.</span>
+          <button onClick={onDesligar} className="underline font-semibold" style={{ color: C.emberDeep }}>Tirar do ar agora</button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Painel do banner celestial (dentro da Home). Admin: configura tempo de exposição,
+// clique, música, mensagem e cadastra eventos que podem ser "direcionados" ao banner.
+// Recepção/operador com acesso a Visitantes: só vê o status e pode tirar do ar.
+function BannerAdminPanel({ vd, save, adminMode }) {
+  const [aberto, setAberto] = useState(false);
+  const [ev, setEv] = useState({ titulo: "", subtitulo: "", mensagem: "" });
+  const [editId, setEditId] = useState(null);
+  const eventos = vd.eventos || [];
+  const b = { ...DEFAULT_BANNER, ...(vd.banner || {}) };
+  const noAr = bannerNoAr(b);
+  const dur = vd.duracaoHoras === undefined ? 12 : Number(vd.duracaoHoras);
+  const setCfg = (patch) => save({ ...vd, ...patch });
+  const publicarEvento = (e) => {
+    save({ ...vd, banner: { ...DEFAULT_BANNER, ativo: true, tipo: "evento", titulo: e.titulo, subtitulo: e.subtitulo || "", mensagem: e.mensagem || "", nomes: [], inicio: new Date().toISOString(), duracaoHoras: dur } });
+  };
+  const salvarEvento = () => {
+    if (!ev.titulo.trim()) return;
+    if (editId) {
+      setCfg({ eventos: eventos.map((x) => (x.id === editId ? { ...x, ...ev, titulo: ev.titulo.trim() } : x)) });
+    } else {
+      setCfg({ eventos: [...eventos, { id: uid(), ...ev, titulo: ev.titulo.trim() }] });
+    }
+    setEv({ titulo: "", subtitulo: "", mensagem: "" });
+    setEditId(null);
+  };
+  return (
+    <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
+      {!aberto ? (
+        <button onClick={() => setAberto(true)} className="underline" style={{ color: C.stone }}>
+          {adminMode ? "ADMIN" : "RECEPÇÃO"} · Banner de boas-vindas / eventos {noAr ? "(NO AR)" : ""}
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold" style={{ color: C.ink }}>
+            Banner celestial — {noAr ? <span style={{ color: "#1B8A55" }}>no ar {bannerFimTexto(b)}</span> : <span style={{ color: C.stone }}>fora do ar</span>}
+          </p>
+          <p style={{ color: C.stone }}>
+            Para exibir os visitantes de hoje: em <strong>Visitantes</strong>, depois de cadastrar, toque em “Finalizar e exibir banner”.
+          </p>
+          {noAr && <Btn variant="ghost" onClick={() => save({ ...vd, banner: { ...b, ativo: false } })}>Tirar do ar agora</Btn>}
+          {adminMode && (
+            <>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Tempo de exposição (vale para o próximo banner que for ao ar)">
+                  <select className={inputCls} style={{ borderColor: C.line }} value={dur} onChange={(e) => setCfg({ duracaoHoras: Number(e.target.value) })}>
+                    {BANNER_DURACOES.map((d) => <option key={d.h} value={d.h}>{d.label}</option>)}
+                  </select>
+                </Field>
+                <div className="space-y-1.5 self-end">
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.expandirClique !== false} onChange={(e) => setCfg({ expandirClique: e.target.checked })} /> Expande com um clique (desmarcado = só exibe, sem clique)</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.musica !== false} onChange={(e) => setCfg({ musica: e.target.checked })} /> Música de fundo inspiradora</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vd.exibirEscala !== false} onChange={(e) => setCfg({ exibirEscala: e.target.checked })} /> Exibir a escala aqui na Home</label>
+                </div>
+                <Field label="URL de uma música (mp3) — opcional; vazio = música ambiente do próprio site">
+                  <input className={inputCls} style={{ borderColor: C.line }} value={vd.audioUrl || ""} onChange={(e) => setCfg({ audioUrl: e.target.value })} />
+                </Field>
+                <Field label="Mensagem aos visitantes (aparece ao expandir)">
+                  <textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={vd.mensagem || ""} placeholder={MENSAGEM_VISITANTES_PADRAO} onChange={(e) => setCfg({ mensagem: e.target.value })} />
+                </Field>
+              </div>
+
+              <div className="border-t pt-3" style={{ borderColor: C.line }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: C.ink }}>Eventos para o banner</p>
+                {eventos.length === 0 && <p className="italic mb-2" style={{ color: C.stone }}>Nenhum evento cadastrado.</p>}
+                <div className="space-y-1.5 mb-3">
+                  {eventos.map((e) => (
+                    <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm" style={{ color: C.ink }}>{e.titulo}</p>
+                        {e.subtitulo && <p style={{ color: C.stone }}>{e.subtitulo}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Btn onClick={() => publicarEvento(e)}>Exibir no banner</Btn>
+                        <button className="underline" style={{ color: C.violet }} onClick={() => { setEditId(e.id); setEv({ titulo: e.titulo, subtitulo: e.subtitulo || "", mensagem: e.mensagem || "" }); }}>editar</button>
+                        <button className="underline" style={{ color: C.emberDeep }} onClick={() => { if (window.confirm(`Remover o evento “${e.titulo}”?`)) setCfg({ eventos: eventos.filter((x) => x.id !== e.id) }); }}>remover</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <Field label={editId ? "Editando evento — título" : "Novo evento — título"}><input className={inputCls} style={{ borderColor: C.line }} value={ev.titulo} onChange={(e) => setEv((x) => ({ ...x, titulo: e.target.value }))} placeholder="Ex.: Culto de Libertação — sexta, 19h30" /></Field>
+                  <Field label="Subtítulo (opcional)"><input className={inputCls} style={{ borderColor: C.line }} value={ev.subtitulo} onChange={(e) => setEv((x) => ({ ...x, subtitulo: e.target.value }))} /></Field>
+                  <div className="sm:col-span-2"><Field label="Mensagem que abre ao clicar"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={ev.mensagem} onChange={(e) => setEv((x) => ({ ...x, mensagem: e.target.value }))} /></Field></div>
+                </div>
+                <div className="flex gap-2 mt-2 items-center">
+                  <Btn onClick={salvarEvento}>{editId ? "Salvar evento" : "Cadastrar evento"}</Btn>
+                  {editId && <button className="underline" style={{ color: C.stone }} onClick={() => { setEditId(null); setEv({ titulo: "", subtitulo: "", mensagem: "" }); }}>cancelar</button>}
+                </div>
+              </div>
+            </>
+          )}
+          <button onClick={() => setAberto(false)} className="underline" style={{ color: C.stone }}>fechar</button>
+        </div>
       )}
     </div>
   );
@@ -1873,14 +2197,14 @@ function VisitantesDiaBanner({ vd }) {
 // Card do topo da Home (coluna da direita, ao lado da Escala de Serviço): cor de brasa, abre o formulário.
 function PedidoOracaoTopo({ onClick }) {
   return (
-    <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex items-center gap-3 px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
-      <HandHeart size={26} color="#fff" className="shrink-0" />
+    <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
+      <HandHeart size={24} color="#fff" className="shrink-0" />
       <span className="flex-1 min-w-0">
         <span className="block text-[10px] font-mono uppercase tracking-wider" style={{ color: "#ffffffbb" }}>Intercessão</span>
         <span className="block font-display font-bold text-base sm:text-lg text-white leading-tight">Pedido de Oração</span>
-        <span className="block text-[11px] mt-0.5" style={{ color: "#ffffffdd" }}>Toque e preencha o seu pedido — vamos orar com você.</span>
+        <span className="hidden sm:block text-[11px] mt-0.5" style={{ color: "#ffffffdd" }}>Toque e preencha o seu pedido — vamos orar com você.</span>
       </span>
-      <span className="purple-light-pulse shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
+      <span className="purple-light-pulse shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-md text-center" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
     </button>
   );
 }
@@ -1892,11 +2216,9 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
-  const [editingVisitantes, setEditingVisitantes] = useState(false);
-  const [novoNomeVisitante, setNovoNomeVisitante] = useState("");
 
   const vd = { ...DEFAULT_VISITANTES_DIA, ...(visitantesDoDia || {}) };
-  const temVisitantesHoje = vd.exibir && (vd.nomes || []).length > 0;
+  const banner = { ...DEFAULT_BANNER, ...(vd.banner || {}) };
 
   const m = { ...DEFAULT_MANCHETE, ...(manchete || {}) };
   const modo = m.modo || "auto";
@@ -1929,7 +2251,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
   const [idx, setIdx] = useState(0);
   useEffect(() => {
     if (modoEfetivo !== "novidades" || novidades.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % novidades.length), 6000);
+    const t = setInterval(() => setIdx((i) => (i + 1) % novidades.length), 14000);
     return () => clearInterval(t);
   }, [modoEfetivo, novidades.length]);
   useEffect(() => setIdx(0), [modoEfetivo]);
@@ -1954,7 +2276,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
     temAcao = !!m.link;
   }
 
-  const mostrarEscalaNaHome = dataEscalaDestaque && vd.exibirEscala && !temVisitantesHoje;
+  const mostrarEscalaNaHome = dataEscalaDestaque && vd.exibirEscala !== false;
 
   // Monta as 3 colunas de postos (3 funções cada) na ordem fixa de exibição, igual à
   // tabela-resumo da Escala de Obreiros — função em CAIXA ALTA, nome como cadastrado.
@@ -1975,22 +2297,26 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      {/* Banner "outdoor" celestial: quando está no ar, fica NO TOPO e a escala e o
+          pedido de oração descem. */}
+      <BannerCeleste banner={banner} vd={vd} adminMode={adminMode} podeGerir={adminMode || podeVisitantesDia} onDesligar={() => saveVisitantesDoDia({ ...vd, banner: { ...banner, ativo: false } })} />
       {(() => {
         const cardPedido = <PedidoOracaoTopo onClick={onPedidoOracao} />;
         const cardPix = <HeroDoacoesCard compacto data={doacoes || DEFAULT_DOACOES} bgImage={bgPix} onClick={() => {}} />;
         // Escala de Serviço (cabeçalho violeta + tabela de postos) — duas colunas: à esquerda a escala,
         // à direita Pedido de Oração (alinhado ao cabeçalho) e, abaixo, Dízimo e Oferta com Pix e QR Code.
-        if (!temVisitantesHoje && mostrarEscalaNaHome) {
+        if (mostrarEscalaNaHome) {
           return (
-            <div className="grid gap-3 lg:grid-cols-[1.8fr_1fr] lg:grid-rows-[auto_1fr]">
-              <div className="rounded-xl border-2 p-3 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ borderColor: C.gold, background: C.violet, color: "#fff" }}>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1.8fr_1fr] lg:grid-rows-[auto_1fr]">
+              {/* Título da escala (esquerda) e Pedido de Oração (direita) lado a lado — também no celular */}
+              <div className="rounded-xl border-2 p-3 sm:p-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2" style={{ borderColor: C.gold, background: C.violet, color: "#fff" }}>
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{diaSemanaDestaque}</span></div>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-base sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{diaSemanaDestaque}</span></div>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
+                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
               </div>
               {cardPedido}
-              <div className="rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
+              <div className="col-span-2 lg:col-span-1 rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
                 {gruposColunas.map((grupo, i) => (
                   <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
                     {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
@@ -2002,14 +2328,12 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
                   </div>
                 ))}
               </div>
-              {cardPix}
+              <div className="col-span-2 lg:col-span-1">{cardPix}</div>
             </div>
           );
         }
-        // Sem escala em destaque: o banner de visitantes (ou a manchete) ocupa a esquerda; os dois cards à direita.
-        const esquerda = temVisitantesHoje ? (
-          <VisitantesDiaBanner vd={vd} />
-        ) : (m.ativo || adminMode) ? (
+        // Sem escala em destaque: a manchete ocupa a esquerda; os dois cards à direita.
+        const esquerda = (m.ativo || adminMode) ? (
           <button
             onClick={aoClicar}
             className={`w-full h-full text-left rounded-lg border-2 px-4 py-3 sm:px-5 sm:py-4 transition hover:brightness-105 focus:outline-none focus:ring-2 ${temAcao ? "cursor-pointer" : "cursor-default"}`}
@@ -2055,68 +2379,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
           )}
         </div>
       )}
-      {(adminMode || podeVisitantesDia) && (
-        <div className="mt-2 p-3 rounded-lg border text-xs" style={{ borderColor: C.line, background: "#00000006" }}>
-          {!editingVisitantes ? (
-            <button onClick={() => setEditingVisitantes(true)} className="underline" style={{ color: C.stone }}>{adminMode ? "ADMIN" : "RECEPÇÃO"} · Visitantes do Dia</button>
-          ) : (
-            <div className="mt-2 space-y-3">
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={!!vd.exibir} onChange={(e) => saveVisitantesDoDia({ ...vd, exibir: e.target.checked })} />
-                  Exibir banner de visitantes (se desmarcado, a escala volta a aparecer aqui)
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={!!vd.exibirEscala} onChange={(e) => saveVisitantesDoDia({ ...vd, exibirEscala: e.target.checked })} />
-                  Exibir escala aqui na Home (a seção própria de Escala continua sempre)
-                </label>
-              </div>
-              <Field label="Mensagem de boas-vindas">
-                <textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={vd.mensagem} onChange={(e) => saveVisitantesDoDia({ ...vd, mensagem: e.target.value })} />
-              </Field>
-              <Field label="URL de áudio de fundo inspirador (opcional — mp3)">
-                <input className={inputCls} style={{ borderColor: C.line }} value={vd.audioUrl} onChange={(e) => saveVisitantesDoDia({ ...vd, audioUrl: e.target.value })} />
-              </Field>
-              <div>
-                <p className="text-xs font-mono mb-1.5" style={{ color: C.stone }}>Visitantes de hoje</p>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {(vd.nomes || []).length === 0 && <span className="text-xs italic" style={{ color: C.stone }}>Nenhum visitante cadastrado ainda.</span>}
-                  {(vd.nomes || []).map((v) => (
-                    <span key={v.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: C.gold + "33", color: C.ink }}>
-                      {v.nome}
-                      <button onClick={() => saveVisitantesDoDia({ ...vd, nomes: vd.nomes.filter((n) => n.id !== v.id) })}><X size={11} /></button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Nome do visitante"
-                    value={novoNomeVisitante}
-                    onChange={(e) => setNovoNomeVisitante(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter" || !novoNomeVisitante.trim()) return;
-                      saveVisitantesDoDia({ ...vd, nomes: [...(vd.nomes || []), { id: uid(), nome: novoNomeVisitante.trim() }] });
-                      setNovoNomeVisitante("");
-                    }}
-                    className={`${inputCls} max-w-xs`}
-                    style={{ borderColor: C.line }}
-                  />
-                  <Btn
-                    onClick={() => {
-                      if (!novoNomeVisitante.trim()) return;
-                      saveVisitantesDoDia({ ...vd, nomes: [...(vd.nomes || []), { id: uid(), nome: novoNomeVisitante.trim() }] });
-                      setNovoNomeVisitante("");
-                    }}
-                  >
-                    Adicionar
-                  </Btn>
-                </div>
-              </div>
-              <button onClick={() => setEditingVisitantes(false)} className="text-xs underline" style={{ color: C.stone }}>fechar</button>
-            </div>
-          )}
-        </div>
-      )}
+      {(adminMode || podeVisitantesDia) && <BannerAdminPanel vd={vd} save={saveVisitantesDoDia} adminMode={adminMode} />}
     </div>
   );
 }
@@ -2270,9 +2533,11 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
               onClick={() => (c.externalUrl ? window.open(c.externalUrl, "_blank", "noopener,noreferrer") : setPage(c.key))}
               adminMode={adminMode}
               corFundo={CORES_HOMECARDS[idx % CORES_HOMECARDS.length]}
+              fotoOverride={c.key === "oracoes" ? ultimaFotoEncontro(oracaoEncontros) : ""}
             />
           );
         })}
+        <VisitantesCard recentVisitors={recentVisitors} />
       </div>
 
       {adminMode && (
@@ -2280,12 +2545,6 @@ function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmis
           <HomeCardsAdmin cards={homeCards} onSave={(v) => saveSite({ ...site, homeCards: v })} />
         </div>
       )}
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-8 relative z-10 grid sm:grid-cols-3 gap-5">
-        <LiveHomeCard aoVivo={aoVivo} onClick={() => setPage("aovivo")} />
-        <CursosDestaqueCard onClick={onOpenCursos} />
-        <VisitantesCard recentVisitors={recentVisitors} />
-      </div>
 
       <section id="celulas" className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 scroll-mt-24">
         <Eyebrow><Layers size={12} className="inline mr-1" />Comunhão em pequenos grupos</Eyebrow>
@@ -8101,7 +8360,7 @@ function Estudos({ items, save, adminMode }) {
       <div className={`${GRID3} mt-6`}>
         {items.map((e) => (
           <button key={e.id} onClick={() => setSelected(e)} className="text-left rounded-lg border overflow-hidden focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
-            <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full h-32 object-cover" ph="Imagem do estudo — adicionar depois" />
+            <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full aspect-video object-cover" ph="Imagem do estudo — adicionar depois" />
             <div className="p-4">
               <p className="font-display font-semibold">{e.titulo}</p>
               <p className="text-xs font-mono mt-1" style={{ color: C.ember }}>{e.referencia}</p>
@@ -8153,8 +8412,9 @@ const VISITANTE_FIELDS = [
   { key: "local", label: "Local / culto" },
 ];
 
-function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator, embutido = false }) {
+function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator, embutido = false, onFinalizarBanner }) {
   const [modoProjecao, setModoProjecao] = useState(false);
+  const [bannerPublicado, setBannerPublicado] = useState(false);
   const [verTodosDias, setVerTodosDias] = useState(false);
   const canAccess = adminMode || operatorMode;
   const grouped = useMemo(() => {
@@ -8242,6 +8502,28 @@ function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOp
       {/* Moldura da seção Visitantes inteira — fundo creme, filete dourado */}
       <div className="rounded-2xl border-2 p-3 sm:p-4 mt-4" style={{ borderColor: C.gold, background: C.cream }}>
         <DynamicForm fields={VISITANTE_FIELDS} onSubmit={(v) => v.nome && add(v)} submitLabel="Registrar visita" />
+
+        {/* Finalizar o cadastro: o operador toca no botão e o banner celestial vai ao ar no topo da Home. */}
+        {onFinalizarBanner && (
+          <div className="mt-4 rounded-xl p-3 sm:p-4 text-center" style={{ background: `linear-gradient(135deg, ${C.violetDeep}, ${C.indigoDeep})`, border: `2px solid ${C.gold}` }}>
+            <p className="text-xs mb-2" style={{ color: "#ffffffcc" }}>
+              {visitantesHoje.length === 0 ? "Cadastre ao menos um visitante para poder finalizar." : `${visitantesHoje.length} visitante(s) cadastrado(s) hoje. Terminou? Finalize para exibir o banner de boas-vindas no topo do site.`}
+            </p>
+            <button
+              disabled={visitantesHoje.length === 0}
+              onClick={() => {
+                onFinalizarBanner(visitantesHoje.map((v) => ({ id: v.id, nome: v.nome })));
+                setBannerPublicado(true);
+                try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { /* ignora */ }
+              }}
+              className="purple-light-pulse inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold disabled:opacity-40 focus:outline-none focus:ring-2"
+              style={{ background: C.goldBright, color: C.violetDeep }}
+            >
+              <Sparkles size={16} /> Finalizar e exibir banner de boas-vindas
+            </button>
+            {bannerPublicado && <p className="text-xs mt-2 font-semibold" style={{ color: "#9EF0C0" }}>✓ Banner no ar, no topo do site (celular e computador).</p>}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mt-3">
           <Btn variant="ghost" onClick={() => setModoProjecao(true)}>
@@ -8337,6 +8619,54 @@ const ENCONTRO_FIELDS = [
 // no JSX abaixo de onde é usado).
 const CORES_COLUNAS_ORACAO = ["#FBF1DE" /* creme */, "#E7F0FB" /* azul claro */, "#FBE9F0" /* rosé claro */];
 
+// Galeria de fotos de todos os encontros de Oração nos Lares (a foto mais recente
+// primeiro). Cartões com contorno suave; toque numa foto para ampliar, ou no nome do
+// encontro para abrir a página daquele dia.
+function GaleriaEncontros({ encontros, cor, onAbrirEncontro }) {
+  const [ampliada, setAmpliada] = useState(null);
+  const [limite, setLimite] = useState(24);
+  const fotos = useMemo(() => {
+    const lista = [];
+    [...(encontros || [])]
+      .sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")))
+      .forEach((e) => {
+        [...(e.fotos || [])].reverse().forEach((f, i) => {
+          lista.push({ key: `${e.id}-${i}`, src: f, encId: e.id, legenda: `${e.anfitriao || e.titulo || "Encontro"}${e.data ? " · " + fmtDate(e.data) : ""}` });
+        });
+      });
+    return lista;
+  }, [encontros]);
+  return (
+    <div className="mb-8">
+      <p className="text-sm font-display font-semibold mb-2" style={{ color: C.ink }}>
+        Galeria dos encontros <span className="text-xs font-normal" style={{ color: C.stone }}>· {fotos.length} {fotos.length === 1 ? "foto" : "fotos"}</span>
+      </p>
+      {fotos.length === 0 ? (
+        <Empty text="As fotos dos encontros aparecerão aqui assim que forem cadastradas." />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {fotos.slice(0, limite).map((f) => (
+              <div key={f.key} className="rounded-2xl overflow-hidden bg-white" style={{ border: `1px solid ${cor}33`, boxShadow: "0 2px 12px rgba(40,30,80,0.07)" }}>
+                <button onClick={() => setAmpliada(f.src)} className="block w-full aspect-[4/3] overflow-hidden focus:outline-none focus:ring-2">
+                  <FotoKv src={f.src} alt={f.legenda} className="w-full h-full object-cover transition hover:scale-[1.03]" ph="Foto" />
+                </button>
+                <button onClick={() => onAbrirEncontro && onAbrirEncontro(f.encId)} className="block w-full text-left px-2.5 py-1.5 text-[11px] truncate" style={{ color: C.stone }} title="Abrir o encontro">{f.legenda}</button>
+              </div>
+            ))}
+          </div>
+          {fotos.length > limite && (
+            <div className="text-center mt-3">
+              <button onClick={() => setLimite((n) => n + 24)} className="text-xs font-semibold px-4 py-1.5 rounded-full" style={{ color: cor, border: `1px solid ${cor}55`, background: "#fff" }}>Ver mais fotos</button>
+            </div>
+          )}
+        </>
+      )}
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
+    </div>
+  );
+}
+
 function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminReal, operatorMode, onRequestOperator, localDia, saveLocalDia, abrirId = null, onFecharLink, compartilhar = true }) {
   // Código do setor "oracoes" = poderes completos de admin dentro de Oração nos Lares.
   const adminMode = adminReal || operatorMode;
@@ -8370,11 +8700,6 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
         <BotaoCompartilhar url={linkDireto("oracao=lares")} cor={C.purple} titulo="Orações nos Lares — Ministério Avivar do Espírito" texto="veja os encontros de oração, fotos e vídeos" rotulo="Enviar Oração nos Lares" />
       </div>}
 
-      {/* Banner reduzido pela metade — apenas ilustrativo */}
-      <div className="rounded-xl overflow-hidden border mb-4" style={{ borderColor: C.line }}>
-        <ImgOrPlaceholder url={ORACOES_BANNER} alt="Oração nos Lares" className="w-full object-cover max-h-[170px]" ph="Banner Oração nos Lares" />
-      </div>
-
       {/* Card do local de oração do dia — fundo creme, com foto e local cadastrados pelo admin/autorizado */}
       <div className="rounded-xl border p-4 mb-4 flex flex-col sm:flex-row gap-4 items-center" style={{ borderColor: C.gold, background: C.cream }}>
         <ImgOrPlaceholder url={localDia && localDia.fotoUrl} alt="Local da oração de hoje" className="w-full sm:w-48 h-36 object-cover rounded-lg flex-shrink-0" ph="Foto do local de hoje — a cadastrar" />
@@ -8399,6 +8724,9 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
           </button>
         )
       )}
+
+      {/* Galeria das fotos dos encontros — contornos suaves, sem linhas */}
+      <GaleriaEncontros encontros={encontros} cor={C.purple} onAbrirEncontro={setEncontroAbertoId} />
 
       {/* Registro dos encontros — faixa rolante: a pessoa escolhe a data e abre a página daquele
           dia (título, estudo do dia, fotos, relato). Só admin/autorizado cadastra e edita. */}
@@ -8438,7 +8766,7 @@ function OracoesLares({ items, save, encontros, saveEncontros, adminMode: adminR
         />
       )}
 
-      <div className="mt-12 pt-8 border-t" style={{ borderColor: C.line }}>
+      <div className="mt-12 pt-2">
         {canManageAgenda ? (
           <>
             <p className="text-sm mt-2 mb-2" style={{ color: C.stone }}>Peça oração ou solicite uma visita de intercessão em sua casa.</p>
@@ -8738,7 +9066,18 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
     saveRepertorio(repertorio.map((c) => (c.id === cultoId ? { ...c, musicas: c.musicas.filter((m) => m.id !== musicaId) } : c)));
 
   const addMusico = (v) => saveMusicos([...musicos, { id: uid(), ...v }]);
-  const delMusico = (id) => saveMusicos(musicos.filter((m) => m.id !== id));
+  const delMusico = (m) => {
+    if (!window.confirm(`Remover ${m.nome} do grupo?`)) return;
+    saveMusicos(musicos.filter((x) => x.id !== m.id));
+    if (editMusicoId === m.id) setEditMusicoId(null);
+  };
+  // Corrigir os dados de um membro já cadastrado (nome, foto, instrumento, cantor, disponibilidade).
+  const [editMusicoId, setEditMusicoId] = useState(null);
+  const salvarMusico = (id, v) => {
+    if (!v.nome || !v.nome.trim()) return;
+    saveMusicos(musicos.map((m) => (m.id === id ? { ...m, ...v, nome: v.nome.trim() } : m)));
+    setEditMusicoId(null);
+  };
 
   const addAlbum = (v) => v.titulo && saveAlbuns([...(albuns || []), { id: uid(), ...v }]);
   const delAlbum = (id) => saveAlbuns((albuns || []).filter((a) => a.id !== id));
@@ -8861,22 +9200,38 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
                 {m.fotoUrl && (
                   <img src={m.fotoUrl} alt={m.nome} className="rounded-md object-cover flex-shrink-0" style={{ width: "3cm", height: "4cm" }} />
                 )}
-                <div className="flex justify-between items-start flex-1">
+                <div className="flex justify-between items-start flex-1 gap-2">
                   <div>
                     <p className="font-display font-semibold">{m.nome}</p>
                     <p className="text-xs" style={{ color: C.ember }}>{m.instrumento}</p>
                     {m.cantor === "Sim" && <p className="text-xs" style={{ color: C.stone }}>Também canta</p>}
                     {m.disponibilidade && <p className="text-xs mt-1" style={{ color: C.stone }}>Disponibilidade: {m.disponibilidade}</p>}
                   </div>
-                  {adminMode && <button onClick={() => delMusico(m.id)}><Trash2 size={14} color={C.stone} /></button>}
+                  {canManage && (
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <button onClick={() => setEditMusicoId(editMusicoId === m.id ? null : m.id)} title="Corrigir dados" aria-label="Corrigir dados do músico"><Pencil size={14} color={C.violet} /></button>
+                      <button onClick={() => delMusico(m)} title="Remover do grupo" aria-label="Remover músico"><Trash2 size={14} color="#B03428" /></button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+          {canManage && editMusicoId && (() => {
+            const m = musicos.find((x) => x.id === editMusicoId);
+            if (!m) return null;
+            return (
+              <div className="mt-6">
+                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Corrigindo: {m.nome}</p>
+                <DynamicForm key={m.id} fields={MUSICO_FIELDS} initial={m} submitLabel="Salvar correções" onSubmit={(v) => salvarMusico(m.id, v)} />
+                <button onClick={() => setEditMusicoId(null)} className="text-xs underline mt-2" style={{ color: C.stone }}>cancelar</button>
+              </div>
+            );
+          })()}
           <div className="mt-8">
             {canManage ? (
               <>
-                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · Cadastro de músico</p>
+                <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>Inserir novo membro do grupo</p>
                 <DynamicForm fields={MUSICO_FIELDS} onSubmit={(v) => v.nome && addMusico(v)} submitLabel="Cadastrar" />
               </>
             ) : (
@@ -9759,7 +10114,16 @@ function AmEquipe({ t, dados, salvar, musicosGrupo }) {
     setF({ nome: "", instrumento: "", email: "" });
   };
   const upd = (id, patch, acao) => salvar(amAud({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) }, acao));
-  const excluir = (a) => salvar(amAud({ ...dados, acessos: acessos.filter((x) => x.id !== a.id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== a.id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== a.id), favoritos: (dados.favoritos || []).filter((x) => x.musicoId !== a.id), preparacao: (dados.preparacao || []).filter((x) => x.musicoId !== a.id) }, `Músico excluído: ${a.nome}`));
+  const [editId, setEditId] = useState(null);
+  const [ef, setEf] = useState({ nome: "", instrumento: "", email: "" });
+  const abrirEdicao = (a) => { setEditId(a.id); setEf({ nome: a.nome || "", instrumento: a.instrumento || "", email: a.email || "" }); };
+  const salvarEdicao = (a) => {
+    if (!ef.nome.trim()) return;
+    upd(a.id, { nome: ef.nome.trim(), instrumento: ef.instrumento.trim(), email: ef.email.trim() }, `Músico corrigido: ${ef.nome.trim()}`);
+    setEditId(null);
+  };
+  const excluir = (a) => { if (!window.confirm(`Excluir ${a.nome} da equipe? Isso também remove as escalas e a disponibilidade dessa pessoa.`)) return; excluirSemPerguntar(a); };
+  const excluirSemPerguntar = (a) => salvar(amAud({ ...dados, acessos: acessos.filter((x) => x.id !== a.id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== a.id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== a.id), favoritos: (dados.favoritos || []).filter((x) => x.musicoId !== a.id), preparacao: (dados.preparacao || []).filter((x) => x.musicoId !== a.id) }, `Músico excluído: ${a.nome}`));
   const copiar = (c) => { try { navigator.clipboard.writeText(c); } catch (e) { /* sem área de transferência */ } setCopiado(c); };
   const convite = (a) => `Paz do Senhor, ${a.nome.split(" ")[0]}! Seu acesso ao Avivar Music: abra avivardoespirito.com.br, entre em Avivar Music > "Primeiro acesso" e use o código ${a.codigo} para criar sua senha.`;
   const importar = () => {
@@ -9797,8 +10161,24 @@ function AmEquipe({ t, dados, salvar, musicosGrupo }) {
               <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
               <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
             </div>
-            <button aria-label="Excluir músico" onClick={() => excluir(a)} className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+            <div className="flex gap-1.5 shrink-0">
+              <button aria-label="Corrigir dados do músico" onClick={() => (editId === a.id ? setEditId(null) : abrirEdicao(a))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.accent }}><Pencil size={15} /></button>
+              <button aria-label="Excluir músico" onClick={() => excluir(a)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
+            </div>
           </div>
+          {editId === a.id && (
+            <div className="mt-3">
+              <div className="grid sm:grid-cols-3 gap-2">
+                <AmInput t={t} placeholder="Nome" value={ef.nome} onChange={(e) => setEf({ ...ef, nome: e.target.value })} />
+                <AmInput t={t} placeholder="Instrumento principal" value={ef.instrumento} onChange={(e) => setEf({ ...ef, instrumento: e.target.value })} />
+                <AmInput t={t} type="email" placeholder="E-mail (opcional)" value={ef.email} onChange={(e) => setEf({ ...ef, email: e.target.value })} />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <AmBotao t={t} onClick={() => salvarEdicao(a)}><Save size={15} /> Salvar correções</AmBotao>
+                <AmBotao t={t} tom="suave" onClick={() => setEditId(null)}>Cancelar</AmBotao>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 mt-3">
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
             <a href={`https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
@@ -10257,6 +10637,7 @@ export default function App() {
     // abrem como página cheia própria (mesmo padrão da Unidade Avivar/Cursos).
     if (key === "aovivo") { setPaginaAvivarNewsTVOpen(true); return; }
     if (key === "avivarmusic") { setPaginaAvivarMusicOpen(true); return; }
+    if (key === "oracoes") { setPaginaOracaoOpen(true); return; }
     setPage(key);
     requestAnimationFrame(() => {
       const el = document.getElementById(key);
@@ -10320,6 +10701,8 @@ export default function App() {
   // "caixa" (finanças) nunca vem em "todos": precisa estar marcado explicitamente no código do operador.
   const podeSetor = (setor) => adminMode || (!!operatorAuth && ((setor !== "caixa" && operatorAuth.setores.includes("todos")) || operatorAuth.setores.includes(setor)));
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
+  // Oração nos Lares abre como página própria (não rola mais a Home); ?oracao=... também.
+  const [paginaOracaoOpen, setPaginaOracaoOpen] = useState(() => !!new URLSearchParams(window.location.search).get("oracao"));
   const [operatorCodes, setOperatorCodes] = useState([]);
   // Sessão do Coordenador/Líder das Células (senha gerada pelo admin) — vale para todas as páginas de célula.
   const [celulaAuth, setCelulaAuth] = useState(null);
@@ -10348,6 +10731,12 @@ export default function App() {
   const [avivarKids, setAvivarKids] = useState([]);
   const [lideranca, setLideranca] = useState(DEFAULT_LIDERANCA);
   const [visitantesDoDia, setVisitantesDoDia] = useState(DEFAULT_VISITANTES_DIA);
+  // Operador toca em "Finalizar" no cadastro de visitantes: o banner celestial vai ao ar.
+  const finalizarBannerVisitantes = (nomes) => {
+    const vd0 = { ...DEFAULT_VISITANTES_DIA, ...(visitantesDoDia || {}) };
+    const dur = vd0.duracaoHoras === undefined ? 12 : Number(vd0.duracaoHoras);
+    persist.visitantesDoDia({ ...vd0, banner: { ...DEFAULT_BANNER, ativo: true, tipo: "visitantes", nomes, inicio: new Date().toISOString(), duracaoHoras: dur } });
+  };
   const [estudos, setEstudos] = useState([]);
   const [avivarNews, setAvivarNews] = useState([]);
   const [visitantes, setVisitantes] = useState([]);
@@ -10468,12 +10857,7 @@ export default function App() {
   }, []);
 
   // Link direto de Oração nos Lares (?oracao=...): depois de carregar, rola até a seção.
-  useEffect(() => {
-    if (loading || !oracaoLinkId) return;
-    setPage("oracoes");
-    const t = setTimeout(() => { const el = document.getElementById("oracoes"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 350);
-    return () => clearTimeout(t);
-  }, [loading]);
+  // (agora abre a página própria — o estado inicial de paginaOracaoOpen já cuida disso)
 
   // Semeadura única de conteúdo inicial (reportagens de Códigos Avivar, eventos, etc.)
   // — usa a flag avivar:seeds pra nunca duplicar, mesmo que a página recarregue várias vezes,
@@ -11261,7 +11645,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-samaritano",
             titulo: "O Bom Samaritano: amor que atravessa barreiras",
             referencia: "Lucas 10:25-37",
-            imageUrl: "",
+            imageUrl: "/estudo-bom-samaritano.jpg",
             conteudo:
               "Um mestre da lei pergunta a Jesus quem é o seu próximo, esperando talvez uma resposta que limitasse seu dever de amar. Jesus responde com uma história: um homem é espancado e deixado à beira do caminho; um sacerdote e um levita — pessoas religiosas, que conheciam a Lei — passam de largo. Quem para para ajudar é um samaritano, alguém que os judeus da época tratavam com desprezo.\n\nA parábola vira a pergunta original de cabeça para baixo. Em vez de responder \"quem é meu próximo\", Jesus mostra o que significa \"ser\" próximo de alguém: enxergar a dor concreta de quem está diante de nós, mesmo quando isso custa tempo, dinheiro e conforto. O samaritano cuida do ferido, paga sua estadia numa hospedaria e promete voltar — misericórdia prática, não apenas sentimento.\n\nPara a vida da igreja hoje, o convite permanece o mesmo: o amor cristão não escolhe quem merece ser ajudado com base em religião, nacionalidade ou aparência. Ele se define pela disposição de parar o que se está fazendo diante da necessidade real de alguém — vizinho, estranho ou até quem normalmente rejeitaríamos.",
           },
@@ -11270,7 +11654,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-videira",
             titulo: "A Videira e os Ramos: permanecer em Cristo",
             referencia: "João 15:1-8",
-            imageUrl: "",
+            imageUrl: "/estudo-videira-ramos.jpg",
             conteudo:
               "Na véspera da cruz, Jesus usa uma imagem simples e conhecida de seus discípulos: Ele é a videira verdadeira, o Pai é o agricultor, e nós somos os ramos. Um ramo separado da videira não tem vida própria — ele simplesmente seca. É uma imagem de dependência, não de esforço isolado.\n\nJesus repete o verbo \"permanecer\" várias vezes nessa passagem: permanecer nEle é a condição para dar fruto. Isso muda a forma como entendemos a vida espiritual — ela não é primariamente sobre produzir resultados por conta própria, mas sobre manter uma ligação viva e constante com Cristo, através da oração, da Palavra e da obediência, deixando que a seiva da graça sustente o que fazemos.\n\nO agricultor também poda os ramos que já dão fruto, para que deem mais fruto ainda — um lembrete de que até o crescimento espiritual maduro passa por momentos de corte e ajuste na mão de Deus. O convite da passagem é simples e prático: antes de tentar produzir mais para Deus, verifique se está genuinamente permanecendo nEle.",
           },
@@ -11279,7 +11663,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-frutoespirito",
             titulo: "O Fruto do Espírito: uma vida transformada",
             referencia: "Gálatas 5:22-23",
-            imageUrl: "",
+            imageUrl: "/estudo-fruto-espirito.jpg",
             conteudo:
               "Paulo escreve aos gálatas contrastando as \"obras da carne\" com o \"fruto do Espírito\" — não os \"frutos\", no plural, mas um único fruto com várias características: amor, alegria, paz, paciência, amabilidade, bondade, fidelidade, mansidão e domínio próprio. É um conjunto integrado, o retrato do caráter que o Espírito Santo forma em quem anda com Ele.\n\nDiferente de um dom espiritual, que pode variar de pessoa para pessoa, o fruto do Espírito é o resultado esperado na vida de todo cristão — assim como uma árvore saudável naturalmente produz fruto, sem se esforçar artificialmente por isso. O texto sugere que esse caráter cresce organicamente à medida que vivemos em comunhão com o Espírito, não como uma lista de regras a cumprir por força de vontade.\n\nÉ um convite ao exame honesto: não se trata de perguntar quantos dons espirituais alguém tem, mas se amor, paz e domínio próprio estão de fato aparecendo no dia a dia — em casa, no trabalho, na igreja. Onde falta fruto, a resposta bíblica não é tentar mais, mas permanecer mais perto da fonte.",
           },
@@ -11289,6 +11673,25 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         saveKey("avivar:estudos", mergedEstudos);
       }
       todo.estudos1 = true;
+    }
+    // Fotos dos 3 primeiros Estudos Bíblicos (arquivos em public/). Só preenche a imagem
+    // dos estudos semeados que ainda estão sem foto — nunca sobrescreve uma foto trocada.
+    if (!seeds.estudosFotos1) {
+      const FOTOS_ESTUDO = {
+        "estudo-samaritano": "/estudo-bom-samaritano.jpg",
+        "estudo-videira": "/estudo-videira-ramos.jpg",
+        "estudo-frutoespirito": "/estudo-fruto-espirito.jpg",
+      };
+      let mudouEstudo = false;
+      const estudosComFoto = (estudos || []).map((e) => {
+        if (e.seedId && FOTOS_ESTUDO[e.seedId] && !e.imageUrl) { mudouEstudo = true; return { ...e, imageUrl: FOTOS_ESTUDO[e.seedId] }; }
+        return e;
+      });
+      if (mudouEstudo) {
+        setEstudos(estudosComFoto);
+        saveKey("avivar:estudos", estudosComFoto);
+      }
+      todo.estudosFotos1 = true;
     }
     if (!seeds.escalaObreiros1) {
       // Obreiros/postos/horários padrão da Escala de Obreiros — só populam se o
@@ -11984,6 +12387,45 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     // de volta pro site normal, sem forçar atualização de estado durante o render.
   }
 
+  // Oração nos Lares — página própria (voltar, galeria de fotos dos encontros, agenda e formulários).
+  if (paginaOracaoOpen) {
+    const fecharOracao = () => { setPaginaOracaoOpen(false); limparLinkDireto(); };
+    return (
+      <div className="min-h-screen font-body" style={{ background: C.parchment, color: C.ink }}>
+        <header className="sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+            <button onClick={fecharOracao} className="flex items-center gap-2 text-sm focus:outline-none focus:ring-2 rounded-md" style={{ color: C.goldBright }}>
+              <ArrowLeft size={16} /> Voltar ao site
+            </button>
+            <div className="flex items-center gap-2">
+              <img src={LOGO_ICON} alt="" className="h-9 w-auto rounded" />
+              <span className="font-display font-semibold text-sm hidden sm:inline" style={{ color: "#fff" }}>Oração nos Lares</span>
+            </div>
+          </div>
+        </header>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+          <SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={(k) => { setPaginaOracaoOpen(false); limparLinkDireto(); scrollToSection(k); }} />
+        </div>
+        <OracoesLares abrirId={oracaoLinkId} onFecharLink={limparLinkDireto} items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10">
+          <button onClick={fecharOracao} className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button>
+        </div>
+        {operatorGateOpen && (
+          <OperatorGateModal
+            setor="oracoes"
+            operatorCodes={operatorCodes}
+            onClose={() => setOperatorGateOpen(false)}
+            onSuccess={(auth) => {
+              setOperatorAuth(auth);
+              setOperatorGateOpen(false);
+              registrarAcessoOperador(auth.id, "Acesso ao site");
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
   // Página "Cursos dos Códigos Avivar" — abre em tela cheia, sem rolar a home.
   if (paginaCursosOpen) {
     return <PaginaCursos onVoltar={() => setPaginaCursosOpen(false)} />;
@@ -12088,6 +12530,31 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(225,77,58,0.6); } 50% { box-shadow: 0 0 0 8px rgba(225,77,58,0); } }
         .live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
+        /* ---- Banner outdoor celestial ---- */
+        .bn-wrap { background: radial-gradient(ellipse at 50% -10%, #5b3fa8 0%, #2a1b66 40%, #120a38 100%); border: 2px solid #FFD66B; box-shadow: 0 0 22px #FFD66B88, 0 0 60px #7f5af055, inset 0 0 40px #00000066; animation: bnBorder 3s ease-in-out infinite; }
+        @keyframes bnBorder { 0%,100% { box-shadow: 0 0 18px #FFD66B77, 0 0 50px #7f5af044, inset 0 0 40px #00000066; } 50% { box-shadow: 0 0 34px #FFE9A8cc, 0 0 80px #9b7bff88, inset 0 0 40px #00000066; } }
+        .bn-rays { position: absolute; top: -90%; left: 50%; width: 220%; aspect-ratio: 1/1; transform: translateX(-50%); background: repeating-conic-gradient(from 0deg, rgba(255,240,170,0.34) 0deg 5deg, rgba(255,240,170,0) 5deg 15deg); -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 62%); mask-image: radial-gradient(circle, #000 0%, transparent 62%); animation: bnSpin 60s linear infinite; pointer-events: none; }
+        @keyframes bnSpin { to { transform: translateX(-50%) rotate(360deg); } }
+        .bn-halo { position: absolute; top: -30%; left: 50%; width: 70%; height: 90%; transform: translateX(-50%); background: radial-gradient(ellipse at 50% 30%, rgba(255,246,200,0.75), rgba(255,214,107,0.25) 40%, transparent 70%); animation: bnHalo 4s ease-in-out infinite; pointer-events: none; }
+        @keyframes bnHalo { 0%,100% { opacity: 0.65; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.12); } }
+        .bn-star { position: absolute; border-radius: 9999px; background: #fff; box-shadow: 0 0 6px 2px #fff8d0; animation: bnTwinkle 3s ease-in-out infinite; pointer-events: none; }
+        @keyframes bnTwinkle { 0%,100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.4); } }
+        .bn-bulbs { position: absolute; left: 10px; right: 10px; display: flex; justify-content: space-between; z-index: 5; pointer-events: none; }
+        .bn-bulbs-top { top: 6px; } .bn-bulbs-bottom { bottom: 6px; }
+        .bn-bulb { width: 8px; height: 8px; border-radius: 9999px; background: #FFE9A8; box-shadow: 0 0 8px 3px #FFD66B; animation: bnBulb 1.2s ease-in-out infinite; }
+        @keyframes bnBulb { 0%,100% { opacity: 1; background: #FFF7D0; } 50% { opacity: 0.2; background: #b8892b; box-shadow: 0 0 2px 0 #FFD66B; } }
+        .bn-shimmer { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.28) 50%, transparent 65%); background-size: 250% 100%; animation: bnShimmer 5s linear infinite; pointer-events: none; z-index: 6; mix-blend-mode: screen; }
+        @keyframes bnShimmer { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+        .bn-kicker { color: #FFE9A8; text-shadow: 0 0 8px #FFD66B; animation: bnFlick 2.6s infinite; }
+        .bn-sub { color: #fff; text-shadow: 0 0 10px #c9b3ff; }
+        .bn-neon { color: #fff; text-shadow: 0 0 6px #fff, 0 0 14px #FFE9A8, 0 0 28px #FFD66B, 0 0 48px #b78bff; animation: bnNeon 2.8s ease-in-out infinite; }
+        .bn-neon-suave { color: #FFF3C4; text-shadow: 0 0 8px #FFD66B, 0 0 22px #b78bff; }
+        @keyframes bnNeon { 0%,100% { text-shadow: 0 0 6px #fff, 0 0 14px #FFE9A8, 0 0 28px #FFD66B, 0 0 48px #b78bff; } 50% { text-shadow: 0 0 10px #fff, 0 0 26px #FFF3C4, 0 0 54px #FFD66B, 0 0 90px #b78bff; } 92% { opacity: 1; } 94% { opacity: 0.82; } 96% { opacity: 1; } }
+        @keyframes bnFlick { 0%,100% { opacity: 1; } 45% { opacity: 1; } 47% { opacity: 0.45; } 50% { opacity: 1; } }
+        .bn-nome { background: linear-gradient(135deg, #FFF3C4, #FFD66B); color: #2a1b66; box-shadow: 0 0 12px #FFD66Baa; animation: visitantePulse 1.8s ease-in-out infinite; }
+        .bn-aberto { background: rgba(10,5,40,0.62); border: 1px solid #FFE9A8aa; box-shadow: 0 0 24px #7f5af066, inset 0 0 20px #ffffff14; animation: bnAbrir 0.5s ease-out; }
+        @keyframes bnAbrir { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .bn-wrap, .bn-rays, .bn-halo, .bn-star, .bn-bulb, .bn-shimmer, .bn-kicker, .bn-neon, .bn-nome, .bn-aberto { animation: none; } }
         @keyframes visitantePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.06); } }
         .visitante-pulse { animation: visitantePulse 1.8s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .visitante-pulse { animation: none; } }
@@ -12099,7 +12566,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         .marquee-track { animation: marquee 14s linear infinite; }
         @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
         @keyframes noticiasMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .noticias-marquee { animation: noticiasMarquee 90s linear infinite; width: max-content; }
+        .noticias-marquee { animation: noticiasMarquee 200s linear infinite; width: max-content; }
         .noticias-marquee:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) { .noticias-marquee { animation: none; } }
       `}</style>
@@ -12119,11 +12586,11 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             independentes entre si, cada um com o seu próprio controle de acesso. */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-8 items-start">
           <section id="escala" className="scroll-mt-24 lg:col-span-2 min-w-0"><div className="pt-4"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="escala" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><EscalaObreiros embutido data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-          <section id="visitantes" className="scroll-mt-24 min-w-0"><div className="pt-4 lg:invisible"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes embutido items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+          <section id="visitantes" className="scroll-mt-24 min-w-0"><div className="pt-4 lg:invisible"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes embutido onFinalizarBanner={finalizarBannerVisitantes} items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         </div>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
-        <section id="oracoes" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="oracoes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><OracoesLares abrirId={oracaoLinkId} onFecharLink={limparLinkDireto} items={oracoes} save={persist.oracoes} encontros={oracaoEncontros} saveEncontros={persist.oracaoEncontros} adminMode={adminMode} operatorMode={podeSetor("oracoes")} onRequestOperator={() => setOperatorGateOpen(true)} localDia={oracaoLocalDia} saveLocalDia={persist.oracaoLocalDia} /></section>
+
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /><PrestacaoPublica area="membros" items={caixa} extra={caixaExtra} /></section>
         <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="caixa" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Caixa items={caixa} save={persist.caixa} extra={caixaExtra} saveExtra={persist.caixaExtra} adminMode={adminMode || podeSetor("caixa")} operador={operatorAuth?.nome || "Administração"} cidadePadrao={doacoes?.cidade || ""} /></section>
@@ -12159,6 +12626,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       )}
       {operatorGateOpen && (
         <OperatorGateModal
+          setor={page}
           operatorCodes={operatorCodes}
           onClose={() => setOperatorGateOpen(false)}
           onSuccess={(auth) => {
