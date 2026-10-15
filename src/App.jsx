@@ -11472,7 +11472,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-samaritano",
             titulo: "O Bom Samaritano: amor que atravessa barreiras",
             referencia: "Lucas 10:25-37",
-            imageUrl: "/estudo-bom-samaritano.jpg",
+            imageUrl: "/17-estudo-bom-samaritano.jpg",
             conteudo:
               "Um mestre da lei pergunta a Jesus quem é o seu próximo, esperando talvez uma resposta que limitasse seu dever de amar. Jesus responde com uma história: um homem é espancado e deixado à beira do caminho; um sacerdote e um levita — pessoas religiosas, que conheciam a Lei — passam de largo. Quem para para ajudar é um samaritano, alguém que os judeus da época tratavam com desprezo.\n\nA parábola vira a pergunta original de cabeça para baixo. Em vez de responder \"quem é meu próximo\", Jesus mostra o que significa \"ser\" próximo de alguém: enxergar a dor concreta de quem está diante de nós, mesmo quando isso custa tempo, dinheiro e conforto. O samaritano cuida do ferido, paga sua estadia numa hospedaria e promete voltar — misericórdia prática, não apenas sentimento.\n\nPara a vida da igreja hoje, o convite permanece o mesmo: o amor cristão não escolhe quem merece ser ajudado com base em religião, nacionalidade ou aparência. Ele se define pela disposição de parar o que se está fazendo diante da necessidade real de alguém — vizinho, estranho ou até quem normalmente rejeitaríamos.",
           },
@@ -11481,7 +11481,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-videira",
             titulo: "A Videira e os Ramos: permanecer em Cristo",
             referencia: "João 15:1-8",
-            imageUrl: "/estudo-videira-ramos.jpg",
+            imageUrl: "/18-estudo-videira-ramos.jpg",
             conteudo:
               "Na véspera da cruz, Jesus usa uma imagem simples e conhecida de seus discípulos: Ele é a videira verdadeira, o Pai é o agricultor, e nós somos os ramos. Um ramo separado da videira não tem vida própria — ele simplesmente seca. É uma imagem de dependência, não de esforço isolado.\n\nJesus repete o verbo \"permanecer\" várias vezes nessa passagem: permanecer nEle é a condição para dar fruto. Isso muda a forma como entendemos a vida espiritual — ela não é primariamente sobre produzir resultados por conta própria, mas sobre manter uma ligação viva e constante com Cristo, através da oração, da Palavra e da obediência, deixando que a seiva da graça sustente o que fazemos.\n\nO agricultor também poda os ramos que já dão fruto, para que deem mais fruto ainda — um lembrete de que até o crescimento espiritual maduro passa por momentos de corte e ajuste na mão de Deus. O convite da passagem é simples e prático: antes de tentar produzir mais para Deus, verifique se está genuinamente permanecendo nEle.",
           },
@@ -11490,7 +11490,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             seedId: "estudo-frutoespirito",
             titulo: "O Fruto do Espírito: uma vida transformada",
             referencia: "Gálatas 5:22-23",
-            imageUrl: "/estudo-fruto-espirito.jpg",
+            imageUrl: "/19-estudo-fruto-espirito.jpg",
             conteudo:
               "Paulo escreve aos gálatas contrastando as \"obras da carne\" com o \"fruto do Espírito\" — não os \"frutos\", no plural, mas um único fruto com várias características: amor, alegria, paz, paciência, amabilidade, bondade, fidelidade, mansidão e domínio próprio. É um conjunto integrado, o retrato do caráter que o Espírito Santo forma em quem anda com Ele.\n\nDiferente de um dom espiritual, que pode variar de pessoa para pessoa, o fruto do Espírito é o resultado esperado na vida de todo cristão — assim como uma árvore saudável naturalmente produz fruto, sem se esforçar artificialmente por isso. O texto sugere que esse caráter cresce organicamente à medida que vivemos em comunhão com o Espírito, não como uma lista de regras a cumprir por força de vontade.\n\nÉ um convite ao exame honesto: não se trata de perguntar quantos dons espirituais alguém tem, mas se amor, paz e domínio próprio estão de fato aparecendo no dia a dia — em casa, no trabalho, na igreja. Onde falta fruto, a resposta bíblica não é tentar mais, mas permanecer mais perto da fonte.",
           },
@@ -11503,22 +11503,28 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     }
     // Fotos dos 3 primeiros Estudos Bíblicos (arquivos em public/). Só preenche a imagem
     // dos estudos semeados que ainda estão sem foto — nunca sobrescreve uma foto trocada.
-    if (!seeds.estudosFotos1) {
+    if (!seeds.estudosFotos2) {
       const FOTOS_ESTUDO = {
+        "estudo-samaritano": "/17-estudo-bom-samaritano.jpg",
+        "estudo-videira": "/18-estudo-videira-ramos.jpg",
+        "estudo-frutoespirito": "/19-estudo-fruto-espirito.jpg",
+      };
+      // Nomes usados na v75–v78 (sem o número) — troca pelos nomes que estão no GitHub.
+      const FOTOS_ANTIGAS = {
         "estudo-samaritano": "/estudo-bom-samaritano.jpg",
         "estudo-videira": "/estudo-videira-ramos.jpg",
         "estudo-frutoespirito": "/estudo-fruto-espirito.jpg",
       };
       let mudouEstudo = false;
       const estudosComFoto = (estudos || []).map((e) => {
-        if (e.seedId && FOTOS_ESTUDO[e.seedId] && !e.imageUrl) { mudouEstudo = true; return { ...e, imageUrl: FOTOS_ESTUDO[e.seedId] }; }
+        if (e.seedId && FOTOS_ESTUDO[e.seedId] && (!e.imageUrl || e.imageUrl === FOTOS_ANTIGAS[e.seedId])) { mudouEstudo = true; return { ...e, imageUrl: FOTOS_ESTUDO[e.seedId] }; }
         return e;
       });
       if (mudouEstudo) {
         setEstudos(estudosComFoto);
         saveKey("avivar:estudos", estudosComFoto);
       }
-      todo.estudosFotos1 = true;
+      todo.estudosFotos2 = true;
     }
     if (!seeds.escalaObreiros1) {
       // Obreiros/postos/horários padrão da Escala de Obreiros — só populam se o
