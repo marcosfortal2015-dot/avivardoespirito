@@ -10469,6 +10469,11 @@ function carregarYTApi() {
   return _ytApiPromessa;
 }
 
+function AmLogoImg({ tam = 36 }) {
+  const [falhou, setFalhou] = useState(false);
+  if (falhou) return <Music size={20} color="#D6B46A" />;
+  return <img src="/28-avivar-music-icone.png" alt="" width={tam} height={tam} onError={() => setFalhou(true)} className="rounded-xl shrink-0" style={{ width: tam, height: tam }} />;
+}
 function AmMiniatura({ url, t, tam = 56 }) {
   const [falhou, setFalhou] = useState(false);
   const src = ytThumb(url);
@@ -10613,9 +10618,10 @@ function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, s
   const saudacao = nome ? `Paz do Senhor, ${nome}!` : lider ? "Paz do Senhor, liderança!" : "Paz do Senhor!";
   return (
     <div className="space-y-4">
-      <div>
-        <p className="font-display text-2xl font-bold" style={{ color: t.ink }}>{saudacao}</p>
-        <p className="text-sm" style={{ color: t.dim }}>{lider ? "Você pode editar tudo aqui." : musico ? "Veja sua escala e confirme sua presença." : "Acompanhe os cultos, o repertório e a equipe do louvor."}</p>
+      <div className="relative rounded-2xl overflow-hidden px-5 py-8 sm:py-12 text-white shadow-md" style={{ background: "linear-gradient(90deg,rgba(42,12,69,.92) 0%,rgba(58,18,96,.72) 55%,rgba(58,18,96,.25) 100%), url(/27-avivar-music-capa.jpg) center / cover, linear-gradient(135deg,#5B2394,#3A1260)", border: "1px solid #D6B46A88" }}>
+        <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Avivar Music · Ministério Avivar do Espírito</p>
+        <p className="font-display text-2xl sm:text-3xl font-bold mt-1">{saudacao}</p>
+        <p className="text-sm mt-1 text-white/85 max-w-md">{lider ? "Você pode editar tudo aqui." : musico ? "Veja sua escala e confirme sua presença." : "Acompanhe os cultos, o repertório e a equipe do louvor."}</p>
       </div>
 
       {lider && (
@@ -11240,7 +11246,7 @@ function AvivarMusicHomeCard({ musicApp, onOpen }) {
   const itens = (pl ? pl.itens || [] : amItensDoCulto(dados, ev)).slice(0, 3);
   const pres = ev ? amResumoPresenca(dados, ev) : null;
   return (
-    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "1px solid #D6B46A88" }}>
+    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(160deg,rgba(91,35,148,.82) 0%,rgba(58,18,96,.9) 75%), url(/27-avivar-music-capa.jpg) 68% center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "1px solid #D6B46A88" }}>
       <div className="px-4 pt-4 pb-3 flex items-center gap-3">
         <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#D6B46A22", border: "1px solid #D6B46A99" }}><Music size={20} color="#D6B46A" /></span>
         <div className="min-w-0">
@@ -11256,7 +11262,13 @@ function AvivarMusicHomeCard({ musicApp, onOpen }) {
             <p className="text-xs text-white/80">{amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
             {pres && pres.total > 0 && <p className="text-[11px] mt-1 text-white/80">{pres.confirmados} confirmados · {pres.pendentes} pendentes</p>}
           </>
-        ) : <p className="text-xs text-white/75 mt-0.5">Nenhum culto agendado.</p>}
+        ) : (
+          <div className="mt-1">
+            <p className="text-xs text-white/80">Nenhum culto agendado ainda.</p>
+            <p className="font-display font-bold text-lg leading-snug mt-6" style={{ color: "#F3DFA2" }}>Louvor que aviva o Espírito</p>
+            <p className="text-xs text-white/75 mt-1.5">Repertório, playlists, escalas e a equipe do ministério de louvor — tudo em um só lugar.</p>
+          </div>
+        )}
         {itens.length > 0 && (
           <div className="mt-3">
             <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Louvores</p>
@@ -11610,7 +11622,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
         <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5">
           <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao site</span><span className="sm:hidden">Site</span></button>
           <div className="flex items-center gap-2.5 min-w-0">
-            <Music size={20} color="#D6B46A" />
+            <AmLogoImg tam={38} />
             <div className="leading-tight min-w-0">
               <p className="font-display text-sm sm:text-base font-bold text-white truncate">Avivar Music</p>
               <p className="text-[10px] sm:text-[11px] truncate" style={{ color: "#E8D9B0" }}>Ministério Avivar do Espírito</p>
