@@ -11245,10 +11245,10 @@ function AvivarMusicHomeCard({ onOpen }) {
       onClick={onOpen}
       aria-label="Abrir Avivar Music"
       className="am-card-pulso relative block w-full h-full min-h-[190px] rounded-2xl overflow-hidden text-left focus:outline-none focus:ring-4 focus:ring-yellow-300/70"
-      style={{ background: "linear-gradient(180deg,rgba(42,12,69,.35) 0%,rgba(42,12,69,0) 30%,rgba(42,12,69,0) 70%,rgba(42,12,69,.35) 100%), url(/34-avivar-music-capa-v2.jpg) 66% center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "2px solid #D6B46A" }}
+      style={{ background: "linear-gradient(180deg,rgba(42,12,69,.35) 0%,rgba(42,12,69,0) 30%,rgba(42,12,69,0) 70%,rgba(42,12,69,.35) 100%), url(/37-avivar-music-quadro.jpg) center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "2px solid #D6B46A" }}
     >
       <style>{`@keyframes amCardPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(214,180,106,.6), 0 4px 18px rgba(53,16,82,.35); filter: brightness(1); } 50% { box-shadow: 0 0 0 11px rgba(214,180,106,0), 0 6px 28px rgba(214,180,106,.5); filter: brightness(1.14); } } .am-card-pulso { animation: amCardPulso 2.4s ease-in-out infinite; transition: transform .2s; } .am-card-pulso:hover { transform: scale(1.015); animation-play-state: paused; box-shadow: 0 0 0 4px rgba(214,180,106,.7), 0 6px 28px rgba(214,180,106,.55); filter: brightness(1.12); } @media (prefers-reduced-motion: reduce) { .am-card-pulso { animation: none; } }`}</style>
-      <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: "rgba(42,12,69,.72)", border: "1px solid #D6B46A99" }}>
+      <span className="absolute left-1/2 -translate-x-1/2 bottom-3 inline-flex items-center gap-2 rounded-full pl-1.5 pr-4 py-1.5 whitespace-nowrap" style={{ background: "linear-gradient(180deg,#F0443A 0%,#C8201A 100%)", border: "2px solid #FFFFFF", boxShadow: "0 3px 12px rgba(200,32,26,.6)" }}>
         <img src="/28-avivar-music-icone.png" alt="" width={22} height={22} className="rounded-md" style={{ width: 22, height: 22 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
         <span className="font-display font-bold text-sm text-white leading-none">Avivar Music</span>
       </span>
