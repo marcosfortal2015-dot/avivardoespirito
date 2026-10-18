@@ -9178,7 +9178,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 // Paleta própria do Avivar Music: roxo espiritual sobre fundo creme — mesma
 // identidade já aprovada no protótipo, mantida separada da paleta C.* do
 // resto do site de propósito (vira app independente mais pra frente).
-const AM = { bg: "#F7F5F2", card: "#FFFFFF", card2: "#F1EBF5", accent: "#351052", accentDeep: "#351052", gold: "#D6B46A", ink: "#2A1740", dim: "#6B5A7A", line: "rgba(53,16,82,.12)" };
+const AM = { bg: "#F0E8F8", card: "#FFFFFF", card2: "#E7D9F4", accent: "#4B1A80", accentDeep: "#3A1260", gold: "#D6B46A", ink: "#2A1740", dim: "#664F7F", line: "rgba(75,26,128,.18)" };
 
 /* ================================================================ */
 /* AVIVAR MUSIC — mini-app (módulo portátil)                          */
@@ -9207,7 +9207,7 @@ const AM = { bg: "#F7F5F2", card: "#FFFFFF", card2: "#F1EBF5", accent: "#351052"
 /*   patrimonio: [{ id, nome, numero, local, aquisicao, status, obs,  */
 /*                 manutencoes:[{id,data,texto}] }]-> equipment       */
 /* ================================================================ */
-const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], playlists: [], comunicados: [], equipeImportada: false };
+const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], playlists: [], comunicados: [], forum: [], fotosMusicos: [], equipeImportada: false };
 const AM_TIPOS_EVENTO = ["Culto", "Ensaio", "Treinamento"];
 const AM_STATUS_PATRIMONIO = ["Operacional", "Defeito", "Em Manutenção"];
 const AM_MOTIVOS = ["Trabalho", "Viagem", "Compromisso", "Saúde", "Outro"];
@@ -9231,7 +9231,7 @@ async function amHashSenha(codigo, senha) {
   }
 }
 const amTema = (escuro) => escuro
-  ? { bg: "#150B20", card: "#201330", card2: "#2D1D41", accent: "#D6B46A", accentDeep: "#351052", gold: "#D6B46A", ink: "#F7F1FA", dim: "#BFAED2", line: "rgba(255,255,255,.14)", onAccent: "#1E0B30" }
+  ? { bg: "#1B0B2E", card: "#2A1442", card2: "#38205A", accent: "#D6B46A", accentDeep: "#3A1260", gold: "#D6B46A", ink: "#F7F1FA", dim: "#BFAED2", line: "rgba(255,255,255,.14)", onAccent: "#1E0B30" }
   : { ...AM, onAccent: "#FFFFFF" };
 const amDataHora = (ev) => `${fmtDate(ev.data)}${ev.hora ? " · " + ev.hora : ""}`;
 const amHoje = () => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; };
@@ -9423,7 +9423,7 @@ function AmDashboard({ t, dados, salvar, musico, lider, irPara, abrirCulto }) {
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Olá, {musico.nome.split(" ")[0]}</p>
-      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #4A1A70, #351052)" }}>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #5B2394, #3A1260)" }}>
         <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo culto</span>
         {proximo ? (
           <>
@@ -9491,7 +9491,7 @@ function AmDashboardLider({ t, dados, salvar, irPara, abrirCulto }) {
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Painel do líder</p>
-      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #4A1A70, #351052)" }}>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #5B2394, #3A1260)" }}>
         <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo evento</span>
         {ev ? (
           <>
@@ -11240,7 +11240,7 @@ function AvivarMusicHomeCard({ musicApp, onOpen }) {
   const itens = (pl ? pl.itens || [] : amItensDoCulto(dados, ev)).slice(0, 3);
   const pres = ev ? amResumoPresenca(dados, ev) : null;
   return (
-    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(160deg,#4A1A70 0%,#351052 70%)", border: "1px solid #D6B46A88" }}>
+    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "1px solid #D6B46A88" }}>
       <div className="px-4 pt-4 pb-3 flex items-center gap-3">
         <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#D6B46A22", border: "1px solid #D6B46A99" }}><Music size={20} color="#D6B46A" /></span>
         <div className="min-w-0">
@@ -11272,6 +11272,276 @@ function AvivarMusicHomeCard({ musicApp, onOpen }) {
         )}
       </div>
       <button onClick={onOpen} className="m-3 mt-0 min-h-[44px] rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white" style={{ background: "#D6B46A", color: "#351052" }}>Abrir Avivar Music</button>
+    </div>
+  );
+}
+
+/* ---------- Carrossel gospel (notícias da música gospel, ao vivo do Google Notícias) ---------- */
+const AM_GOSPEL_FALLBACK = [
+  { titulo: "Avivar Music — louvor que aviva o coração", link: "" },
+  { titulo: "Cantai ao Senhor um cântico novo — Salmo 96", link: "" },
+  { titulo: "Tudo quanto respira louve ao Senhor — Salmo 150", link: "" },
+];
+let _amGospelCache = null;
+async function amBuscarGospel() {
+  if (_amGospelCache) return _amGospelCache;
+  const feedUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent("música gospel") + "&hl=pt-BR&gl=BR&ceid=BR:pt-419";
+  const parse = (xmlText) => Array.from(new DOMParser().parseFromString(xmlText, "text/xml").querySelectorAll("item")).slice(0, 15).map((i) => ({ titulo: (i.querySelector("title") || {}).textContent || "", link: (i.querySelector("link") || {}).textContent || "" })).filter((n) => n.titulo);
+  const fontes = [
+    async () => {
+      const r = await fetch("https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feedUrl));
+      if (!r.ok) throw new Error("rss2json");
+      const d = await r.json();
+      if (d.status !== "ok" || !Array.isArray(d.items)) throw new Error("sem itens");
+      return d.items.slice(0, 15).map((i) => ({ titulo: i.title || "", link: i.link || "" })).filter((n) => n.titulo);
+    },
+    async () => { const r = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(feedUrl)); if (!r.ok) throw new Error("allorigins"); return parse(await r.text()); },
+    async () => { const r = await fetch("https://corsproxy.io/?url=" + encodeURIComponent(feedUrl)); if (!r.ok) throw new Error("corsproxy"); return parse(await r.text()); },
+  ];
+  for (const tentar of fontes) {
+    try { const itens = await tentar(); if (itens.length > 0) { _amGospelCache = itens; return itens; } } catch (e) { /* tenta a próxima fonte */ }
+  }
+  return [];
+}
+function AmGospelCarrossel() {
+  const [itens, setItens] = useState(AM_GOSPEL_FALLBACK);
+  useEffect(() => {
+    let vivo = true;
+    amBuscarGospel().then((r) => { if (vivo && r.length) setItens(r); }).catch(() => { /* mantém o padrão */ });
+    return () => { vivo = false; };
+  }, []);
+  const faixa = itens.map((n, i) => (n.link
+    ? <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-white hover:underline whitespace-nowrap mx-6">{n.titulo}</a>
+    : <span key={i} className="text-sm font-medium text-white whitespace-nowrap mx-6">{n.titulo}</span>));
+  return (
+    <div className="w-full overflow-hidden py-2.5" style={{ background: "#2A0C45", borderBottom: "1px solid #D6B46A55" }} role="region" aria-label="Notícias gospel">
+      <style>{`@keyframes amGospel { from { transform: translateX(0); } to { transform: translateX(-50%); } } .am-gospel { animation: amGospel ${Math.max(70, itens.length * 10)}s linear infinite; width: max-content; } .am-gospel:hover { animation-play-state: paused; } @media (prefers-reduced-motion: reduce) { .am-gospel { animation: none; } }`}</style>
+      <div className="flex items-center gap-3 px-3 sm:px-6">
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: "#D6B46A", color: "#351052" }}><Music size={12} /> Gospel</span>
+        <div className="flex-1 overflow-hidden"><div className="am-gospel flex items-center">{faixa}{faixa}</div></div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Área restrita a músicos e liderança (fórum e painel) ---------- */
+function AmSoMusicos({ t, irPara, titulo }) {
+  return (
+    <AmCard t={t}>
+      <div className="text-center py-6">
+        <Lock size={26} className="mx-auto" style={{ color: t.accent }} />
+        <p className="font-display font-bold text-lg mt-2" style={{ color: t.ink }}>{titulo}</p>
+        <p className="text-sm mt-1" style={{ color: t.dim }}>Esta área é da equipe do louvor. Entre com o seu código de músico (ou como liderança) para ver e participar.</p>
+        <div className="mt-4"><AmBotao t={t} onClick={() => irPara("entrar")}><Unlock size={16} /> Entrar</AmBotao></div>
+      </div>
+    </AmCard>
+  );
+}
+
+/* ---------- Fórum da equipe ---------- */
+const AM_FORUM_CATS = ["Geral", "Louvores sugeridos", "Ensaios", "Oração", "Avisos"];
+function AmForum({ t, dados, salvar, lider, musico, irPara }) {
+  const [aberto, setAberto] = useState(null);
+  const [novo, setNovo] = useState(null);
+  const [resp, setResp] = useState("");
+  const [cat, setCat] = useState("");
+  const [busca, setBusca] = useState("");
+  if (!lider && !musico) return <AmSoMusicos t={t} irPara={irPara} titulo="Fórum da equipe" />;
+  const autor = musico ? musico.nome : "Liderança";
+  const autorId = musico ? musico.id : "lider";
+  const topicos = dados.forum || [];
+  const atividade = (p) => [p.criadoEm, ...(p.respostas || []).map((r) => r.criadoEm)].filter(Boolean).sort().pop() || "";
+  const lista = topicos.filter((p) => (!cat || p.categoria === cat) && (!busca || semAcento(p.titulo + " " + p.texto).includes(semAcento(busca))))
+    .sort((a, b) => (b.fixado ? 1 : 0) - (a.fixado ? 1 : 0) || atividade(b).localeCompare(atividade(a)));
+  const aTopico = topicos.find((p) => p.id === aberto) || null;
+  const pode = (donoId) => lider || donoId === autorId;
+  const publicar = () => {
+    if (!novo.titulo.trim() || !novo.texto.trim()) return;
+    const p = { id: uid(), titulo: novo.titulo.trim().slice(0, 120), texto: novo.texto.trim().slice(0, 3000), categoria: novo.categoria, autor, autorId, criadoEm: new Date().toISOString(), respostas: [], fixado: false };
+    salvar({ ...dados, forum: [p, ...topicos] });
+    setNovo(null); setAberto(p.id);
+  };
+  const responder = () => {
+    if (!resp.trim() || !aTopico) return;
+    const r = { id: uid(), autor, autorId, texto: resp.trim().slice(0, 2000), criadoEm: new Date().toISOString() };
+    salvar({ ...dados, forum: topicos.map((p) => (p.id === aTopico.id ? { ...p, respostas: [...(p.respostas || []), r] } : p)) });
+    setResp("");
+  };
+  const excluirTopico = (p) => { if (!window.confirm(`Excluir o tópico "${p.titulo}" e suas respostas?`)) return; salvar({ ...dados, forum: topicos.filter((x) => x.id !== p.id) }); setAberto(null); };
+  const excluirResposta = (p, r) => { if (!window.confirm("Excluir esta resposta?")) return; salvar({ ...dados, forum: topicos.map((x) => (x.id === p.id ? { ...x, respostas: x.respostas.filter((y) => y.id !== r.id) } : x)) }); };
+  const fixar = (p) => salvar({ ...dados, forum: topicos.map((x) => (x.id === p.id ? { ...x, fixado: !x.fixado } : x)) });
+  const quando = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+
+  if (novo) {
+    return (
+      <AmCard t={t}>
+        <p className="font-display font-bold text-lg" style={{ color: t.ink }}>Novo tópico</p>
+        <div className="mt-3 space-y-3">
+          <AmSelect t={t} aria-label="Assunto" value={novo.categoria} onChange={(e) => setNovo({ ...novo, categoria: e.target.value })}>{AM_FORUM_CATS.map((c) => <option key={c}>{c}</option>)}</AmSelect>
+          <AmInput t={t} placeholder="Título" maxLength={120} value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} />
+          <textarea placeholder="Escreva sua mensagem" rows={6} maxLength={3000} value={novo.texto} onChange={(e) => setNovo({ ...novo, texto: e.target.value })} className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          <div className="flex gap-2"><AmBotao t={t} onClick={publicar}><Send size={16} /> Publicar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setNovo(null)}>Cancelar</AmBotao></div>
+        </div>
+      </AmCard>
+    );
+  }
+
+  if (aTopico) {
+    const p = aTopico;
+    return (
+      <div className="space-y-3">
+        <button onClick={() => { setAberto(null); setResp(""); }} className="min-h-[44px] text-sm font-semibold inline-flex items-center gap-1" style={{ color: t.accent }}><ChevronLeft size={16} /> Todos os tópicos</button>
+        <AmCard t={t}>
+          <span className="text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: t.card2, color: t.accent }}>{p.categoria}</span>
+          <p className="font-display text-xl font-bold mt-2" style={{ color: t.ink }}>{p.fixado ? "📌 " : ""}{p.titulo}</p>
+          <p className="text-[11px]" style={{ color: t.dim }}>{p.autor} · {quando(p.criadoEm)}</p>
+          <p className="text-sm mt-3 whitespace-pre-line" style={{ color: t.ink }}>{p.texto}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {lider && <AmBotao t={t} tom="suave" onClick={() => fixar(p)}>{p.fixado ? "Desafixar" : "Fixar no topo"}</AmBotao>}
+            {pode(p.autorId) && <AmBotao t={t} tom="perigo" onClick={() => excluirTopico(p)}><Trash2 size={15} /> Excluir</AmBotao>}
+          </div>
+        </AmCard>
+        <p className="text-xs font-semibold" style={{ color: t.dim }}>{(p.respostas || []).length} RESPOSTA(S)</p>
+        {(p.respostas || []).map((r) => (
+          <div key={r.id} className="rounded-2xl p-3" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold" style={{ color: t.accent }}>{r.autor} <span className="font-normal" style={{ color: t.dim }}>· {quando(r.criadoEm)}</span></p>
+              {pode(r.autorId) && <button aria-label="Excluir resposta" onClick={() => excluirResposta(p, r)} className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ color: "#D0473A" }}><Trash2 size={14} /></button>}
+            </div>
+            <p className="text-sm mt-1 whitespace-pre-line" style={{ color: t.ink }}>{r.texto}</p>
+          </div>
+        ))}
+        <AmCard t={t}>
+          <textarea aria-label="Sua resposta" placeholder={`Responder como ${autor}…`} rows={3} maxLength={2000} value={resp} onChange={(e) => setResp(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          <div className="mt-2"><AmBotao t={t} onClick={responder}><Send size={16} /> Responder</AmBotao></div>
+        </AmCard>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Fórum da equipe</p>
+        <AmBotao t={t} onClick={() => setNovo({ titulo: "", texto: "", categoria: "Geral" })}><Plus size={16} /> Novo tópico</AmBotao>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.dim }} />
+          <input aria-label="Buscar no fórum" placeholder="Buscar no fórum" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full min-h-[48px] rounded-xl pl-9 pr-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card, color: t.ink, border: `1px solid ${t.line}` }} />
+        </div>
+        <AmSelect t={t} aria-label="Filtrar por assunto" value={cat} onChange={(e) => setCat(e.target.value)}><option value="">Todos os assuntos</option>{AM_FORUM_CATS.map((c) => <option key={c}>{c}</option>)}</AmSelect>
+      </div>
+      {lista.length === 0 && <AmVazio t={t}>{topicos.length === 0 ? "Nenhum tópico ainda. Comece a conversa!" : "Nenhum tópico encontrado."}</AmVazio>}
+      {lista.map((p) => (
+        <button key={p.id} onClick={() => setAberto(p.id)} className="w-full text-left rounded-2xl p-3 focus:outline-none focus:ring-2" style={{ background: t.card, border: `1px solid ${p.fixado ? t.gold : t.line}` }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: t.card2, color: t.accent }}>{p.categoria}</span>
+            {p.fixado && <span className="text-[10px] font-bold" style={{ color: t.gold }}>📌 FIXADO</span>}
+          </div>
+          <p className="font-semibold mt-1" style={{ color: t.ink }}>{p.titulo}</p>
+          <p className="text-xs mt-0.5 line-clamp-2" style={{ color: t.dim }}>{p.texto}</p>
+          <p className="text-[11px] mt-1.5" style={{ color: t.dim }}>{p.autor} · {(p.respostas || []).length} resposta(s) · última atividade {quando(atividade(p))}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Painel dos músicos: mural de fotos da equipe em diferentes momentos ---------- */
+const AM_SITUACOES = ["Culto", "Ensaio", "Ministração", "Evento", "Viagem", "Bastidores", "Outra"];
+function AmPainelMusicos({ t, dados, salvar, lider, musico, musicos, irPara }) {
+  const [situacao, setSituacao] = useState("Culto");
+  const [legenda, setLegenda] = useState("");
+  const [arquivos, setArquivos] = useState([]);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [fSit, setFSit] = useState("");
+  const [fAutor, setFAutor] = useState("");
+  const [ampliada, setAmpliada] = useState(null);
+  if (!lider && !musico) return <AmSoMusicos t={t} irPara={irPara} titulo="Painel dos músicos" />;
+  const autor = musico ? musico.nome : "Liderança";
+  const autorId = musico ? musico.id : "lider";
+  const fotos = [...(dados.fotosMusicos || [])].sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  const autores = [...new Map(fotos.map((f) => [f.autorId, f.autor])).entries()];
+  const lista = fotos.filter((f) => (!fSit || f.situacao === fSit) && (!fAutor || f.autorId === fAutor));
+  const meuCadastro = musico ? (musicos || []).find((m) => m.id === musico.origemGrupo) || (musicos || []).find((m) => semAcento(m.nome).trim() === semAcento(musico.nome).trim()) : null;
+  const proxEscala = musico ? amEventosFuturos(dados.eventos).find((e) => (e.escalados || []).some((x) => x.musicoId === musico.id)) : null;
+  const meuStatus = proxEscala ? amDispDe(dados, musico.id, proxEscala.id).status : null;
+  const publicar = async () => {
+    if (arquivos.length === 0) { setAviso("Escolha ao menos uma foto."); return; }
+    setEnviando(true); setAviso("");
+    const novas = []; let falhas = 0;
+    for (const f of arquivos.slice(0, 8)) {
+      try { const ref = await enviarImagemKv(f); novas.push({ id: uid(), foto: ref, situacao, legenda: legenda.trim().slice(0, 140), autor, autorId, criadoEm: new Date().toISOString() }); } catch (e) { falhas += 1; }
+    }
+    if (novas.length) salvar({ ...dados, fotosMusicos: [...novas, ...(dados.fotosMusicos || [])] });
+    setArquivos([]); setLegenda(""); setEnviando(false);
+    setAviso(novas.length ? `✓ ${novas.length} foto(s) publicada(s)${falhas ? `; ${falhas} falharam` : ""}.` : "Não consegui enviar as fotos. Tente de novo.");
+  };
+  const excluir = (f) => { if (!window.confirm("Remover esta foto do painel?")) return; salvar({ ...dados, fotosMusicos: (dados.fotosMusicos || []).filter((x) => x.id !== f.id) }); };
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Painel dos músicos</p>
+
+      <AmCard t={t}>
+        {musico ? (
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ background: t.card2 }}>
+              {meuCadastro && meuCadastro.fotoUrl ? <FotoKv src={meuCadastro.fotoUrl} alt={musico.nome} className="w-16 h-20 object-cover" ph="" /> : <Users size={22} style={{ color: t.dim }} />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-display font-bold" style={{ color: t.ink }}>{musico.nome}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{[musico.instrumento, ...(meuCadastro ? amFuncoesDe(meuCadastro) : [])].filter(Boolean).join(" · ") || "Músico do Avivar Music"}</p>
+              {proxEscala ? (
+                <p className="text-xs mt-1.5" style={{ color: t.ink }}>Próxima escala: <b>{proxEscala.titulo || proxEscala.tipo}</b> · {amDataHora(proxEscala)} · <span style={{ color: AM_COR[meuStatus] }}>{AM_ROTULO[meuStatus]}</span></p>
+              ) : <p className="text-xs mt-1.5" style={{ color: t.dim }}>Você ainda não está em nenhuma escala futura.</p>}
+              <button onClick={() => irPara("minha")} className="mt-1 text-xs font-semibold underline" style={{ color: t.accent }}>Minha escala e presença</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: t.ink }}>Você está como <b>liderança</b>: pode publicar fotos e remover qualquer foto do painel.</p>
+        )}
+      </AmCard>
+
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Compartilhe suas fotos</p>
+        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Cultos, ensaios, ministrações, eventos, viagens e bastidores — até 8 fotos por vez.</p>
+        <div className="mt-3 grid sm:grid-cols-2 gap-2">
+          <AmSelect t={t} aria-label="Situação da foto" value={situacao} onChange={(e) => setSituacao(e.target.value)}>{AM_SITUACOES.map((s) => <option key={s}>{s}</option>)}</AmSelect>
+          <AmInput t={t} placeholder="Legenda (opcional)" maxLength={140} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>
+            <ImageIcon size={16} /> {arquivos.length ? `${arquivos.length} foto(s) escolhida(s)` : "Escolher fotos"}
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setArquivos(Array.from(e.target.files || []))} />
+          </label>
+          <AmBotao t={t} onClick={publicar} disabled={enviando} className="disabled:opacity-60"><Send size={16} /> {enviando ? "Enviando…" : "Publicar no painel"}</AmBotao>
+        </div>
+        {aviso && <p className="text-xs mt-2" style={{ color: aviso.startsWith("✓") ? AM_COR.confirmado : "#D0473A" }}>{aviso}</p>}
+      </AmCard>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <AmSelect t={t} aria-label="Filtrar por situação" value={fSit} onChange={(e) => setFSit(e.target.value)}><option value="">Todas as situações</option>{AM_SITUACOES.map((s) => <option key={s}>{s}</option>)}</AmSelect>
+        <AmSelect t={t} aria-label="Filtrar por músico" value={fAutor} onChange={(e) => setFAutor(e.target.value)}><option value="">Todos os músicos</option>{autores.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}</AmSelect>
+      </div>
+      {lista.length === 0 && <AmVazio t={t}>{fotos.length === 0 ? "Ainda não há fotos no painel. Seja o primeiro a publicar!" : "Nenhuma foto com esses filtros."}</AmVazio>}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {lista.map((f) => (
+          <div key={f.id} className="rounded-2xl overflow-hidden" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+            <button onClick={() => setAmpliada(f.foto)} aria-label={`Ampliar foto de ${f.autor}`} className="block w-full focus:outline-none focus:ring-2">
+              <FotoKv src={f.foto} alt={f.legenda || `Foto de ${f.autor}`} className="w-full aspect-square object-cover" ph="Foto" />
+            </button>
+            <div className="p-2.5">
+              <p className="text-xs font-semibold truncate" style={{ color: t.ink }}>{f.autor}</p>
+              <p className="text-[10px]" style={{ color: t.accent }}>{f.situacao} · {fmtDate((f.criadoEm || "").slice(0, 10))}</p>
+              {f.legenda && <p className="text-[11px] mt-0.5" style={{ color: t.dim }}>{f.legenda}</p>}
+              {(lider || f.autorId === autorId) && <button onClick={() => excluir(f)} className="mt-1 text-[11px] underline" style={{ color: "#D0473A" }}>remover</button>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
     </div>
   );
 }
@@ -11310,6 +11580,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     { k: "ensaios", r: "Ensaios", i: Clock },
     ...(lider ? [{ k: "equipamentos", r: "Equipamentos", i: Package }] : []),
     { k: "comunicados", r: "Comunicados", i: Megaphone },
+    { k: "mural", r: "Painel dos músicos", i: ImageIcon },
+    { k: "forum", r: "Fórum", i: MessageCircle },
   ];
   const extras = [
     ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
@@ -11334,7 +11606,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
 
   return (
     <div className="min-h-screen font-body relative" style={{ background: t.bg, color: t.ink }}>
-      <div className="sticky top-0 z-40" style={{ background: "#351052", borderBottom: "2px solid #D6B46A" }}>
+      <div className="sticky top-0 z-40" style={{ background: "linear-gradient(90deg,#3A1260,#5B2394)", borderBottom: "2px solid #D6B46A" }}>
         <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5">
           <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao site</span><span className="sm:hidden">Site</span></button>
           <div className="flex items-center gap-2.5 min-w-0">
@@ -11352,6 +11624,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           </div>
         </div>
       </div>
+
+      <AmGospelCarrossel />
 
       <div className="flex relative" style={{ zIndex: 10 }}>
         <aside className="hidden lg:flex flex-col gap-1 w-64 shrink-0 p-4 sticky top-16 self-start h-[calc(100vh-4rem)] overflow-y-auto" style={{ background: t.card, borderRight: `1px solid ${t.line}` }} aria-label="Menu do Avivar Music">
@@ -11371,6 +11645,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
           {tela === "equipamentos" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
           {tela === "comunicados" && <AmComunicados t={t} dados={dados} salvar={saveMusicApp} lider={lider} />}
+          {tela === "mural" && <AmPainelMusicos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} musicos={musicos} irPara={irPara} />}
+          {tela === "forum" && <AmForum t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} />}
           {tela === "minha" && musico && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} />}
           {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
           {tela === "acessos" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} />}
@@ -12536,6 +12812,23 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         saveKey("avivar:estudos", estudosComFoto);
       }
       todo.estudosFotos2 = true;
+    }
+    // Evento: Culto de Santa Ceia (18/10/2026, 18:30) com o banner em public/. Só entra uma vez
+    // e nunca duplica; depois disso o admin edita ou apaga normalmente em Eventos & Galeria.
+    if (!seeds.eventoSantaCeia1) {
+      if (!(eventos || []).some((e) => e.seedId === "evento-santa-ceia-2026-10-18")) {
+        const novoEvento = {
+          id: "seed-evento-santa-ceia-2026-10-18", seedId: "evento-santa-ceia-2026-10-18",
+          titulo: "Culto de Santa Ceia — Avivar do Espírito", data: "2026-10-18", hora: "18:30",
+          local: "Ministério Avivar do Espírito",
+          descricao: "Participe deste momento especial: Culto de Santa Ceia, hoje às 18:30h.",
+          imageUrl: "/29-culto-santa-ceia.jpg",
+        };
+        const mergedEventos = [...(eventos || []), novoEvento];
+        setEventos(mergedEventos);
+        saveKey("avivar:eventos", mergedEventos);
+      }
+      todo.eventoSantaCeia1 = true;
     }
     if (!seeds.escalaObreiros1) {
       // Obreiros/postos/horários padrão da Escala de Obreiros — só populam se o
