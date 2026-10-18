@@ -2133,7 +2133,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
         const cardPix = <HeroDoacoesCard compacto data={doacoes || DEFAULT_DOACOES} bgImage={bgPix} onClick={() => {}} />;
         // Abertura em 3 colunas (tela grande): Avivar Music (esquerda, como um app à parte) | escala ou destaque (centro) | Pedido de Oração + Dízimo e Oferta (direita).
         // No celular a escala continua em primeiro e o Avivar Music vem por último.
-        const cardMusic = <AvivarMusicHomeCard musicApp={musicApp} onOpen={onOpenMusic} />;
+        const cardMusic = <AvivarMusicHomeCard onOpen={onOpenMusic} />;
         const COLS3 = "lg:grid-cols-[1fr_1.55fr_1fr]";
         // Destaque no ar (visitantes finalizados pelo operador, evento ou mensagem do admin):
         // ocupa o LUGAR DA ESCALA, que fica oculta até alguém desligar o destaque
@@ -11237,54 +11237,22 @@ function AmEnsaios({ t, dados, salvar, lider, musico }) {
 }
 
 /* ---------- Cartão do Avivar Music na abertura do site (parece um app à parte) ---------- */
-function AvivarMusicHomeCard({ musicApp, onOpen }) {
-  const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
-  const futuros = amEventosFuturos(dados.eventos);
-  const ev = futuros.find((e) => e.tipo === "Culto") || futuros[0] || null;
-  const lista = amPlaylistsVisiveis(dados, false);
-  const pl = amPlaylistDestaque(dados, lista);
-  const itens = (pl ? pl.itens || [] : amItensDoCulto(dados, ev)).slice(0, 3);
-  const pres = ev ? amResumoPresenca(dados, ev) : null;
+function AvivarMusicHomeCard({ onOpen }) {
+  // Quadro inteiro clicável e pulsante: só a arte (sem frases nem botão); o nome fica numa etiqueta pequena.
   return (
-    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(180deg,rgba(42,12,69,.6) 0%,rgba(42,12,69,.08) 38%,rgba(42,12,69,.1) 62%,rgba(42,12,69,.78) 100%), url(/34-avivar-music-capa-v2.jpg) 66% center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "1px solid #D6B46A88" }}>
-      <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-        <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#D6B46A22", border: "1px solid #D6B46A99" }}><Music size={20} color="#D6B46A" /></span>
-        <div className="min-w-0">
-          <p className="font-display font-bold text-base leading-tight">Avivar Music</p>
-          <p className="text-[10px] leading-tight" style={{ color: "#E8D9B0" }}>Ministério Avivar do Espírito</p>
-        </div>
-      </div>
-      <div className="px-4 pb-3 flex-1">
-        <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Próximo culto</p>
-        {ev ? (
-          <>
-            <p className="font-display font-bold text-sm mt-0.5 leading-snug">{ev.titulo || ev.tipo}</p>
-            <p className="text-xs text-white/80">{amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
-            {pres && pres.total > 0 && <p className="text-[11px] mt-1 text-white/80">{pres.confirmados} confirmados · {pres.pendentes} pendentes</p>}
-          </>
-        ) : (
-          <div className="mt-1">
-            <p className="text-xs text-white/80">Nenhum culto agendado ainda.</p>
-            <p className="font-display font-bold text-lg leading-snug mt-6" style={{ color: "#F3DFA2", textShadow: "0 1px 6px rgba(0,0,0,.7)" }}>Louvor que aviva o Espírito</p>
-            <p className="text-xs text-white/90 mt-1.5" style={{ textShadow: "0 1px 5px rgba(0,0,0,.7)" }}>Repertório, playlists, escalas e a equipe do ministério de louvor — tudo em um só lugar.</p>
-          </div>
-        )}
-        {itens.length > 0 && (
-          <div className="mt-3">
-            <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Louvores</p>
-            <ul className="mt-1 space-y-1.5">
-              {itens.map((it) => (
-                <li key={it.id} className="flex items-center gap-2">
-                  {ytThumb(it.youtubeUrl) ? <img src={ytThumb(it.youtubeUrl)} alt="" loading="lazy" className="w-12 h-7 rounded object-cover shrink-0" /> : <span className="w-12 h-7 rounded shrink-0 flex items-center justify-center bg-white/10"><Music size={12} /></span>}
-                  <span className="text-xs truncate">{it.titulo}{it.tom ? <span className="text-white/60"> · {it.tom}</span> : null}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      <button onClick={onOpen} className="m-3 mt-0 min-h-[44px] rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white" style={{ background: "#D6B46A", color: "#351052" }}>Abrir Avivar Music</button>
-    </div>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Abrir Avivar Music"
+      className="am-card-pulso relative block w-full h-full min-h-[190px] rounded-2xl overflow-hidden text-left focus:outline-none focus:ring-4 focus:ring-yellow-300/70"
+      style={{ background: "linear-gradient(180deg,rgba(42,12,69,.35) 0%,rgba(42,12,69,0) 30%,rgba(42,12,69,0) 70%,rgba(42,12,69,.35) 100%), url(/34-avivar-music-capa-v2.jpg) 66% center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "2px solid #D6B46A" }}
+    >
+      <style>{`@keyframes amCardPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(214,180,106,.6), 0 4px 18px rgba(53,16,82,.35); filter: brightness(1); } 50% { box-shadow: 0 0 0 11px rgba(214,180,106,0), 0 6px 28px rgba(214,180,106,.5); filter: brightness(1.14); } } .am-card-pulso { animation: amCardPulso 2.4s ease-in-out infinite; transition: transform .2s; } .am-card-pulso:hover { transform: scale(1.015); animation-play-state: paused; box-shadow: 0 0 0 4px rgba(214,180,106,.7), 0 6px 28px rgba(214,180,106,.55); filter: brightness(1.12); } @media (prefers-reduced-motion: reduce) { .am-card-pulso { animation: none; } }`}</style>
+      <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: "rgba(42,12,69,.72)", border: "1px solid #D6B46A99" }}>
+        <img src="/28-avivar-music-icone.png" alt="" width={22} height={22} className="rounded-md" style={{ width: 22, height: 22 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        <span className="font-display font-bold text-sm text-white leading-none">Avivar Music</span>
+      </span>
+    </button>
   );
 }
 
