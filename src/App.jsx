@@ -9319,7 +9319,12 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
   };
   const entrar = async () => {
     setErro("");
-    if (modo === "lider") { if (!tentarCodigoLider(ident.trim())) setErro("Código de liderança inválido."); return; }
+    if (modo === "lider") {
+      const r = tentarCodigoLider(ident.trim());
+      if (r === "semsetor") setErro("Seu código está ativo, mas sem o setor Avivar Music liberado. Peça ao administrador para incluir \"avivarmusic\" no seu código de operador.");
+      else if (!r) setErro("Código de liderança inválido. Use o código de operador que o administrador te passou — ou, se você é músico líder, entre em \"Já tenho senha\" com o seu código AM-.");
+      return;
+    }
     const a = achar(ident);
     if (!a) { setErro("Código não encontrado ou desativado. Peça ao líder do louvor."); return; }
     if (modo === "primeiro") {
@@ -10030,7 +10035,7 @@ function AmEscalas({ t, dados, salvar }) {
 }
 
 /* ---------- Equipe: o líder gera o código de acesso de cada músico ---------- */
-function AmEquipe({ t, dados, salvar, musicosGrupo }) {
+function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
   const [f, setF] = useState({ nome: "", instrumento: "", email: "" });
   const [copiado, setCopiado] = useState("");
   const [msg, setMsg] = useState("");
@@ -10089,6 +10094,7 @@ function AmEquipe({ t, dados, salvar, musicosGrupo }) {
               <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{a.email ? ` · ${a.email}` : ""}</p>
               <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
               <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
+              {a.lider && <p className="text-xs font-bold mt-0.5" style={{ color: t.gold }}>★ Líder do louvor — pode editar tudo</p>}
             </div>
             <div className="flex gap-1.5 shrink-0">
               <button aria-label="Corrigir dados do músico" onClick={() => (editId === a.id ? setEditId(null) : abrirEdicao(a))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.accent }}><Pencil size={15} /></button>
@@ -10111,6 +10117,7 @@ function AmEquipe({ t, dados, salvar, musicosGrupo }) {
           <div className="flex flex-wrap gap-2 mt-3">
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
             <a href={`https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
+            {podeIndicar && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: !a.lider }, `${a.lider ? "Permissão de líder retirada" : "Indicado como líder do louvor"}: ${a.nome}`)}><ShieldCheck size={15} /> {a.lider ? "Tirar permissão de líder" : "Tornar líder (pode editar)"}</AmBotao>}
             {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" }, `Senha zerada: ${a.nome}`)}>Zerar senha</AmBotao>}
             <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false }, `${a.ativo === false ? "Código reativado" : "Código desativado"}: ${a.nome}`)}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
           </div>
@@ -11529,7 +11536,6 @@ function AmPainelMusicos({ t, dados, salvar, lider, musico, musicos, irPara }) {
 function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider }) {
   const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
   // Qualquer pessoa vê; só o admin ou quem ele indicou (setor "avivarmusic") altera.
-  const lider = !!(adminMode || operatorMode);
   const [escuro, setEscuro] = useState(() => { try { return localStorage.getItem("am-tema") === "escuro"; } catch (e) { return false; } });
   const alternarTema = () => setEscuro((v) => { const n = !v; try { localStorage.setItem("am-tema", n ? "escuro" : "claro"); } catch (e) { /* sem storage */ } return n; });
   const [tela, setTela] = useState("inicio");
@@ -11541,6 +11547,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const entrar = (id) => { setSessaoId(id); setTela("inicio"); try { sessionStorage.setItem("am-sessao", id); } catch (e) { /* sem storage */ } };
   const sair = () => { setSessaoId(""); setTela("inicio"); setMaisAberto(false); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } };
   const musico = (dados.acessos || []).find((a) => a.id === sessaoId && a.ativo !== false) || null;
+  // Líder = admin, operador com o setor "avivarmusic" OU músico que o administrador marcou como líder do louvor.
+  const lider = !!(adminMode || operatorMode || (musico && musico.lider));
   const t = amTema(escuro);
   useEffect(() => { if (lider && tela === "entrar") setTela("inicio"); }, [lider, tela]);
   // Monta a equipe sozinho na primeira vez que a liderança abre o app (uma vez só).
@@ -11599,7 +11607,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           <div className="flex items-center gap-1.5">
             <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: lider ? "#D6B46A" : "#ffffff22", color: lider ? "#351052" : "#fff" }}>{lider ? "Modo edição" : musico ? "Músico" : "Visualização"}</span>
             <button onClick={alternarTema} aria-label={escuro ? "Tema claro" : "Tema escuro"} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
-            {musico && !lider && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
+            {musico && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
             {!musico && !lider && <button onClick={() => irPara("entrar")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><Lock size={14} /> Entrar</button>}
           </div>
         </div>
@@ -11629,7 +11637,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           {tela === "forum" && <AmForum t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} />}
           {tela === "minha" && musico && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} />}
           {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
-          {tela === "acessos" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} />}
+          {tela === "acessos" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || operatorMode)} />}
           {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
           {tela === "historico" && (lider || musico) && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
           {tela === "albuns" && (
@@ -11667,7 +11675,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
             </div>
             {[...principais.slice(4), ...extras].map((it) => <BotaoMenu key={it.k} it={it} />)}
             {!musico && !lider && <BotaoMenu it={{ k: "entrar", r: "Entrar (músico ou líder)", i: Lock }} />}
-            {musico && !lider && <button onClick={sair} className="w-full min-h-[46px] px-3 rounded-xl inline-flex items-center gap-3 text-sm font-semibold" style={{ color: "#D0473A" }}><LogOut size={18} /> Sair</button>}
+            {musico && <button onClick={sair} className="w-full min-h-[46px] px-3 rounded-xl inline-flex items-center gap-3 text-sm font-semibold" style={{ color: "#D0473A" }}><LogOut size={18} /> Sair</button>}
           </div>
         </div>
       )}
@@ -13615,7 +13623,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           const m = operatorCodes.find((o) => o.ativo !== false && String(o.codigo || "").trim().toLowerCase() === digitado);
           if (!m) return false;
           const setores = parseSetoresOperador(m.setores);
-          if (!setores.includes("todos") && !setores.includes("avivarmusic")) return false;
+          if (!setores.includes("todos") && !setores.includes("avivarmusic")) return "semsetor";
           setOperatorAuth({ id: m.id, nome: m.nome, setores });
           registrarAcessoOperador(m.id, "Acesso ao Avivar Music");
           return true;
