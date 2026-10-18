@@ -7,7 +7,7 @@ import {
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
   Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv, Feather, Gem, Crown, CheckCircle2,
   Play, Pause, Maximize, Minus, Settings2, Layers, History,
-  Eye, EyeOff, Bell, Star, Check, Mic, Headphones, Music2, Music3, Music4
+  Eye, EyeOff, Bell, Star, Check, Mic, Headphones, Music2, Music3, Music4, ArrowUp, ArrowDown, ExternalLink, Search, Megaphone, ListMusic, SkipForward, GripVertical,
 } from "lucide-react";
 import { storageGet, storageSet } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -1385,6 +1385,10 @@ function FilmSprockets({ side }) {
   );
 }
 
+// Carrossel vertical da lateral esquerda: DESABILITADO por enquanto (a pedido do Marcos).
+// Para reativar, troque para true — o código e o recuo do conteúdo já estão prontos.
+const SIDE_CAROUSEL_ATIVO = false;
+
 function SideCarousel({ photos, setPage }) {
   const FRAMES = 4;
   const [offset, setOffset] = useState(0);
@@ -1872,9 +1876,9 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
   const mensagem = banner.mensagem || (ehVisitantes ? (vd.mensagem || MENSAGEM_VISITANTES_PADRAO) : "");
   const nomes = banner.nomes || [];
   return (
-    <div className="mb-3">
+    <div className="h-full flex flex-col">
       <div
-        className={`bn-wrap relative rounded-2xl overflow-hidden ${podeAbrir ? "cursor-pointer" : ""}`}
+        className={`bn-wrap relative rounded-xl overflow-hidden flex-1 ${podeAbrir ? "cursor-pointer" : ""}`}
         role={podeAbrir ? "button" : undefined}
         tabIndex={podeAbrir ? 0 : undefined}
         onClick={() => podeAbrir && setAberto((v) => !v)}
@@ -1884,7 +1888,7 @@ function BannerCeleste({ banner, vd, adminMode, podeGerir, onDesligar }) {
       >
         <div className="bn-fundo" aria-hidden="true" />
 
-        <div className="relative z-10 text-center px-4 sm:px-8 pt-9 pb-9 sm:pt-11 sm:pb-11">
+        <div className="relative z-10 h-full flex flex-col justify-center text-center px-4 sm:px-8 pt-7 pb-7 sm:pt-9 sm:pb-9">
           <p className="bn-kicker text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em]">{kicker}</p>
           <h2 className="bn-neon font-script text-4xl sm:text-6xl leading-tight mt-1.5">{titulo}</h2>
           {subtitulo && <p className="bn-sub text-sm sm:text-lg mt-1 font-display italic">{subtitulo}</p>}
@@ -2039,7 +2043,7 @@ function PedidoOracaoTopo({ onClick }) {
 /* ---------------------------------------------------------------- */
 /* Manchete da Home — chamada de jornal clicável, configurável pelo admin */
 /* ---------------------------------------------------------------- */
-function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas, doacoes, bgPix, onPedidoOracao }) {
+function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, setPage, onOpenNews, escala, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas, doacoes, bgPix, onPedidoOracao, musicApp, onOpenMusic }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(manchete || DEFAULT_MANCHETE);
   useEffect(() => setDraft(manchete || DEFAULT_MANCHETE), [manchete]);
@@ -2124,26 +2128,42 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-      {/* Banner "outdoor" celestial: quando está no ar, fica NO TOPO e a escala e o
-          pedido de oração descem. */}
-      <BannerCeleste banner={banner} vd={vd} adminMode={adminMode} podeGerir={adminMode || podeVisitantesDia} onDesligar={() => saveVisitantesDoDia({ ...vd, banner: { ...banner, ativo: false } })} />
       {(() => {
         const cardPedido = <PedidoOracaoTopo onClick={onPedidoOracao} />;
         const cardPix = <HeroDoacoesCard compacto data={doacoes || DEFAULT_DOACOES} bgImage={bgPix} onClick={() => {}} />;
+        // Abertura em 3 colunas (tela grande): Avivar Music (esquerda, como um app à parte) | escala ou destaque (centro) | Pedido de Oração + Dízimo e Oferta (direita).
+        // No celular a escala continua em primeiro e o Avivar Music vem por último.
+        const cardMusic = <AvivarMusicHomeCard musicApp={musicApp} onOpen={onOpenMusic} />;
+        const COLS3 = "lg:grid-cols-[1fr_1.55fr_1fr]";
+        // Destaque no ar (visitantes finalizados pelo operador, evento ou mensagem do admin):
+        // ocupa o LUGAR DA ESCALA, que fica oculta até alguém desligar o destaque
+        // (ou até acabar o tempo de exposição). Pedido de Oração e Pix continuam visíveis.
+        if (bannerNoAr(banner)) {
+          return (
+            <div className={`grid grid-cols-2 gap-3 ${COLS3} lg:grid-rows-[auto_1fr]`}>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+                <BannerCeleste banner={banner} vd={vd} adminMode={adminMode} podeGerir={adminMode || podeVisitantesDia} onDesligar={() => saveVisitantesDoDia({ ...vd, banner: { ...banner, ativo: false } })} />
+              </div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-2">{cardPix}</div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
+            </div>
+          );
+        }
         // Escala de Serviço (cabeçalho violeta + tabela de postos) — duas colunas: à esquerda a escala,
         // à direita Pedido de Oração (alinhado ao cabeçalho) e, abaixo, Dízimo e Oferta com Pix e QR Code.
         if (mostrarEscalaNaHome) {
           return (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1.8fr_1fr] lg:grid-rows-[auto_1fr]">
+            <div className={`grid grid-cols-2 gap-3 ${COLS3} lg:grid-rows-[auto_1fr]`}>
               {/* Título da escala (esquerda) e Pedido de Oração (direita) lado a lado — também no celular */}
-              <div className="rounded-xl border-2 p-3 sm:p-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2" style={{ borderColor: C.gold, background: C.violet, color: "#fff" }}>
+              <div className="lg:col-start-2 lg:row-start-1 rounded-xl border p-3 sm:p-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
                 <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{diaSemanaDestaque}</span></div>
                 <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
                 <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
               </div>
-              {cardPedido}
-              <div className="col-span-2 lg:col-span-1 rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
+              <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
                 {gruposColunas.map((grupo, i) => (
                   <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
                     {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
@@ -2155,7 +2175,8 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
                   </div>
                 ))}
               </div>
-              <div className="col-span-2 lg:col-span-1">{cardPix}</div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-2">{cardPix}</div>
+              <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
             </div>
           );
         }
@@ -2171,13 +2192,14 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
           </button>
         ) : null;
         if (!esquerda) {
-          return (<div className="grid gap-3 lg:grid-cols-2">{cardPedido}{cardPix}</div>);
+          return (<div className={`grid gap-3 ${COLS3}`}>{cardMusic}{cardPedido}{cardPix}</div>);
         }
         return (
-          <div className="grid gap-3 lg:grid-cols-[1.8fr_1fr]">
-            <div className="lg:row-span-2">{esquerda}</div>
-            {cardPedido}
-            {cardPix}
+          <div className={`grid gap-3 ${COLS3}`}>
+            <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">{esquerda}</div>
+            <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+            <div className="lg:col-start-3 lg:row-start-2">{cardPix}</div>
+            <div className="lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
           </div>
         );
       })()}
@@ -2278,12 +2300,12 @@ function HeroLiveVideoCard({ aoVivo, passadas, onAmpliar }) {
   );
 }
 
-function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas }) {
+function Home({ site, setPage, visitantes, saveSite, adminMode, aoVivo, transmissoesPassadas, oracaoEncontros, avivarNews, doacoes, saveDoacoes, manchete, saveManchete, onOpenNews, oracaoLocalDia, escala, onOpenCursos, celulas, onOpenCelula, onOpenHistoria, visitantesDoDia, saveVisitantesDoDia, podeVisitantesDia, podeRelatorioCelulas, onRelatorioCelulas, musicApp }) {
   const recentVisitors = [...visitantes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
   const homeCards = site.homeCards || DEFAULT_HOMECARDS;
   return (
     <div>
-      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} podeVisitantesDia={podeVisitantesDia} doacoes={doacoes} bgPix={site.heroRightBg} onPedidoOracao={() => setPage("pedidooracao")} />
+      <MancheteBar manchete={manchete} save={saveManchete} adminMode={adminMode} avivarNews={avivarNews} oracaoLocalDia={oracaoLocalDia} setPage={setPage} onOpenNews={onOpenNews} escala={escala} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={saveVisitantesDoDia} podeVisitantesDia={podeVisitantesDia} doacoes={doacoes} bgPix={site.heroRightBg} onPedidoOracao={() => setPage("pedidooracao")} musicApp={musicApp} onOpenMusic={() => setPage("avivarmusic")} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 grid lg:grid-cols-[1fr_1.7fr] gap-3 sm:gap-4 items-stretch">
         {/* Coluna 1 — Ministério: nome, logo e um breve histórico. O nome/logo é
             clicável e leva para a página "Nossa História" (histórico completo,
@@ -3898,7 +3920,8 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
   );
 
   return (
-    <div style={{ background: C.violetDeep }}>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div className="rounded-2xl overflow-hidden" style={{ background: C.violetDeep }}>
       <div className="grid lg:grid-cols-3">
         {/* Coluna 1 — o que são os Códigos Avivar (cada frase = chamada clicável) */}
         <div className="px-5 py-7">
@@ -3987,6 +4010,7 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
         </div>
       )}
     </div>
+    </div>
   );
 }
 const AULA_FIELDS = [
@@ -4016,138 +4040,206 @@ const SESSAO_FIELDS = [
   { key: "data", label: "Data", type: "date" },
 ];
 
+// Eventos e Galeria numa página só: primeiro todos os eventos cadastrados; logo em
+// seguida as fotos da galeria, cada dia/sessão com o seu nome (ex.: "Subida ao monte",
+// "Culto das crianças"). Ao subir fotos o título é opcional (sem título aparece só a data).
 function EventosGaleria({ eventos, saveEventos, galeria, saveGaleria, adminMode, setManchete }) {
-  const [tab, setTab] = useState("eventos");
   const [selected, setSelected] = useState(null);
   const [mediaUrl, setMediaUrl] = useState({});
+  const [ampliada, setAmpliada] = useState(null);
+  const [envio, setEnvio] = useState({ titulo: "", data: new Date().toISOString().slice(0, 10), destino: "nova", urls: "" });
+  const [arquivos, setArquivos] = useState([]);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [adicionandoEm, setAdicionandoEm] = useState({});
 
   const addEvento = (v) => saveEventos([...eventos, { id: uid(), ...v }]);
   const delEvento = (id) => saveEventos(eventos.filter((e) => e.id !== id));
-  const addSessao = (v) => saveGaleria([...galeria, { id: uid(), fotos: [], videos: [], ...v }]);
-  const delSessao = (id) => saveGaleria(galeria.filter((g) => g.id !== id));
-  const addMedia = (sessaoId, tipo) => {
+  const delSessao = (id) => { if (window.confirm("Remover esta sessão de fotos inteira?")) saveGaleria(galeria.filter((g) => g.id !== id)); };
+  const delFoto = (sessaoId, idx) => {
+    if (!window.confirm("Remover esta foto?")) return;
+    saveGaleria(galeria.map((g) => (g.id === sessaoId ? { ...g, fotos: (g.fotos || []).filter((_, i) => i !== idx) } : g)));
+  };
+  const addVideo = (sessaoId) => {
     const url = (mediaUrl[sessaoId] || "").trim();
     if (!url) return;
-    saveGaleria(galeria.map((g) => (g.id === sessaoId ? { ...g, [tipo]: [...g[tipo], url] } : g)));
+    saveGaleria(galeria.map((g) => (g.id === sessaoId ? { ...g, videos: [...(g.videos || []), url] } : g)));
     setMediaUrl((m) => ({ ...m, [sessaoId]: "" }));
+  };
+  const tituloSessao = (g) => (g.titulo && g.titulo.trim()) || (g.data ? `Fotos de ${fmtDate(g.data)}` : "Fotos");
+
+  // Sobe as fotos escolhidas (comprimidas) e/ou as URLs digitadas — para uma sessão nova
+  // (título opcional + data) ou para uma sessão que já existe.
+  const subirFotos = async (sessaoId) => {
+    const nova = !sessaoId;
+    const lista = nova ? arquivos : (adicionandoEm[sessaoId] || { arquivos: [] }).arquivos;
+    const urlsTxt = nova ? envio.urls : (adicionandoEm[sessaoId] || {}).urls || "";
+    const urls = urlsTxt.split("\n").map((u) => u.trim()).filter(Boolean);
+    if (lista.length === 0 && urls.length === 0) { setAviso("Escolha ao menos uma foto (ou cole um endereço)."); return; }
+    setEnviando(true);
+    setAviso("");
+    const novas = [];
+    let falhas = 0;
+    for (const f of lista) {
+      try { novas.push(await enviarImagemKv(f)); } catch (e) { falhas += 1; }
+    }
+    novas.push(...urls);
+    if (novas.length === 0) { setEnviando(false); setAviso("Não foi possível enviar as fotos. Tente de novo."); return; }
+    if (nova) {
+      saveGaleria([...galeria, { id: uid(), titulo: envio.titulo.trim(), data: envio.data, fotos: novas, videos: [] }]);
+      setEnvio({ titulo: "", data: new Date().toISOString().slice(0, 10), destino: "nova", urls: "" });
+      setArquivos([]);
+    } else {
+      saveGaleria(galeria.map((g) => (g.id === sessaoId ? { ...g, fotos: [...(g.fotos || []), ...novas] } : g)));
+      setAdicionandoEm((m) => ({ ...m, [sessaoId]: { arquivos: [], urls: "" } }));
+    }
+    setEnviando(false);
+    setAviso(falhas ? `${novas.length} foto(s) enviada(s); ${falhas} falharam.` : `✓ ${novas.length} foto(s) publicada(s).`);
   };
 
   const sortedEventos = [...eventos].sort((a, b) => new Date(a.data) - new Date(b.data));
+  const sessoes = [...galeria].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow>Vida em comunidade</Eyebrow>
       <SectionTitle>Eventos & Galeria</SectionTitle>
 
-      <div className="flex gap-2 mt-6 mb-6">
-        {["eventos", "galeria"].map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
-            {t}
-          </button>
-        ))}
+      {/* 1) Todos os eventos cadastrados */}
+      <p className="text-sm font-display font-semibold mt-6 mb-3" style={{ color: C.ink }}>Eventos</p>
+      <div>
+        <div className={GRID3}>
+          <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="rounded-xl overflow-hidden border block" style={{ borderColor: C.line }}>
+            <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-44 object-cover" />
+            <div className="p-3">
+              <p className="text-xs font-mono" style={{ color: C.stone }}>Canal Avivar</p>
+              <p className="font-display font-semibold text-sm mt-0.5">Inscreva-se no YouTube</p>
+            </div>
+          </a>
+          {sortedEventos.map((e) => (
+            <button key={e.id} onClick={() => setSelected(e)} className="rounded-xl overflow-hidden border text-left focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
+              <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full h-44 object-cover" ph="Banner do evento — adicionar depois" />
+              <div className="p-3">
+                <p className="font-display font-semibold text-sm">{e.titulo}</p>
+                <p className="text-xs font-mono mt-1 flex items-center gap-1" style={{ color: C.stone }}><Calendar size={11} />{fmtDate(e.data)} · {e.hora}</p>
+                <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><MapPin size={11} />{e.local}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+        {selected && (
+          <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
+            <VoltarBtn onClick={() => setSelected(null)} className="mb-2" />
+            <h3 className="font-display text-xl font-semibold">{selected.titulo}</h3>
+            <div className="flex flex-wrap gap-4 text-xs font-mono mt-2" style={{ color: C.stone }}>
+              <span className="flex items-center gap-1"><Calendar size={13} />{fmtDate(selected.data)}</span>
+              <span className="flex items-center gap-1"><Clock size={13} />{selected.hora}</span>
+              <span className="flex items-center gap-1"><MapPin size={13} />{selected.local}</span>
+            </div>
+            <p className="text-sm mt-3" style={{ color: C.ink }}>{selected.descricao}</p>
+            {adminMode && (
+              <div className="flex gap-4 mt-3">
+                <button onClick={() => { delEvento(selected.id); setSelected(null); }} className="text-xs underline" style={{ color: "#B03428" }}>excluir evento</button>
+                {setManchete && (
+                  <button onClick={() => setManchete({ titulo: selected.titulo, link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
+                    usar como manchete da home
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {adminMode && (
+          <div className="mt-6">
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo evento</p>
+            <DynamicForm fields={EVENTO_FIELDS} onSubmit={addEvento} submitLabel="Publicar evento" />
+          </div>
+        )}
       </div>
 
-      {tab === "eventos" && (
-        <div>
-          <div className={GRID3}>
-            <a href="https://www.youtube.com/@avivardoespirito" target="_blank" rel="noreferrer" className="rounded-xl overflow-hidden border block" style={{ borderColor: C.line }}>
-              <img src={DIVULGACAO_BANNER} alt="Inscreva-se no canal Avivar do Espírito — conheça nossos e-books" className="w-full h-44 object-cover" />
-              <div className="p-3">
-                <p className="text-xs font-mono" style={{ color: C.stone }}>Canal Avivar</p>
-                <p className="font-display font-semibold text-sm mt-0.5">Inscreva-se no YouTube</p>
-              </div>
-            </a>
-            {sortedEventos.map((e) => (
-              <button key={e.id} onClick={() => setSelected(e)} className="rounded-xl overflow-hidden border text-left focus:outline-none focus:ring-2" style={{ borderColor: C.line }}>
-                <ImgOrPlaceholder url={e.imageUrl} alt={e.titulo} className="w-full h-44 object-cover" ph="Banner do evento — adicionar depois" />
-                <div className="p-3">
-                  <p className="font-display font-semibold text-sm">{e.titulo}</p>
-                  <p className="text-xs font-mono mt-1 flex items-center gap-1" style={{ color: C.stone }}><Calendar size={11} />{fmtDate(e.data)} · {e.hora}</p>
-                  <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><MapPin size={11} />{e.local}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-          {selected && (
-            <div className="mt-6 rounded-xl border p-5" style={{ borderColor: C.line }}>
-              <VoltarBtn onClick={() => setSelected(null)} className="mb-2" />
-              <h3 className="font-display text-xl font-semibold">{selected.titulo}</h3>
-              <div className="flex flex-wrap gap-4 text-xs font-mono mt-2" style={{ color: C.stone }}>
-                <span className="flex items-center gap-1"><Calendar size={13} />{fmtDate(selected.data)}</span>
-                <span className="flex items-center gap-1"><Clock size={13} />{selected.hora}</span>
-                <span className="flex items-center gap-1"><MapPin size={13} />{selected.local}</span>
-              </div>
-              <p className="text-sm mt-3" style={{ color: C.ink }}>{selected.descricao}</p>
-              {adminMode && (
-                <div className="flex gap-4 mt-3">
-                  <button onClick={() => { delEvento(selected.id); setSelected(null); }} className="text-xs underline" style={{ color: "#B03428" }}>excluir evento</button>
-                  {setManchete && (
-                    <button onClick={() => setManchete({ titulo: selected.titulo, link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
-                      usar como manchete da home
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {adminMode && (
-            <div className="mt-6">
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo evento</p>
-              <DynamicForm fields={EVENTO_FIELDS} onSubmit={addEvento} submitLabel="Publicar evento" />
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "galeria" && (
-        <div className="space-y-8">
-          {galeria.length === 0 && <Empty text="Nenhuma sessão de fotos ou vídeos publicada ainda." />}
-          {galeria.map((g) => (
+      {/* 2) Galeria — logo em seguida, cada dia com o seu nome */}
+      <p className="text-sm font-display font-semibold mt-12 mb-3" style={{ color: C.ink }}>Galeria de fotos</p>
+      <div className="space-y-8">
+        {sessoes.length === 0 && <Empty text="Nenhuma sessão de fotos ou vídeos publicada ainda." />}
+        {sessoes.map((g) => {
+          const fotos = g.fotos || [];
+          const videos = g.videos || [];
+          const add = adicionandoEm[g.id] || { arquivos: [], urls: "" };
+          return (
             <div key={g.id} className="rounded-xl border p-5" style={{ borderColor: C.line }}>
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-3">
                 <div>
-                  <h3 className="font-display font-semibold text-lg">{g.titulo}</h3>
-                  <p className="text-xs font-mono" style={{ color: C.stone }}>{fmtDate(g.data)}</p>
+                  <h3 className="font-display font-semibold text-lg">{tituloSessao(g)}</h3>
+                  <p className="text-xs font-mono" style={{ color: C.stone }}>{g.data ? fmtDate(g.data) : ""}{g.data ? " · " : ""}{fotos.length} foto(s)</p>
                 </div>
                 {adminMode && (
                   <div className="flex items-center gap-3">
                     {setManchete && (
-                      <button onClick={() => setManchete({ titulo: g.titulo, link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
+                      <button onClick={() => setManchete({ titulo: tituloSessao(g), link: "#eventos", ativo: true })} className="text-xs underline" style={{ color: C.violet }}>
                         usar como manchete
                       </button>
                     )}
-                    <button onClick={() => delSessao(g.id)}><Trash2 size={15} color={C.stone} /></button>
+                    <button onClick={() => delSessao(g.id)} aria-label="Remover sessão"><Trash2 size={15} color={C.stone} /></button>
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-4">
-                {g.fotos.map((f, idx) => (
-                  <img key={idx} src={f} className="w-full h-44 object-contain rounded-md" style={{ background: C.parchmentDeep }} />
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 mt-4">
+                {fotos.map((f, idx) => (
+                  <div key={idx} className="relative group">
+                    <button onClick={() => setAmpliada(f)} className="block w-full aspect-[4/3] rounded-md overflow-hidden focus:outline-none focus:ring-2" style={{ background: C.parchmentDeep }}>
+                      <FotoKv src={f} alt={tituloSessao(g)} className="w-full h-full object-cover" ph="Foto" />
+                    </button>
+                    {adminMode && (
+                      <button onClick={() => delFoto(g.id, idx)} className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "#000000aa" }} aria-label="Remover foto"><X size={12} color="#fff" /></button>
+                    )}
+                  </div>
                 ))}
-                {g.videos.map((v, idx) => (
-                  <div key={idx} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
+                {videos.map((v, idx) => (
+                  <div key={`v${idx}`} className="aspect-video rounded-md overflow-hidden bg-black col-span-2">
                     <iframe title={`video-${idx}`} src={getEmbedUrl(v)} className="w-full h-full" allowFullScreen />
                   </div>
                 ))}
-                {g.fotos.length === 0 && g.videos.length === 0 && <Empty text="Sem mídia ainda" />}
+                {fotos.length === 0 && videos.length === 0 && <Empty text="Sem mídia ainda" />}
               </div>
               {adminMode && (
-                <div className="flex flex-wrap gap-2 mt-4 items-center">
-                  <input placeholder="URL de foto ou vídeo" value={mediaUrl[g.id] || ""} onChange={(e) => setMediaUrl((m) => ({ ...m, [g.id]: e.target.value }))} className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} />
-                  <Btn variant="ghost" onClick={() => addMedia(g.id, "fotos")}>+ foto</Btn>
-                  <Btn variant="ghost" onClick={() => addMedia(g.id, "videos")}>+ vídeo</Btn>
+                <div className="mt-4 space-y-2 text-xs">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <label className="px-3 py-1.5 rounded-md border cursor-pointer font-semibold" style={{ borderColor: C.violet, color: C.violet }}>
+                      + fotos do aparelho
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setAdicionandoEm((m) => ({ ...m, [g.id]: { ...add, arquivos: [...e.target.files] } }))} />
+                    </label>
+                    {add.arquivos.length > 0 && <span style={{ color: C.stone }}>{add.arquivos.length} escolhida(s)</span>}
+                    <input placeholder="ou endereço de foto (um por linha)" value={add.urls} onChange={(e) => setAdicionandoEm((m) => ({ ...m, [g.id]: { ...add, urls: e.target.value } }))} className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} />
+                    <Btn variant="ghost" onClick={() => subirFotos(g.id)}>{enviando ? "Enviando…" : "Publicar fotos"}</Btn>
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input placeholder="URL de vídeo" value={mediaUrl[g.id] || ""} onChange={(e) => setMediaUrl((m) => ({ ...m, [g.id]: e.target.value }))} className={`${inputCls} max-w-xs`} style={{ borderColor: C.line }} />
+                    <Btn variant="ghost" onClick={() => addVideo(g.id)}>+ vídeo</Btn>
+                  </div>
                 </div>
               )}
             </div>
-          ))}
-          {adminMode && (
-            <div>
-              <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova sessão</p>
-              <DynamicForm fields={SESSAO_FIELDS} onSubmit={addSessao} submitLabel="Criar sessão" />
+          );
+        })}
+
+        {adminMode && (
+          <div className="rounded-xl border p-4" style={{ borderColor: C.line, background: "#00000006" }}>
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · subir fotos de um dia (o título é opcional)</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Título (opcional) — ex.: Subida ao monte, Culto das crianças"><input className={inputCls} style={{ borderColor: C.line }} value={envio.titulo} onChange={(e) => setEnvio((x) => ({ ...x, titulo: e.target.value }))} /></Field>
+              <Field label="Data"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={envio.data} onChange={(e) => setEnvio((x) => ({ ...x, data: e.target.value }))} /></Field>
+              <Field label="Fotos do aparelho (pode escolher várias)"><input type="file" accept="image/*" multiple className="text-xs" onChange={(e) => setArquivos([...e.target.files])} /></Field>
+              <Field label="Ou endereços de fotos (um por linha)"><textarea rows={2} className={inputCls} style={{ borderColor: C.line }} value={envio.urls} onChange={(e) => setEnvio((x) => ({ ...x, urls: e.target.value }))} /></Field>
             </div>
-          )}
-        </div>
-      )}
+            <div className="flex items-center gap-3 mt-3">
+              <Btn onClick={() => subirFotos(null)}>{enviando ? "Enviando…" : "Publicar fotos"}</Btn>
+              {arquivos.length > 0 && <span className="text-xs" style={{ color: C.stone }}>{arquivos.length} foto(s) escolhida(s)</span>}
+            </div>
+            {aviso && <p className="text-xs mt-2 font-semibold" style={{ color: aviso.startsWith("✓") ? "#1B8A55" : "#B03428" }}>{aviso}</p>}
+          </div>
+        )}
+      </div>
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
     </div>
   );
 }
@@ -8239,7 +8331,7 @@ const VISITANTE_FIELDS = [
   { key: "local", label: "Local / culto" },
 ];
 
-function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator, embutido = false, onFinalizarBanner }) {
+function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOperator, embutido = false, onFinalizarBanner, bannerNoTopo = false, onOcultarBanner }) {
   const [modoProjecao, setModoProjecao] = useState(false);
   const [bannerPublicado, setBannerPublicado] = useState(false);
   const [verTodosDias, setVerTodosDias] = useState(false);
@@ -8348,7 +8440,16 @@ function Visitantes({ items, save, refresh, adminMode, operatorMode, onRequestOp
             >
               <Sparkles size={16} /> Finalizar e exibir banner de boas-vindas
             </button>
-            {bannerPublicado && <p className="text-xs mt-2 font-semibold" style={{ color: "#9EF0C0" }}>✓ Banner no ar, no topo do site (celular e computador).</p>}
+            {bannerPublicado && <p className="text-xs mt-2 font-semibold" style={{ color: "#9EF0C0" }}>✓ Visitantes no topo do site (celular e computador), no lugar da escala.</p>}
+            <label className="mt-3 inline-flex items-center gap-2 text-xs cursor-pointer" style={{ color: "#fff" }}>
+              <input
+                type="checkbox"
+                checked={!!bannerNoTopo}
+                onChange={(e) => { if (!e.target.checked && onOcultarBanner) onOcultarBanner(); }}
+                disabled={!bannerNoTopo}
+              />
+              Visualizar visitantes no topo {bannerNoTopo ? "— desmarque para ocultar e a escala volta" : "(oculto — a escala está aparecendo)"}
+            </label>
           </div>
         )}
 
@@ -8874,9 +8975,9 @@ const ALBUM_FIELDS = [
   { key: "videoUrl", label: "Link do vídeo/YouTube", type: "url" },
 ];
 
-function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator }) {
+function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, abas }) {
   const canManage = adminMode || operatorMode;
-  const [tab, setTab] = useState("musicos");
+  const [tab, setTab] = useState(abas ? abas[0] : "musicos");
   const [openAlbum, setOpenAlbum] = useState(null);
 
   const addCulto = (v) => saveRepertorio([...repertorio, { id: uid(), musicas: [], ...v }]);
@@ -8917,9 +9018,9 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
       <SectionTitle>Avivar Music</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
-        {["musicos", "albuns", "repertorio"].map((t) => (
+        {(abas || ["musicos", "albuns", "repertorio"]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-md text-sm font-medium capitalize" style={{ background: tab === t ? C.gold : "transparent", color: tab === t ? "#fff" : C.ink, border: `1px solid ${C.gold}55` }}>
-            {t === "albuns" ? "Álbuns" : t === "repertorio" ? "Repertório" : "Músicos"}
+            {t === "albuns" ? "Álbuns" : t === "repertorio" ? "Cultos anteriores" : "Músicos"}
           </button>
         ))}
       </div>
@@ -9077,7 +9178,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
 // Paleta própria do Avivar Music: roxo espiritual sobre fundo creme — mesma
 // identidade já aprovada no protótipo, mantida separada da paleta C.* do
 // resto do site de propósito (vira app independente mais pra frente).
-const AM = { bg: "#FBF7F0", card: "#FFFFFF", card2: "#F1E9F7", accent: "#6A1B9A", accentDeep: "#4A1270", ink: "#2B1A3A", dim: "#6B5A7A", line: "rgba(43,26,58,.1)" };
+const AM = { bg: "#F7F5F2", card: "#FFFFFF", card2: "#F1EBF5", accent: "#351052", accentDeep: "#351052", gold: "#D6B46A", ink: "#2A1740", dim: "#6B5A7A", line: "rgba(53,16,82,.12)" };
 
 /* ================================================================ */
 /* AVIVAR MUSIC — mini-app (módulo portátil)                          */
@@ -9106,7 +9207,7 @@ const AM = { bg: "#FBF7F0", card: "#FFFFFF", card2: "#F1E9F7", accent: "#6A1B9A"
 /*   patrimonio: [{ id, nome, numero, local, aquisicao, status, obs,  */
 /*                 manutencoes:[{id,data,texto}] }]-> equipment       */
 /* ================================================================ */
-const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], equipeImportada: false };
+const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], playlists: [], comunicados: [], equipeImportada: false };
 const AM_TIPOS_EVENTO = ["Culto", "Ensaio", "Treinamento"];
 const AM_STATUS_PATRIMONIO = ["Operacional", "Defeito", "Em Manutenção"];
 const AM_MOTIVOS = ["Trabalho", "Viagem", "Compromisso", "Saúde", "Outro"];
@@ -9130,7 +9231,7 @@ async function amHashSenha(codigo, senha) {
   }
 }
 const amTema = (escuro) => escuro
-  ? { bg: "#120B1A", card: "#1E1429", card2: "#2A1D3A", accent: "#B97BE0", accentDeep: "#2B0F42", ink: "#F3EAFB", dim: "#B7A6C8", line: "rgba(255,255,255,.12)", onAccent: "#1A0B26" }
+  ? { bg: "#150B20", card: "#201330", card2: "#2D1D41", accent: "#D6B46A", accentDeep: "#351052", gold: "#D6B46A", ink: "#F7F1FA", dim: "#BFAED2", line: "rgba(255,255,255,.14)", onAccent: "#1E0B30" }
   : { ...AM, onAccent: "#FFFFFF" };
 const amDataHora = (ev) => `${fmtDate(ev.data)}${ev.hora ? " · " + ev.hora : ""}`;
 const amHoje = () => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; };
@@ -9322,7 +9423,7 @@ function AmDashboard({ t, dados, salvar, musico, lider, irPara, abrirCulto }) {
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Olá, {musico.nome.split(" ")[0]}</p>
-      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #6A1B9A, #4A1270)" }}>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #4A1A70, #351052)" }}>
         <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo culto</span>
         {proximo ? (
           <>
@@ -9342,9 +9443,9 @@ function AmDashboard({ t, dados, salvar, musico, lider, irPara, abrirCulto }) {
           <p className="text-sm text-white/90 mt-3">Você ainda não possui nenhuma escala.</p>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
-          <button onClick={() => irPara("escala")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>VER ESCALA</button>
-          <button onClick={() => irPara("acervo")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>VER REPERTÓRIO</button>
-          <button onClick={() => irPara("estudio")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>ABRIR ESTÚDIO</button>
+          <button onClick={() => irPara("escala")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#351052" }}>VER ESCALA</button>
+          <button onClick={() => irPara("acervo")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#351052" }}>VER REPERTÓRIO</button>
+          <button onClick={() => irPara("estudio")} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#351052" }}>ABRIR ESTÚDIO</button>
         </div>
         {proximo && musicasDe(proximo).length > 0 && (
           <button onClick={() => abrirCulto(proximo)} className="mt-2 w-full min-h-[48px] rounded-xl bg-white/15 text-sm font-bold inline-flex items-center justify-center gap-2"><Maximize size={16} /> MODO CULTO</button>
@@ -9390,7 +9491,7 @@ function AmDashboardLider({ t, dados, salvar, irPara, abrirCulto }) {
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Painel do líder</p>
-      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #6A1B9A, #4A1270)" }}>
+      <div className="rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #4A1A70, #351052)" }}>
         <span className="text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-3 py-1">Próximo evento</span>
         {ev ? (
           <>
@@ -9415,7 +9516,7 @@ function AmDashboardLider({ t, dados, salvar, irPara, abrirCulto }) {
               </>
             )}
             <div className="grid sm:grid-cols-2 gap-2 mt-4">
-              <button onClick={() => setSubst((v) => !v)} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#4A1270" }}>ENCONTRAR SUBSTITUTO{cont.nao > 0 || faltaVaga ? " •" : ""}</button>
+              <button onClick={() => setSubst((v) => !v)} className="min-h-[48px] rounded-xl bg-white text-sm font-bold" style={{ color: "#351052" }}>ENCONTRAR SUBSTITUTO{cont.nao > 0 || faltaVaga ? " •" : ""}</button>
               {temMusicas && <button onClick={() => abrirCulto(ev)} className="min-h-[48px] rounded-xl bg-white/15 text-sm font-bold inline-flex items-center justify-center gap-2"><Maximize size={16} /> MODO CULTO</button>}
             </div>
           </>
@@ -9528,7 +9629,7 @@ function AmModoCulto({ evento, musicas, onSair }) {
       </div>
       <div className="grid grid-cols-2 gap-3 p-3" style={{ borderTop: "1px solid rgba(255,255,255,.12)" }}>
         <button onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0} className="min-h-[64px] rounded-2xl text-lg font-bold inline-flex items-center justify-center gap-2 disabled:opacity-30" style={{ background: "rgba(255,255,255,.1)" }}><ChevronLeft size={22} /> ANTERIOR</button>
-        <button onClick={() => setI((v) => Math.min(musicas.length - 1, v + 1))} disabled={i === musicas.length - 1} className="min-h-[64px] rounded-2xl text-lg font-bold inline-flex items-center justify-center gap-2 disabled:opacity-30" style={{ background: "#6A1B9A" }}>PRÓXIMA <ChevronRight size={22} /></button>
+        <button onClick={() => setI((v) => Math.min(musicas.length - 1, v + 1))} disabled={i === musicas.length - 1} className="min-h-[64px] rounded-2xl text-lg font-bold inline-flex items-center justify-center gap-2 disabled:opacity-30" style={{ background: "#4A1A70" }}>PRÓXIMA <ChevronRight size={22} /></button>
       </div>
     </div>
   );
@@ -9649,11 +9750,12 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
 }
 
 const AM_MUSICA_VAZIA = { titulo: "", artista: "", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: "", estrutura: [], observacoes: "" };
-function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey }) {
+function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFav = true, acaoInicial, limparAcao }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todas"); // todas | favoritas | recentes
   const [aberta, setAberta] = useState(null);
   const [form, setForm] = useState(null); // null | objeto em edição
+  useEffect(() => { if (acaoInicial === "nova" && lider) { setForm({ ...AM_MUSICA_VAZIA }); if (limparAcao) limparAcao(); } }, [acaoInicial, lider]);
   // Músicas do repertório antigo (por culto) entram no acervo só para consulta.
   const doAcervo = dados.acervo || [];
   const titulos = new Set(doAcervo.map((m) => semAcento(m.titulo).trim()));
@@ -9738,7 +9840,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey }) {
       <div className="space-y-2">
         {lista.map((m) => (
           <div key={m.id} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
-            <button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>
+            {podeFav ? (<button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>) : <span className="w-3 shrink-0" />}
             <button onClick={() => setAberta(m)} className="flex-1 text-left py-4 pr-3 min-h-[64px] focus:outline-none focus:ring-2">
               <p className="font-semibold" style={{ color: t.ink }}>{m.titulo}</p>
               <p className="text-xs mt-0.5" style={{ color: t.dim }}>
@@ -10333,78 +10435,986 @@ function AmDecoracao({ t }) {
 }
 
 /* ---------- Casca do mini-app ---------- */
+/* ================================================================ */
+/* AVIVAR MUSIC v2 — acesso público, edição só da liderança           */
+/* Playlists com YouTube, membros ampliados, comunicados, agenda.     */
+/* ================================================================ */
+// Extrai o código do vídeo de qualquer formato de link do YouTube.
+const ytId = (url) => {
+  const s = String(url || "").trim();
+  if (!s) return "";
+  const m = s.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : "";
+};
+const ytThumb = (url) => { const id = ytId(url); return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : ""; };
+const ytLink = (url) => { const id = ytId(url); return id ? `https://www.youtube.com/watch?v=${id}` : ""; };
+
+// Carrega a API oficial do player do YouTube uma única vez (o vídeo continua sendo do YouTube:
+// nada é baixado nem hospedado aqui).
+let _ytApiPromessa = null;
+function carregarYTApi() {
+  if (typeof window === "undefined") return Promise.reject(new Error("sem janela"));
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (_ytApiPromessa) return _ytApiPromessa;
+  _ytApiPromessa = new Promise((resolve, reject) => {
+    const anterior = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (typeof anterior === "function") anterior(); resolve(window.YT); };
+    const s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api";
+    s.async = true;
+    s.onerror = () => { _ytApiPromessa = null; reject(new Error("falha")); };
+    document.head.appendChild(s);
+    setTimeout(() => { if (!(window.YT && window.YT.Player)) { _ytApiPromessa = null; reject(new Error("tempo")); } }, 8000);
+  });
+  return _ytApiPromessa;
+}
+
+function AmMiniatura({ url, t, tam = 56 }) {
+  const [falhou, setFalhou] = useState(false);
+  const src = ytThumb(url);
+  const estilo = { width: tam * 1.6, height: tam, background: t.card2, color: t.dim };
+  if (!src || falhou) return <div className="rounded-lg shrink-0 flex items-center justify-center" style={estilo}><Music size={18} /></div>;
+  return <img src={src} alt="" loading="lazy" onError={() => setFalhou(true)} className="rounded-lg shrink-0 object-cover" style={estilo} />;
+}
+
+// Player oficial embutido. Avança sozinho para a próxima música quando o vídeo termina
+// (sem depender de autoplay do navegador) e sempre oferece "Próxima" manual e "Abrir no YouTube".
+function AmPlayer({ t, itens, indice, setIndice }) {
+  const alvoRef = useRef(null);
+  const playerRef = useRef(null);
+  const [modo, setModo] = useState("api"); // api | simples
+  const [erroVideo, setErroVideo] = useState(false);
+  const idxRef = useRef(indice);
+  const itensRef = useRef(itens);
+  const tocouRef = useRef(false);
+  idxRef.current = indice;
+  itensRef.current = itens;
+  const atual = itens[indice] || null;
+  const vid = atual ? ytId(atual.youtubeUrl) : "";
+  const vidRef = useRef(vid);
+  vidRef.current = vid;
+  const avancarRef = useRef(null);
+  avancarRef.current = () => { const i = idxRef.current; if (i + 1 < itensRef.current.length) setIndice(i + 1); };
+
+  useEffect(() => {
+    if (modo !== "api") return undefined;
+    let vivo = true;
+    carregarYTApi().then((YT) => {
+      if (!vivo || !alvoRef.current) return;
+      alvoRef.current.innerHTML = "";
+      const el = document.createElement("div");
+      el.style.width = "100%"; el.style.height = "100%";
+      alvoRef.current.appendChild(el);
+      playerRef.current = new YT.Player(el, {
+        width: "100%", height: "100%", videoId: vidRef.current || undefined,
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+        events: {
+          onStateChange: (e) => { if (e.data === 1) tocouRef.current = true; if (e.data === 0 && avancarRef.current) avancarRef.current(); },
+          onError: () => { if (vivo) setErroVideo(true); },
+        },
+      });
+    }).catch(() => { if (vivo) setModo("simples"); });
+    return () => {
+      vivo = false;
+      try { if (playerRef.current && playerRef.current.destroy) playerRef.current.destroy(); } catch (e) { /* já removido */ }
+      playerRef.current = null;
+    };
+  }, [modo]);
+
+  useEffect(() => {
+    setErroVideo(false);
+    const p = playerRef.current;
+    if (modo !== "api" || !p || !p.loadVideoById || !vid) return;
+    try {
+      const dado = p.getVideoData ? p.getVideoData() : null;
+      if (dado && dado.video_id === vid) return;
+      if (tocouRef.current) p.loadVideoById(vid); else p.cueVideoById(vid);
+    } catch (e) { /* player ainda carregando */ }
+  }, [vid, modo]);
+
+  const temProxima = indice + 1 < itens.length;
+  return (
+    <div>
+      <div className="relative w-full rounded-2xl overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
+        {vid ? (
+          modo === "api"
+            ? <div ref={alvoRef} className="absolute inset-0 w-full h-full" />
+            : <iframe key={vid} title={atual ? atual.titulo : "Vídeo"} src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1`} allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="absolute inset-0 w-full h-full" />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4" style={{ color: "#fff" }}>
+            <Music size={28} color="#D6B46A" />
+            <p className="text-sm mt-2">{atual ? "Esta música não tem vídeo cadastrado." : "Nenhuma música selecionada."}</p>
+          </div>
+        )}
+      </div>
+      {erroVideo && vid && (
+        <p className="text-xs mt-2 rounded-lg px-3 py-2" style={{ background: "#B0342820", color: "#B03428" }}>Este vídeo não pode ser reproduzido aqui. Toque em “Abrir no YouTube” ou vá para a próxima música.</p>
+      )}
+      {atual && (
+        <div className="mt-3">
+          <p className="font-display font-bold text-lg leading-tight" style={{ color: t.ink }}>{atual.titulo}</p>
+          <p className="text-xs mt-0.5" style={{ color: t.dim }}>{[atual.artista, atual.tom ? `Tom ${atual.tom}` : "", atual.responsavel ? `Responsável: ${atual.responsavel}` : ""].filter(Boolean).join(" · ")}</p>
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <AmBotao t={t} tom="suave" onClick={() => setIndice(Math.max(0, indice - 1))} disabled={indice <= 0} aria-label="Música anterior" className="disabled:opacity-40"><ChevronLeft size={16} /> Anterior</AmBotao>
+        <AmBotao t={t} tom="suave" onClick={() => setIndice(indice + 1)} disabled={!temProxima} aria-label="Próxima música" className="disabled:opacity-40">Próxima <SkipForward size={16} /></AmBotao>
+        {vid && <a href={ytLink(atual.youtubeUrl)} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><ExternalLink size={15} /> Abrir no YouTube</a>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Dados derivados ---------- */
+const amHojeIso = () => new Date().toISOString().slice(0, 10);
+const amPlaylistsVisiveis = (dados, lider) => (dados.playlists || []).filter((p) => lider || p.publicada).sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+function amPlaylistDestaque(dados, lista) {
+  if (!lista.length) return null;
+  const prox = amEventosFuturos(dados.eventos).find((e) => e.tipo === "Culto") || amEventosFuturos(dados.eventos)[0];
+  const doEvento = prox ? lista.find((p) => p.eventoId === prox.id) : null;
+  if (doEvento) return doEvento;
+  const futuras = lista.filter((p) => (p.data || "") >= amHojeIso()).sort((a, b) => (a.data || "").localeCompare(b.data || ""));
+  return futuras[0] || lista[0];
+}
+const amItemDeMusica = (m) => ({ id: uid(), acervoId: m.id, titulo: m.titulo, artista: m.artista || "", youtubeUrl: m.youtubeUrl || "", tom: m.tomIgreja || m.tomOriginal || "", responsavel: "" });
+// Sem playlist cadastrada, o player toca as músicas já escolhidas para o próximo culto.
+function amItensDoCulto(dados, ev) {
+  if (!ev) return [];
+  return (ev.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean).map((m) => ({ id: "c-" + m.id, acervoId: m.id, titulo: m.titulo, artista: m.artista || "", youtubeUrl: m.youtubeUrl || "", tom: m.tomIgreja || "", responsavel: "" }));
+}
+function amResumoPresenca(dados, ev) {
+  const esc = (ev && ev.escalados) || [];
+  let confirmados = 0; let pendentes = 0; let nao = 0;
+  esc.forEach((x) => { const s = amDispDe(dados, x.musicoId, ev.id).status; if (s === "confirmado") confirmados++; else if (s === "nao") nao++; else pendentes++; });
+  return { total: esc.length, confirmados, pendentes, nao };
+}
+const amComunicadosAtivos = (dados, lider) => {
+  const hoje = amHojeIso();
+  return [...(dados.comunicados || [])].filter((c) => lider || !c.ate || c.ate >= hoje).sort((a, b) => (b.fixado ? 1 : 0) - (a.fixado ? 1 : 0) || (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+};
+
+/* ---------- Início ---------- */
+function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, setPlId }) {
+  const futuros = amEventosFuturos(dados.eventos);
+  const proxCulto = futuros.find((e) => e.tipo === "Culto") || futuros[0] || null;
+  const proxEnsaio = futuros.find((e) => e.tipo === "Ensaio") || null;
+  const lista = amPlaylistsVisiveis(dados, lider);
+  const escolhida = lista.find((p) => p.id === plId) || amPlaylistDestaque(dados, lista);
+  const itensCulto = amItensDoCulto(dados, proxCulto);
+  const itens = escolhida ? (escolhida.itens || []) : itensCulto;
+  const tituloLista = escolhida ? escolhida.titulo : "Louvores do próximo culto";
+  const [indice, setIndice] = useState(0);
+  const chave = escolhida ? escolhida.id : "culto";
+  useEffect(() => { setIndice(0); }, [chave]);
+  const idx = Math.min(indice, Math.max(0, itens.length - 1));
+  const pres = proxCulto ? amResumoPresenca(dados, proxCulto) : null;
+  const comunicados = amComunicadosAtivos(dados, lider).slice(0, 3);
+  const nome = musico ? musico.nome.split(" ")[0] : "";
+  const saudacao = nome ? `Paz do Senhor, ${nome}!` : lider ? "Paz do Senhor, liderança!" : "Paz do Senhor!";
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="font-display text-2xl font-bold" style={{ color: t.ink }}>{saudacao}</p>
+        <p className="text-sm" style={{ color: t.dim }}>{lider ? "Você pode editar tudo aqui." : musico ? "Veja sua escala e confirme sua presença." : "Acompanhe os cultos, o repertório e a equipe do louvor."}</p>
+      </div>
+
+      {lider && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <AmBotao t={t} onClick={() => irPara("agenda")}><Plus size={16} /> Criar culto</AmBotao>
+          <AmBotao t={t} onClick={() => irPara("membros", "novo")}><UserPlus size={16} /> Cadastrar membro</AmBotao>
+          <AmBotao t={t} onClick={() => irPara("repertorio", "nova")}><Music size={16} /> Adicionar louvor</AmBotao>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+        <AmCard t={t}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="font-display font-bold" style={{ color: t.ink }}>{tituloLista}</p>
+            {lista.length > 1 && (
+              <select aria-label="Escolher playlist" value={escolhida ? escolhida.id : ""} onChange={(e) => setPlId(e.target.value)} className="min-h-[40px] rounded-lg px-2 text-xs max-w-[55%]" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }}>
+                {lista.map((p) => <option key={p.id} value={p.id}>{p.titulo}{!p.publicada ? " (rascunho)" : ""}</option>)}
+              </select>
+            )}
+          </div>
+          {itens.length === 0 ? (
+            <div className="text-sm text-center py-8" style={{ color: t.dim }}>
+              <Music size={26} className="mx-auto mb-2" style={{ color: t.accent }} />
+              Nenhuma playlist publicada ainda.
+              {lider && <div className="mt-3"><AmBotao t={t} onClick={() => irPara("repertorio", "playlist")}><Plus size={16} /> Criar playlist</AmBotao></div>}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-[1.35fr_1fr]">
+              <AmPlayer t={t} itens={itens} indice={idx} setIndice={setIndice} />
+              <ol className="space-y-1.5 max-h-[460px] overflow-y-auto pr-1" aria-label="Lista de músicas">
+                {itens.map((it, i) => (
+                  <li key={it.id}>
+                    <button onClick={() => setIndice(i)} aria-current={i === idx ? "true" : undefined} className="w-full text-left flex items-center gap-2 rounded-xl p-2 focus:outline-none focus:ring-2" style={{ background: i === idx ? t.card2 : "transparent", border: `1px solid ${i === idx ? t.gold : t.line}` }}>
+                      <span className="w-5 text-center text-xs font-bold" style={{ color: i === idx ? t.gold : t.dim }}>{i === idx ? "▶" : i + 1}</span>
+                      <AmMiniatura url={it.youtubeUrl} t={t} tam={34} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold truncate" style={{ color: t.ink }}>{it.titulo}</span>
+                        <span className="block text-[11px] truncate" style={{ color: t.dim }}>{[it.tom ? `Tom ${it.tom}` : "", it.responsavel].filter(Boolean).join(" · ") || it.artista}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </AmCard>
+
+        <div className="space-y-4">
+          <AmCard t={t}>
+            <span className="text-[10px] font-bold uppercase tracking-wide rounded-full px-3 py-1" style={{ background: t.card2, color: t.accent }}>Próximo culto</span>
+            {proxCulto ? (
+              <>
+                <p className="font-display text-xl font-bold mt-2" style={{ color: t.ink }}>{proxCulto.titulo || proxCulto.tipo}</p>
+                <p className="text-sm" style={{ color: t.dim }}>{amDataHora(proxCulto)}{proxCulto.local ? ` · ${proxCulto.local}` : ""}</p>
+                {pres && pres.total > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3 text-xs font-semibold">
+                    <span className="rounded-full px-2.5 py-1" style={{ background: "#2E7D4F22", color: AM_COR.confirmado }}>{pres.confirmados} confirmados</span>
+                    <span className="rounded-full px-2.5 py-1" style={{ background: "#B7791F22", color: AM_COR.pendente }}>{pres.pendentes} pendentes</span>
+                    {pres.nao > 0 && <span className="rounded-full px-2.5 py-1" style={{ background: "#B0342822", color: AM_COR.nao }}>{pres.nao} não podem</span>}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <AmBotao t={t} onClick={() => irPara("agenda")}>Ver escala</AmBotao>
+                  {(proxCulto.musicas || []).length > 0 && <AmBotao t={t} tom="suave" onClick={() => abrirCulto(proxCulto)}><Maximize size={15} /> Modo culto</AmBotao>}
+                </div>
+              </>
+            ) : <p className="text-sm mt-2" style={{ color: t.dim }}>Nenhum culto agendado ainda.</p>}
+          </AmCard>
+
+          <AmCard t={t}>
+            <span className="text-[10px] font-bold uppercase tracking-wide rounded-full px-3 py-1" style={{ background: t.card2, color: t.accent }}>Próximo ensaio</span>
+            {proxEnsaio ? (
+              <>
+                <p className="font-display text-lg font-bold mt-2" style={{ color: t.ink }}>{proxEnsaio.titulo || "Ensaio"}</p>
+                <p className="text-sm" style={{ color: t.dim }}>{amDataHora(proxEnsaio)}{proxEnsaio.local ? ` · ${proxEnsaio.local}` : ""}</p>
+                <button onClick={() => irPara("ensaios")} className="mt-2 text-xs font-semibold underline" style={{ color: t.accent }}>Ver ensaios</button>
+              </>
+            ) : <p className="text-sm mt-2" style={{ color: t.dim }}>Nenhum ensaio agendado.</p>}
+          </AmCard>
+        </div>
+      </div>
+
+      <AmCard t={t}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-display font-bold flex items-center gap-2" style={{ color: t.ink }}><Megaphone size={16} style={{ color: t.accent }} /> Comunicados</p>
+          <button onClick={() => irPara("comunicados")} className="text-xs font-semibold underline" style={{ color: t.accent }}>Ver todos</button>
+        </div>
+        {comunicados.length === 0 && <p className="text-sm mt-2" style={{ color: t.dim }}>Nenhum comunicado no momento.</p>}
+        <div className="mt-2 space-y-2">
+          {comunicados.map((c) => (
+            <div key={c.id} className="rounded-xl p-3" style={{ background: t.card2 }}>
+              <p className="text-sm font-semibold" style={{ color: t.ink }}>{c.fixado ? "📌 " : ""}{c.titulo}</p>
+              {c.texto && <p className="text-xs mt-0.5 whitespace-pre-line" style={{ color: t.dim }}>{c.texto}</p>}
+            </div>
+          ))}
+        </div>
+      </AmCard>
+      {musico && <AmAvisos t={t} dados={dados} salvar={salvar} para={musico.id} />}
+    </div>
+  );
+}
+
+/* ---------- Playlists (por culto ou ensaio) ---------- */
+const AM_PLAYLIST_VAZIA = { titulo: "", data: "", descricao: "", tipo: "Culto", eventoId: "" };
+function AmPlaylists({ t, dados, salvar, lider, nomesEquipe, onTocar }) {
+  const pls = dados.playlists || [];
+  const visiveis = amPlaylistsVisiveis(dados, lider);
+  const [selId, setSelId] = useState(null);
+  const [form, setForm] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [link, setLink] = useState("");
+  const [linkTitulo, setLinkTitulo] = useState("");
+  const [erro, setErro] = useState("");
+  const [arrasto, setArrasto] = useState(null);
+  const sel = pls.find((p) => p.id === selId) || null;
+  const gravarPl = (id, fn, acao) => {
+    const novo = { ...dados, playlists: pls.map((p) => (p.id === id ? fn(p) : p)) };
+    salvar(acao ? amAud(novo, acao) : novo);
+  };
+  const criar = () => {
+    if (!form.titulo.trim()) return;
+    const base = { titulo: form.titulo.trim(), data: form.data, descricao: form.descricao.trim(), tipo: form.tipo, eventoId: form.eventoId || "" };
+    if (form.id) { gravarPl(form.id, (p) => ({ ...p, ...base }), `Playlist alterada: ${base.titulo}`); setForm(null); return; }
+    const nova = { id: uid(), ...base, publicada: false, itens: [], criadoEm: new Date().toISOString() };
+    salvar(amAud({ ...dados, playlists: [...pls, nova] }, `Playlist criada: ${base.titulo}`));
+    setForm(null); setSelId(nova.id);
+  };
+  const duplicar = (p) => {
+    const copia = { ...p, id: uid(), titulo: `${p.titulo} (cópia)`, publicada: false, itens: (p.itens || []).map((i) => ({ ...i, id: uid() })), criadoEm: new Date().toISOString() };
+    salvar(amAud({ ...dados, playlists: [...pls, copia] }, `Playlist duplicada: ${p.titulo}`));
+    setSelId(copia.id);
+  };
+  const excluir = (p) => {
+    if (!window.confirm(`Excluir a playlist "${p.titulo}"?`)) return;
+    salvar(amAud({ ...dados, playlists: pls.filter((x) => x.id !== p.id) }, `Playlist excluída: ${p.titulo}`));
+    setSelId(null);
+  };
+  const addDoAcervo = (m) => gravarPl(sel.id, (p) => ({ ...p, itens: [...(p.itens || []), amItemDeMusica(m)] }));
+  const addPorLink = () => {
+    setErro("");
+    if (!ytId(link)) { setErro("Esse link não parece ser do YouTube. Cole o endereço do vídeo."); return; }
+    gravarPl(sel.id, (p) => ({ ...p, itens: [...(p.itens || []), { id: uid(), acervoId: "", titulo: linkTitulo.trim() || "Vídeo do YouTube", artista: "", youtubeUrl: link.trim(), tom: "", responsavel: "" }] }));
+    setLink(""); setLinkTitulo("");
+  };
+  const mover = (de, para) => {
+    if (para < 0 || para >= (sel.itens || []).length || de === para) return;
+    gravarPl(sel.id, (p) => { const arr = [...p.itens]; const [x] = arr.splice(de, 1); arr.splice(para, 0, x); return { ...p, itens: arr }; });
+  };
+  const setItem = (itemId, patch) => gravarPl(sel.id, (p) => ({ ...p, itens: p.itens.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) }));
+  const tirar = (itemId) => gravarPl(sel.id, (p) => ({ ...p, itens: p.itens.filter((i) => i.id !== itemId) }));
+  const cultos = (dados.eventos || []).filter((e) => e.data).sort(amOrdenar).slice(-30);
+
+  if (form) {
+    return (
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>{form.id ? "Editar playlist" : "Nova playlist"}</p>
+        <div className="mt-3 space-y-3">
+          <AmInput t={t} placeholder="Título (ex: Culto de domingo)" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2">
+            <AmInput t={t} type="date" aria-label="Data" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
+            <AmSelect t={t} aria-label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}><option>Culto</option><option>Ensaio</option></AmSelect>
+          </div>
+          <AmSelect t={t} aria-label="Vincular a um evento" value={form.eventoId} onChange={(e) => { const ev = cultos.find((x) => x.id === e.target.value); setForm({ ...form, eventoId: e.target.value, data: ev && !form.data ? ev.data : form.data }); }}>
+            <option value="">Sem vínculo com evento da agenda</option>
+            {cultos.map((e) => <option key={e.id} value={e.id}>{fmtDate(e.data)} · {e.titulo || e.tipo}</option>)}
+          </AmSelect>
+          <textarea placeholder="Descrição (opcional)" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          <div className="flex gap-2"><AmBotao t={t} onClick={criar}><Check size={16} /> Salvar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setForm(null)}>Cancelar</AmBotao></div>
+        </div>
+      </AmCard>
+    );
+  }
+
+  if (sel) {
+    const itens = sel.itens || [];
+    const jaNaLista = new Set(itens.map((i) => i.acervoId).filter(Boolean));
+    const acervoFiltrado = (dados.acervo || []).filter((m) => !jaNaLista.has(m.id) && (semAcento(m.titulo).includes(semAcento(busca)) || semAcento(m.artista).includes(semAcento(busca)))).slice(0, 8);
+    return (
+      <div className="space-y-3">
+        <button onClick={() => setSelId(null)} className="min-h-[44px] text-sm font-semibold inline-flex items-center gap-1" style={{ color: t.accent }}><ChevronLeft size={16} /> Todas as playlists</button>
+        <AmCard t={t}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-display text-xl font-bold" style={{ color: t.ink }}>{sel.titulo}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{sel.tipo}{sel.data ? ` · ${fmtDate(sel.data)}` : ""}{lider ? ` · ${sel.publicada ? "Publicada" : "Rascunho"}` : ""}</p>
+              {sel.descricao && <p className="text-sm mt-1" style={{ color: t.ink }}>{sel.descricao}</p>}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <AmBotao t={t} onClick={() => onTocar(sel.id)} disabled={itens.length === 0} className="disabled:opacity-40"><Play size={15} /> Tocar</AmBotao>
+            {lider && <AmBotao t={t} tom="suave" onClick={() => setForm({ ...AM_PLAYLIST_VAZIA, ...sel })}><Pencil size={15} /> Editar</AmBotao>}
+            {lider && <AmBotao t={t} tom="suave" onClick={() => gravarPl(sel.id, (p) => ({ ...p, publicada: !p.publicada }), `Playlist ${sel.publicada ? "voltou a rascunho" : "publicada"}: ${sel.titulo}`)}>{sel.publicada ? "Voltar a rascunho" : "Publicar"}</AmBotao>}
+            {lider && <AmBotao t={t} tom="suave" onClick={() => duplicar(sel)}><Copy size={15} /> Duplicar</AmBotao>}
+            {lider && <AmBotao t={t} tom="perigo" onClick={() => excluir(sel)}><Trash2 size={15} /> Excluir</AmBotao>}
+          </div>
+        </AmCard>
+
+        {itens.length === 0 && <AmVazio t={t}>Esta playlist ainda não tem músicas.</AmVazio>}
+        <ol className="space-y-2">
+          {itens.map((it, i) => (
+            <li key={it.id} draggable={lider} onDragStart={() => setArrasto(i)} onDragOver={(e) => { if (lider) e.preventDefault(); }} onDrop={() => { if (lider && arrasto !== null) mover(arrasto, i); setArrasto(null); }} onDragEnd={() => setArrasto(null)} className="rounded-2xl p-3" style={{ background: t.card, border: `1px solid ${arrasto === i ? t.gold : t.line}`, opacity: arrasto === i ? 0.6 : 1 }}>
+              <div className="flex items-center gap-2">
+                {lider && <GripVertical size={16} className="shrink-0 cursor-grab" style={{ color: t.dim }} aria-hidden="true" />}
+                <span className="w-5 text-center text-xs font-bold" style={{ color: t.dim }}>{i + 1}</span>
+                <AmMiniatura url={it.youtubeUrl} t={t} tam={38} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate" style={{ color: t.ink }}>{it.titulo}</p>
+                  <p className="text-[11px] truncate" style={{ color: t.dim }}>{[it.artista, !lider && it.tom ? `Tom ${it.tom}` : "", !lider ? it.responsavel : ""].filter(Boolean).join(" · ")}</p>
+                </div>
+                {it.youtubeUrl && ytId(it.youtubeUrl) && <a href={ytLink(it.youtubeUrl)} target="_blank" rel="noopener noreferrer" aria-label="Abrir no YouTube" className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.card2, color: t.ink }}><ExternalLink size={14} /></a>}
+                {lider && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button aria-label="Subir música" disabled={i === 0} onClick={() => mover(i, i - 1)} className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-30" style={{ background: t.card2, color: t.ink }}><ArrowUp size={14} /></button>
+                    <button aria-label="Descer música" disabled={i === itens.length - 1} onClick={() => mover(i, i + 1)} className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-30" style={{ background: t.card2, color: t.ink }}><ArrowDown size={14} /></button>
+                    <button aria-label="Remover da playlist" onClick={() => tirar(it.id)} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={14} /></button>
+                  </div>
+                )}
+              </div>
+              {lider && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input aria-label="Tom nesta playlist" placeholder="Tom (ex: G)" defaultValue={it.tom} key={`tom-${it.id}-${it.tom}`} onBlur={(e) => { if (e.target.value !== (it.tom || "")) setItem(it.id, { tom: e.target.value.trim() }); }} className="min-h-[40px] rounded-lg px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+                  <input aria-label="Responsável" placeholder="Responsável" list="am-nomes-equipe" defaultValue={it.responsavel} key={`resp-${it.id}-${it.responsavel}`} onBlur={(e) => { if (e.target.value !== (it.responsavel || "")) setItem(it.id, { responsavel: e.target.value.trim() }); }} className="min-h-[40px] rounded-lg px-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+        <datalist id="am-nomes-equipe">{(nomesEquipe || []).map((n) => <option key={n} value={n} />)}</datalist>
+
+        {lider && (
+          <AmCard t={t}>
+            <p className="font-display font-bold" style={{ color: t.ink }}>Adicionar músicas</p>
+            <p className="text-xs mt-2 mb-1" style={{ color: t.dim }}>Do repertório</p>
+            <AmInput t={t} placeholder="Buscar no repertório…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <div className="mt-2 space-y-1.5">
+              {acervoFiltrado.length === 0 && <p className="text-xs" style={{ color: t.dim }}>{(dados.acervo || []).length === 0 ? "O repertório ainda está vazio. Cadastre músicas na aba “Músicas”." : "Nada encontrado."}</p>}
+              {acervoFiltrado.map((m) => (
+                <div key={m.id} className="flex items-center gap-2 rounded-xl p-2" style={{ background: t.card2 }}>
+                  <AmMiniatura url={m.youtubeUrl} t={t} tam={30} />
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold truncate" style={{ color: t.ink }}>{m.titulo}</span><span className="block text-[11px] truncate" style={{ color: t.dim }}>{m.artista}{m.tomIgreja ? ` · Tom ${m.tomIgreja}` : ""}</span></span>
+                  <button onClick={() => addDoAcervo(m)} aria-label={`Adicionar ${m.titulo}`} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.accent, color: t.onAccent }}><Plus size={16} /></button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs mt-4 mb-1" style={{ color: t.dim }}>Por link do YouTube</p>
+            <div className="space-y-2">
+              <AmInput t={t} placeholder="https://www.youtube.com/watch?v=…" value={link} onChange={(e) => setLink(e.target.value)} />
+              <AmInput t={t} placeholder="Título (opcional)" value={linkTitulo} onChange={(e) => setLinkTitulo(e.target.value)} />
+              {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+              <AmBotao t={t} onClick={addPorLink}><Plus size={16} /> Adicionar link</AmBotao>
+            </div>
+          </AmCard>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-lg font-bold" style={{ color: t.ink }}>Playlists</p>
+        {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_PLAYLIST_VAZIA, data: amHojeIso() })}><Plus size={16} /> Nova playlist</AmBotao>}
+      </div>
+      {visiveis.length === 0 && <AmVazio t={t}>{lider ? "Nenhuma playlist ainda. Crie a primeira para um culto ou ensaio." : "Nenhuma playlist publicada ainda."}</AmVazio>}
+      {visiveis.map((p) => (
+        <button key={p.id} onClick={() => setSelId(p.id)} className="w-full text-left rounded-2xl p-3 flex items-center gap-3 focus:outline-none focus:ring-2" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+          <AmMiniatura url={((p.itens || [])[0] || {}).youtubeUrl} t={t} tam={44} />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold truncate" style={{ color: t.ink }}>{p.titulo}</span>
+            <span className="block text-xs" style={{ color: t.dim }}>{p.tipo}{p.data ? ` · ${fmtDate(p.data)}` : ""} · {(p.itens || []).length} música(s)</span>
+          </span>
+          {lider && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-1" style={{ background: p.publicada ? "#2E7D4F22" : "#B7791F22", color: p.publicada ? AM_COR.confirmado : AM_COR.pendente }}>{p.publicada ? "Publicada" : "Rascunho"}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Repertório = músicas + playlists ---------- */
+function AmRepertorio({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFav, nomesEquipe, acao, limparAcao, onTocar }) {
+  const [sub, setSub] = useState(acao === "playlist" ? "playlists" : "musicas");
+  useEffect(() => { if (acao === "playlist") setSub("playlists"); else if (acao === "nova") setSub("musicas"); }, [acao]);
+  return (
+    <div className="space-y-4">
+      <div className="inline-flex rounded-full p-1" style={{ background: t.card2 }} role="tablist" aria-label="Repertório">
+        {[["musicas", "Músicas"], ["playlists", "Playlists"]].map(([k, r]) => (
+          <button key={k} role="tab" aria-selected={sub === k} onClick={() => setSub(k)} className="min-h-[40px] px-5 rounded-full text-sm font-semibold" style={{ background: sub === k ? t.accent : "transparent", color: sub === k ? t.onAccent : t.ink }}>{r}</button>
+        ))}
+      </div>
+      {sub === "musicas"
+        ? <AmAcervo t={t} dados={dados} salvar={salvar} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={podeFav} acaoInicial={acao} limparAcao={limparAcao} />
+        : <AmPlaylists t={t} dados={dados} salvar={salvar} lider={lider} nomesEquipe={nomesEquipe} onTocar={onTocar} />}
+    </div>
+  );
+}
+
+/* ---------- Membros (cadastro ampliado; contatos só para quem edita) ---------- */
+const AM_FUNCOES = ["Líder", "Ministro de louvor", "Vocal", "Instrumentista", "Técnico"];
+const AM_VOCAIS = ["", "Soprano", "Contralto", "Tenor", "Baixo", "Outro"];
+const AM_MEMBRO_VAZIO = { nome: "", apelido: "", fotoUrl: "", whatsapp: "", email: "", nascimento: "", funcoes: [], instrumento: "", vocal: "", disponibilidade: "", ativo: true, obs: "" };
+const amWhats = (tel) => { const d = digitsOnly(tel); if (!d) return ""; return d.length <= 11 ? "55" + d : d; };
+const amFuncoesDe = (m) => { const f = [...(m.funcoes || [])]; if (!f.length && m.cantor === "Sim") f.push("Vocal"); return f; };
+
+function AmMembros({ t, musicos, saveMusicos, dados, salvar, lider, acao, limparAcao }) {
+  const [busca, setBusca] = useState("");
+  const [fFuncao, setFFuncao] = useState("");
+  const [fStatus, setFStatus] = useState("ativos");
+  const [form, setForm] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+  useEffect(() => {
+    if (acao === "novo" && lider) { setForm({ ...AM_MEMBRO_VAZIO }); if (limparAcao) limparAcao(); }
+  }, [acao, lider]);
+  const lista = (musicos || []).filter((m) => {
+    const ativo = m.ativo !== false;
+    if (!lider && !ativo) return false;
+    if (fStatus === "ativos" && !ativo) return false;
+    if (fStatus === "inativos" && ativo) return false;
+    if (fFuncao && !amFuncoesDe(m).includes(fFuncao)) return false;
+    const q = semAcento(busca);
+    return !q || semAcento(m.nome).includes(q) || semAcento(m.apelido).includes(q) || semAcento(m.instrumento).includes(q);
+  }).sort((a, b) => (a.apelido || a.nome || "").localeCompare(b.apelido || b.nome || "", "pt-BR"));
+
+  // Mantém a conta de acesso (escalas e confirmação de presença) em dia com o cadastro do membro.
+  const sincronizarAcesso = (m) => {
+    const acessos = dados.acessos || [];
+    const chave = semAcento(m.nome).trim();
+    const ex = acessos.find((a) => a.origemGrupo === m.id) || acessos.find((a) => semAcento(a.nome).trim() === chave);
+    if (ex) {
+      return { ...dados, acessos: acessos.map((a) => (a.id === ex.id ? { ...a, nome: m.nome, instrumento: m.instrumento || a.instrumento, email: a.email || m.email || "", ativo: m.ativo !== false, origemGrupo: m.id } : a)) };
+    }
+    if (amNomeIgnorado(m.nome) || m.ativo === false) return dados;
+    const usados = new Set(acessos.map((a) => a.codigo));
+    let codigo = amGerarCodigo(); while (usados.has(codigo)) codigo = amGerarCodigo();
+    return { ...dados, acessos: [...acessos, { id: uid(), nome: m.nome, instrumento: m.instrumento || "", email: m.email || "", codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString(), origemGrupo: m.id }] };
+  };
+  const gravar = () => {
+    if (!form.nome.trim()) { setErro("Informe o nome completo."); return; }
+    setErro("");
+    const limpo = { ...form, nome: form.nome.trim(), apelido: (form.apelido || "").trim() };
+    const existe = (musicos || []).some((m) => m.id === form.id);
+    const final = existe ? limpo : { ...limpo, id: uid() };
+    saveMusicos(existe ? musicos.map((m) => (m.id === final.id ? final : m)) : [...(musicos || []), final]);
+    salvar(amAud(sincronizarAcesso(final), `${existe ? "Membro alterado" : "Membro cadastrado"}: ${final.nome}`));
+    setForm(null);
+  };
+  const remover = (m) => {
+    if (!window.confirm(`Remover ${m.nome} do grupo? (Para só deixar de aparecer, use "Inativo".)`)) return;
+    saveMusicos(musicos.filter((x) => x.id !== m.id));
+    const acessos = (dados.acessos || []).map((a) => (a.origemGrupo === m.id ? { ...a, ativo: false } : a));
+    salvar(amAud({ ...dados, acessos }, `Membro removido: ${m.nome}`));
+  };
+  const alternarAtivo = (m) => {
+    const novo = { ...m, ativo: m.ativo === false };
+    saveMusicos(musicos.map((x) => (x.id === m.id ? novo : x)));
+    salvar(amAud({ ...dados, acessos: (dados.acessos || []).map((a) => (a.origemGrupo === m.id ? { ...a, ativo: novo.ativo } : a)) }, `${novo.ativo ? "Membro reativado" : "Membro inativado"}: ${m.nome}`));
+  };
+  const enviarFoto = async (file) => {
+    if (!file) return;
+    setEnviando(true); setErro("");
+    try { const ref = await enviarImagemKv(file); setForm((f) => ({ ...f, fotoUrl: ref })); } catch (e) { setErro("Não consegui enviar a foto. Tente outra imagem."); }
+    setEnviando(false);
+  };
+  const alternarFuncao = (f) => setForm((x) => ({ ...x, funcoes: (x.funcoes || []).includes(f) ? x.funcoes.filter((y) => y !== f) : [...(x.funcoes || []), f] }));
+
+  if (form) {
+    return (
+      <AmCard t={t}>
+        <p className="font-display font-bold text-lg" style={{ color: t.ink }}>{(musicos || []).some((m) => m.id === form.id) ? "Editar membro" : "Cadastrar membro"}</p>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-20 h-24 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ background: t.card2 }}>
+              {form.fotoUrl ? <FotoKv src={form.fotoUrl} alt="Foto" className="w-20 h-24 object-cover" ph="Foto" /> : <Users size={24} style={{ color: t.dim }} />}
+            </div>
+            <div className="space-y-2">
+              <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>
+                {enviando ? "Enviando…" : form.fotoUrl ? "Trocar foto" : "Enviar foto"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => enviarFoto(e.target.files && e.target.files[0])} />
+              </label>
+              {form.fotoUrl && <button type="button" onClick={() => setForm({ ...form, fotoUrl: "" })} className="block text-xs underline" style={{ color: t.dim }}>remover foto</button>}
+            </div>
+          </div>
+          <AmInput t={t} placeholder="Nome completo *" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          <AmInput t={t} placeholder="Nome de exibição (como aparece no app)" value={form.apelido || ""} onChange={(e) => setForm({ ...form, apelido: e.target.value })} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <AmInput t={t} type="tel" inputMode="tel" placeholder="WhatsApp (com DDD)" value={form.whatsapp || ""} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+            <AmInput t={t} type="email" placeholder="E-mail" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <label className="block text-xs" style={{ color: t.dim }}>Data de nascimento
+            <AmInput t={t} type="date" value={form.nascimento || ""} onChange={(e) => setForm({ ...form, nascimento: e.target.value })} />
+          </label>
+          <div>
+            <p className="text-xs mb-1.5" style={{ color: t.dim }}>Funções (pode marcar várias)</p>
+            <div className="flex flex-wrap gap-2">
+              {AM_FUNCOES.map((f) => {
+                const on = (form.funcoes || []).includes(f);
+                return <button key={f} type="button" aria-pressed={on} onClick={() => alternarFuncao(f)} className="min-h-[40px] px-3 rounded-full text-xs font-semibold" style={{ background: on ? t.accent : t.card2, color: on ? t.onAccent : t.ink }}>{f}</button>;
+              })}
+            </div>
+          </div>
+          <AmInput t={t} placeholder="Instrumentos (ex: violão, teclado)" value={form.instrumento || ""} onChange={(e) => setForm({ ...form, instrumento: e.target.value })} />
+          <AmSelect t={t} aria-label="Classificação vocal" value={form.vocal || ""} onChange={(e) => setForm({ ...form, vocal: e.target.value })}>
+            {AM_VOCAIS.map((v) => <option key={v} value={v}>{v || "Classificação vocal (opcional)"}</option>)}
+          </AmSelect>
+          <AmInput t={t} placeholder="Disponibilidade (ex: domingos à noite)" value={form.disponibilidade || ""} onChange={(e) => setForm({ ...form, disponibilidade: e.target.value })} />
+          <textarea placeholder="Observações internas (só a liderança vê)" value={form.obs || ""} onChange={(e) => setForm({ ...form, obs: e.target.value })} rows={3} className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          <label className="flex items-center gap-2 text-sm" style={{ color: t.ink }}><input type="checkbox" checked={form.ativo !== false} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} /> Membro ativo</label>
+          {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+          <div className="flex gap-2"><AmBotao t={t} onClick={gravar} disabled={enviando}><Check size={16} /> Salvar</AmBotao><AmBotao t={t} tom="suave" onClick={() => { setForm(null); setErro(""); }}>Cancelar</AmBotao></div>
+        </div>
+      </AmCard>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Membros</p>
+        {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MEMBRO_VAZIO })}><UserPlus size={16} /> Cadastrar</AmBotao>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.dim }} />
+          <input aria-label="Buscar membro" placeholder="Buscar por nome ou instrumento" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full min-h-[48px] rounded-xl pl-9 pr-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card, color: t.ink, border: `1px solid ${t.line}` }} />
+        </div>
+        <AmSelect t={t} aria-label="Filtrar por função" value={fFuncao} onChange={(e) => setFFuncao(e.target.value)}><option value="">Todas as funções</option>{AM_FUNCOES.map((f) => <option key={f}>{f}</option>)}</AmSelect>
+        {lider && <AmSelect t={t} aria-label="Filtrar por situação" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="ativos">Ativos</option><option value="inativos">Inativos</option><option value="todos">Todos</option></AmSelect>}
+      </div>
+      {lista.length === 0 && <AmVazio t={t}>{(musicos || []).length === 0 ? "Nenhum membro cadastrado ainda." : "Nenhum membro encontrado com esses filtros."}</AmVazio>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {lista.map((m) => {
+          const funcoes = amFuncoesDe(m);
+          return (
+            <div key={m.id} className="rounded-2xl p-3 flex gap-3" style={{ background: t.card, border: `1px solid ${t.line}`, opacity: m.ativo === false ? 0.65 : 1 }}>
+              <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ background: t.card2 }}>
+                {m.fotoUrl ? <FotoKv src={m.fotoUrl} alt={m.apelido || m.nome} className="w-16 h-20 object-cover" ph="" /> : <Users size={22} style={{ color: t.dim }} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate" style={{ color: t.ink }}>{m.apelido || m.nome}{m.ativo === false ? " (inativo)" : ""}</p>
+                {m.apelido && lider && <p className="text-[11px] truncate" style={{ color: t.dim }}>{m.nome}</p>}
+                <div className="flex flex-wrap gap-1 mt-1">{funcoes.map((f) => <span key={f} className="text-[10px] font-semibold rounded-full px-2 py-0.5" style={{ background: t.card2, color: t.accent }}>{f}</span>)}</div>
+                {m.instrumento && <p className="text-xs mt-1" style={{ color: t.dim }}>{m.instrumento}</p>}
+                {m.vocal && <p className="text-xs" style={{ color: t.dim }}>Voz: {m.vocal}</p>}
+                {m.disponibilidade && <p className="text-xs" style={{ color: t.dim }}>Disponibilidade: {m.disponibilidade}</p>}
+                {lider && (
+                  <div className="mt-2 pt-2 space-y-1" style={{ borderTop: `1px solid ${t.line}` }}>
+                    {m.whatsapp && <p className="text-xs" style={{ color: t.ink }}>WhatsApp: {m.whatsapp}</p>}
+                    {m.email && <p className="text-xs break-all" style={{ color: t.ink }}>{m.email}</p>}
+                    {m.nascimento && <p className="text-xs" style={{ color: t.dim }}>Nascimento: {fmtDate(m.nascimento)}</p>}
+                    {m.obs && <p className="text-xs whitespace-pre-line" style={{ color: t.dim }}>Obs.: {m.obs}</p>}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {m.whatsapp && <a href={`https://wa.me/${amWhats(m.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="min-h-[40px] px-3 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5" style={{ background: "#25D36622", color: "#1E8E4A" }}><MessageCircle size={14} /> Chamar no WhatsApp</a>}
+                      <button onClick={() => setForm({ ...AM_MEMBRO_VAZIO, ...m, funcoes: amFuncoesDe(m) })} aria-label={`Editar ${m.nome}`} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={14} /></button>
+                      <button onClick={() => alternarAtivo(m)} className="min-h-[40px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>{m.ativo === false ? "Reativar" : "Inativar"}</button>
+                      <button onClick={() => remover(m)} aria-label={`Remover ${m.nome}`} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!lider && <p className="text-[11px]" style={{ color: t.dim }}>Contatos e dados pessoais ficam visíveis apenas para a liderança autorizada.</p>}
+    </div>
+  );
+}
+
+/* ---------- Comunicados ---------- */
+function AmComunicados({ t, dados, salvar, lider }) {
+  const [form, setForm] = useState(null);
+  const lista = amComunicadosAtivos(dados, lider);
+  const gravar = () => {
+    if (!form.titulo.trim()) return;
+    const limpo = { titulo: form.titulo.trim(), texto: (form.texto || "").trim(), fixado: !!form.fixado, ate: form.ate || "" };
+    const todos = dados.comunicados || [];
+    const existe = todos.some((c) => c.id === form.id);
+    const novos = existe ? todos.map((c) => (c.id === form.id ? { ...c, ...limpo } : c)) : [{ id: uid(), criadoEm: new Date().toISOString(), ...limpo }, ...todos];
+    salvar(amAud({ ...dados, comunicados: novos }, `${existe ? "Comunicado alterado" : "Comunicado publicado"}: ${limpo.titulo}`));
+    setForm(null);
+  };
+  const excluir = (c) => { if (!window.confirm(`Excluir o comunicado "${c.titulo}"?`)) return; salvar(amAud({ ...dados, comunicados: (dados.comunicados || []).filter((x) => x.id !== c.id) }, `Comunicado excluído: ${c.titulo}`)); };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Comunicados</p>
+        {lider && !form && <AmBotao t={t} onClick={() => setForm({ titulo: "", texto: "", fixado: false, ate: "" })}><Plus size={16} /> Novo</AmBotao>}
+      </div>
+      {form && (
+        <AmCard t={t}>
+          <div className="space-y-3">
+            <AmInput t={t} placeholder="Título do comunicado" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+            <textarea placeholder="Mensagem" rows={4} value={form.texto} onChange={(e) => setForm({ ...form, texto: e.target.value })} className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+            <label className="block text-xs" style={{ color: t.dim }}>Mostrar até (opcional)<AmInput t={t} type="date" value={form.ate || ""} onChange={(e) => setForm({ ...form, ate: e.target.value })} /></label>
+            <label className="flex items-center gap-2 text-sm" style={{ color: t.ink }}><input type="checkbox" checked={!!form.fixado} onChange={(e) => setForm({ ...form, fixado: e.target.checked })} /> Fixar no topo</label>
+            <div className="flex gap-2"><AmBotao t={t} onClick={gravar}><Check size={16} /> Publicar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setForm(null)}>Cancelar</AmBotao></div>
+          </div>
+        </AmCard>
+      )}
+      {lista.length === 0 && !form && <AmVazio t={t}>Nenhum comunicado no momento.</AmVazio>}
+      {lista.map((c) => (
+        <AmCard t={t} key={c.id}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold" style={{ color: t.ink }}>{c.fixado ? "📌 " : ""}{c.titulo}</p>
+              <p className="text-[11px]" style={{ color: t.dim }}>{c.criadoEm ? fmtDate(c.criadoEm.slice(0, 10)) : ""}{c.ate ? ` · até ${fmtDate(c.ate)}` : ""}</p>
+              {c.texto && <p className="text-sm mt-1.5 whitespace-pre-line" style={{ color: t.ink }}>{c.texto}</p>}
+            </div>
+            {lider && (
+              <div className="flex gap-1 shrink-0">
+                <button aria-label="Editar comunicado" onClick={() => setForm({ ...c })} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={14} /></button>
+                <button aria-label="Excluir comunicado" onClick={() => excluir(c)} className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={14} /></button>
+              </div>
+            )}
+          </div>
+        </AmCard>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Agenda e ensaios (leitura para todos; edição na tela de escalas) ---------- */
+function AmEventoLeitura({ t, dados, salvar, ev, musico }) {
+  const nomeDe = (id) => ((dados.acessos || []).find((a) => a.id === id) || {}).nome || "(removido)";
+  const musicas = (ev.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean);
+  const pres = amResumoPresenca(dados, ev);
+  const souEscalado = musico && (ev.escalados || []).some((x) => x.musicoId === musico.id);
+  return (
+    <AmCard t={t}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold" style={{ color: t.ink }}>{ev.titulo || ev.tipo}</p>
+          <p className="text-xs" style={{ color: t.dim }}>{ev.tipo} · {amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
+        </div>
+        {pres.total > 0 && <span className="text-[11px] font-semibold rounded-full px-2.5 py-1 shrink-0" style={{ background: t.card2, color: t.accent }}>{pres.confirmados}/{pres.total} confirmados</span>}
+      </div>
+      {(ev.escalados || []).length === 0
+        ? <p className="text-xs mt-2" style={{ color: t.dim }}>Escala ainda não montada.</p>
+        : (
+          <ul className="mt-2 grid sm:grid-cols-2 gap-1.5">
+            {ev.escalados.map((x) => {
+              const st = amDispDe(dados, x.musicoId, ev.id).status;
+              return <li key={x.musicoId + (x.instrumento || "")} className="text-sm flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: t.card2, color: t.ink, outline: musico && x.musicoId === musico.id ? `2px solid ${t.gold}` : "none" }}><span className="truncate">{nomeDe(x.musicoId)}{x.instrumento ? <span style={{ color: t.dim }}> · {x.instrumento}</span> : null}</span><span className="text-[10px] font-bold shrink-0" style={{ color: AM_COR[st] }}>{AM_ROTULO[st]}</span></li>;
+            })}
+          </ul>
+        )}
+      {musicas.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{musicas.map((m) => <span key={m.id} className="text-xs rounded-full px-2.5 py-1" style={{ background: t.card2, color: t.ink }}>{m.titulo}{m.tomIgreja ? ` (${m.tomIgreja})` : ""}</span>)}</div>}
+      {musico && souEscalado && <div className="mt-3"><p className="text-xs mb-1" style={{ color: t.dim }}>Sua presença</p><AmDispControle t={t} dados={dados} salvar={salvar} musico={musico} ev={ev} /></div>}
+    </AmCard>
+  );
+}
+function AmAgendaLeitura({ t, dados, salvar, musico }) {
+  const futuros = amEventosFuturos(dados.eventos);
+  return (
+    <div className="space-y-3">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Agenda e escalas</p>
+      {futuros.length === 0 && <AmVazio t={t}>Nenhum culto ou ensaio agendado.</AmVazio>}
+      {futuros.map((ev) => <AmEventoLeitura key={ev.id} t={t} dados={dados} salvar={salvar} ev={ev} musico={musico} />)}
+    </div>
+  );
+}
+function AmEnsaios({ t, dados, salvar, lider, musico }) {
+  const ens = (dados.eventos || []).filter((e) => e.tipo === "Ensaio" || e.tipo === "Treinamento");
+  const futuros = amEventosFuturos(ens);
+  const passados = amEventosPassados(ens).slice(0, 5);
+  const [form, setForm] = useState(null);
+  const criar = () => {
+    if (!form.data) return;
+    const titulo = form.titulo.trim() || form.tipo;
+    salvar(amAud({ ...dados, eventos: [...(dados.eventos || []), { id: uid(), tipo: form.tipo, titulo, data: form.data, hora: form.hora, local: form.local.trim(), vagas: [], escalados: [], musicas: [] }] }, `Evento criado: ${titulo} (${fmtDate(form.data)})`));
+    setForm(null);
+  };
+  const excluir = (ev) => {
+    if (!window.confirm(`Excluir "${ev.titulo || ev.tipo}" de ${fmtDate(ev.data)}?`)) return;
+    salvar(amAud({ ...dados, eventos: dados.eventos.filter((e) => e.id !== ev.id), disponibilidade: (dados.disponibilidade || []).filter((d) => d.eventoId !== ev.id) }, `Evento excluído: ${ev.titulo || ev.tipo} (${fmtDate(ev.data)})`));
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Ensaios</p>
+        {lider && !form && <AmBotao t={t} onClick={() => setForm({ tipo: "Ensaio", titulo: "", data: "", hora: "", local: "" })}><Plus size={16} /> Novo ensaio</AmBotao>}
+      </div>
+      {form && (
+        <AmCard t={t}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <AmSelect t={t} aria-label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}><option>Ensaio</option><option>Treinamento</option></AmSelect>
+              <AmInput t={t} type="date" aria-label="Data" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
+              <AmInput t={t} type="time" aria-label="Hora" value={form.hora} onChange={(e) => setForm({ ...form, hora: e.target.value })} />
+              <AmInput t={t} placeholder="Local" value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })} />
+            </div>
+            <AmInput t={t} placeholder="Título (opcional)" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+            <div className="flex gap-2"><AmBotao t={t} onClick={criar}><Check size={16} /> Criar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setForm(null)}>Cancelar</AmBotao></div>
+            <p className="text-[11px]" style={{ color: t.dim }}>Para escalar músicos e escolher músicas, abra “Agenda e escalas”.</p>
+          </div>
+        </AmCard>
+      )}
+      {futuros.length === 0 && <AmVazio t={t}>Nenhum ensaio agendado.</AmVazio>}
+      {futuros.map((ev) => (
+        <div key={ev.id}>
+          <AmEventoLeitura t={t} dados={dados} salvar={salvar} ev={ev} musico={musico} />
+          {lider && <button onClick={() => excluir(ev)} className="mt-1 text-xs underline" style={{ color: "#D0473A" }}>excluir este ensaio</button>}
+        </div>
+      ))}
+      {passados.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mt-4 mb-2" style={{ color: t.dim }}>ÚLTIMOS ENSAIOS</p>
+          <div className="space-y-1.5">{passados.map((ev) => <p key={ev.id} className="text-sm rounded-xl px-3 py-2" style={{ background: t.card, border: `1px solid ${t.line}`, color: t.ink }}>{ev.titulo || ev.tipo} <span className="text-xs" style={{ color: t.dim }}>· {amDataHora(ev)}</span></p>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Cartão do Avivar Music na abertura do site (parece um app à parte) ---------- */
+function AvivarMusicHomeCard({ musicApp, onOpen }) {
+  const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
+  const futuros = amEventosFuturos(dados.eventos);
+  const ev = futuros.find((e) => e.tipo === "Culto") || futuros[0] || null;
+  const lista = amPlaylistsVisiveis(dados, false);
+  const pl = amPlaylistDestaque(dados, lista);
+  const itens = (pl ? pl.itens || [] : amItensDoCulto(dados, ev)).slice(0, 3);
+  const pres = ev ? amResumoPresenca(dados, ev) : null;
+  return (
+    <div className="h-full rounded-2xl overflow-hidden flex flex-col text-white shadow-md" style={{ background: "linear-gradient(160deg,#4A1A70 0%,#351052 70%)", border: "1px solid #D6B46A88" }}>
+      <div className="px-4 pt-4 pb-3 flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#D6B46A22", border: "1px solid #D6B46A99" }}><Music size={20} color="#D6B46A" /></span>
+        <div className="min-w-0">
+          <p className="font-display font-bold text-base leading-tight">Avivar Music</p>
+          <p className="text-[10px] leading-tight" style={{ color: "#E8D9B0" }}>Ministério Avivar do Espírito</p>
+        </div>
+      </div>
+      <div className="px-4 pb-3 flex-1">
+        <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Próximo culto</p>
+        {ev ? (
+          <>
+            <p className="font-display font-bold text-sm mt-0.5 leading-snug">{ev.titulo || ev.tipo}</p>
+            <p className="text-xs text-white/80">{amDataHora(ev)}{ev.local ? ` · ${ev.local}` : ""}</p>
+            {pres && pres.total > 0 && <p className="text-[11px] mt-1 text-white/80">{pres.confirmados} confirmados · {pres.pendentes} pendentes</p>}
+          </>
+        ) : <p className="text-xs text-white/75 mt-0.5">Nenhum culto agendado.</p>}
+        {itens.length > 0 && (
+          <div className="mt-3">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Louvores</p>
+            <ul className="mt-1 space-y-1.5">
+              {itens.map((it) => (
+                <li key={it.id} className="flex items-center gap-2">
+                  {ytThumb(it.youtubeUrl) ? <img src={ytThumb(it.youtubeUrl)} alt="" loading="lazy" className="w-12 h-7 rounded object-cover shrink-0" /> : <span className="w-12 h-7 rounded shrink-0 flex items-center justify-center bg-white/10"><Music size={12} /></span>}
+                  <span className="text-xs truncate">{it.titulo}{it.tom ? <span className="text-white/60"> · {it.tom}</span> : null}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <button onClick={onOpen} className="m-3 mt-0 min-h-[44px] rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white" style={{ background: "#D6B46A", color: "#351052" }}>Abrir Avivar Music</button>
+    </div>
+  );
+}
+
 function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider }) {
   const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
-  const lider = adminMode || operatorMode;
-  const [escuro, setEscuro] = useState(false);
+  // Qualquer pessoa vê; só o admin ou quem ele indicou (setor "avivarmusic") altera.
+  const lider = !!(adminMode || operatorMode);
+  const [escuro, setEscuro] = useState(() => { try { return localStorage.getItem("am-tema") === "escuro"; } catch (e) { return false; } });
+  const alternarTema = () => setEscuro((v) => { const n = !v; try { localStorage.setItem("am-tema", n ? "escuro" : "claro"); } catch (e) { /* sem storage */ } return n; });
   const [tela, setTela] = useState("inicio");
+  const [acao, setAcao] = useState(null);
+  const [maisAberto, setMaisAberto] = useState(false);
   const [culto, setCulto] = useState(null);
+  const [plId, setPlId] = useState("");
   const [sessaoId, setSessaoId] = useState(() => { try { return sessionStorage.getItem("am-sessao") || ""; } catch (e) { return ""; } });
-  const entrar = (id) => { setSessaoId(id); try { sessionStorage.setItem("am-sessao", id); } catch (e) { /* sem storage */ } };
-  const sair = () => { setSessaoId(""); setTela("inicio"); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } };
+  const entrar = (id) => { setSessaoId(id); setTela("inicio"); try { sessionStorage.setItem("am-sessao", id); } catch (e) { /* sem storage */ } };
+  const sair = () => { setSessaoId(""); setTela("inicio"); setMaisAberto(false); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } };
   const musico = (dados.acessos || []).find((a) => a.id === sessaoId && a.ativo !== false) || null;
-  const logado = lider || !!musico;
   const t = amTema(escuro);
-  // Monta a equipe sozinho na primeira vez que o líder abre o app (uma vez só): traz os músicos
-  // do Grupo, gera o código de cada um e deixa Wládia e Marcos de fora.
+  useEffect(() => { if (lider && tela === "entrar") setTela("inicio"); }, [lider, tela]);
+  // Monta a equipe sozinho na primeira vez que a liderança abre o app (uma vez só).
   useEffect(() => {
     if (!lider || dados.equipeImportada || !musicos || musicos.length === 0) return;
     const { novos } = amImportarEquipe(dados, musicos);
     saveMusicApp(amAud({ ...dados, acessos: [...(dados.acessos || []), ...novos], equipeImportada: true }, novos.length ? `Equipe montada a partir do Grupo: ${novos.map((n) => n.nome).join(", ")}` : "Equipe verificada (nada a importar)"));
   }, [lider, dados.equipeImportada, musicos]);
-  const abas = musico && !lider
-    ? [{ k: "inicio", r: "Início", i: HomeIcon }, { k: "escala", r: "Escala", i: Calendar }, { k: "acervo", r: "Acervo", i: Library }, { k: "estudio", r: "Estúdio", i: Settings2 }, { k: "historico", r: "Histórico", i: History }, { k: "grupo", r: "Grupo", i: Music }]
-    : [{ k: "inicio", r: "Painel", i: HomeIcon }, { k: "escalas", r: "Escalas", i: Calendar }, { k: "equipe", r: "Equipe", i: Users }, { k: "acervo", r: "Acervo", i: Library }, { k: "patrimonio", r: "Patrimônio", i: Package }, { k: "estudio", r: "Estúdio", i: Settings2 }, { k: "historico", r: "Histórico", i: History }, { k: "grupo", r: "Grupo", i: Music }];
+
+  const ALIAS = { escalas: "agenda", escala: "minha", acervo: "repertorio", equipe: "acessos", patrimonio: "equipamentos", grupo: "albuns" };
+  const irPara = (k, a) => { setTela(ALIAS[k] || k); setAcao(a || null); setMaisAberto(false); try { window.scrollTo({ top: 0 }); } catch (e) { /* ok */ } };
+  const principais = [
+    { k: "inicio", r: "Início", i: HomeIcon },
+    { k: "agenda", r: "Agenda e escalas", rc: "Agenda", i: Calendar },
+    { k: "repertorio", r: "Repertório", i: ListMusic },
+    { k: "membros", r: "Membros", i: Users },
+    { k: "ensaios", r: "Ensaios", i: Clock },
+    ...(lider ? [{ k: "equipamentos", r: "Equipamentos", i: Package }] : []),
+    { k: "comunicados", r: "Comunicados", i: Megaphone },
+  ];
+  const extras = [
+    ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
+    ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: "Acessos da equipe", i: KeyRound }] : []),
+    { k: "estudio", r: "Estúdio", i: Settings2 },
+    ...(lider || musico ? [{ k: "historico", r: "Histórico", i: History }] : []),
+    { k: "albuns", r: "Álbuns", i: Library },
+  ];
+  const baixo = [principais[0], principais[1], principais[2], principais[3]];
   const abrirCulto = (ev) => setCulto(ev);
   const musicasCulto = culto ? (culto.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter(Boolean) : [];
-  const userKey = musico ? musico.id : "lider";
+  const userKey = musico ? musico.id : lider ? "lider" : "";
+  const nomesEquipe = [...new Set([...(musicos || []).map((m) => m.apelido || m.nome), ...(dados.acessos || []).map((a) => a.nome)].filter(Boolean))];
+  const tocar = (id) => { setPlId(id); irPara("inicio"); };
+  const limparAcao = () => setAcao(null);
+
+  const BotaoMenu = ({ it }) => (
+    <button onClick={() => irPara(it.k)} aria-current={tela === it.k ? "page" : undefined} className="w-full min-h-[46px] px-3 rounded-xl inline-flex items-center gap-3 text-sm font-semibold text-left focus:outline-none focus:ring-2" style={{ background: tela === it.k ? t.accent : "transparent", color: tela === it.k ? t.onAccent : t.ink }}>
+      <it.i size={18} /><span className="truncate">{it.r}</span>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen font-body pb-10 relative" style={{ background: t.bg, color: t.ink }}>
-      <AmDecoracao t={t} />
-      <div className="sticky top-0 z-40">
-        <div className="flex items-center justify-between gap-2 px-3 sm:px-8 py-2.5" style={{ background: "#4A1270" }}>
-          <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> Voltar ao site</button>
-          <div className="flex items-center gap-2">
-            <Music size={17} color="#E8C875" />
-            <span className="font-display text-sm font-bold text-white hidden sm:inline">Avivar Music</span>
+    <div className="min-h-screen font-body relative" style={{ background: t.bg, color: t.ink }}>
+      <div className="sticky top-0 z-40" style={{ background: "#351052", borderBottom: "2px solid #D6B46A" }}>
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5">
+          <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao site</span><span className="sm:hidden">Site</span></button>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Music size={20} color="#D6B46A" />
+            <div className="leading-tight min-w-0">
+              <p className="font-display text-sm sm:text-base font-bold text-white truncate">Avivar Music</p>
+              <p className="text-[10px] sm:text-[11px] truncate" style={{ color: "#E8D9B0" }}>Ministério Avivar do Espírito</p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
+            <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: lider ? "#D6B46A" : "#ffffff22", color: lider ? "#351052" : "#fff" }}>{lider ? "Modo edição" : musico ? "Músico" : "Visualização"}</span>
+            <button onClick={alternarTema} aria-label={escuro ? "Tema claro" : "Tema escuro"} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
             {musico && !lider && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
+            {!musico && !lider && <button onClick={() => irPara("entrar")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><Lock size={14} /> Entrar</button>}
           </div>
         </div>
-        {logado && (
-          <nav className="flex gap-1.5 overflow-x-auto px-3 py-2 lg:justify-center" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }} aria-label="Menu do Avivar Music">
-            {abas.map((a) => (
-              <button key={a.k} onClick={() => setTela(a.k)} aria-current={tela === a.k ? "page" : undefined} className="shrink-0 min-h-[44px] px-3.5 rounded-full inline-flex items-center gap-1.5 text-xs font-semibold focus:outline-none focus:ring-2" style={{ background: tela === a.k ? t.accent : t.card2, color: tela === a.k ? t.onAccent : t.ink }}>
-                <a.i size={16} />{a.r}
-              </button>
-            ))}
-          </nav>
-        )}
       </div>
 
-      <div className="relative" style={{ zIndex: 10 }}>
-        {!logado ? (
-          <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />
-        ) : (
-          <div className="mx-auto max-w-3xl px-4 sm:px-8 pt-6">
-            {tela === "inicio" && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico && !lider ? musico : null} lider={lider} irPara={setTela} abrirCulto={abrirCulto} />}
-            {tela === "escala" && musico && <AmEscalaMusico t={t} dados={dados} salvar={saveMusicApp} musico={musico} abrirCulto={abrirCulto} />}
-            {tela === "acervo" && <AmAcervo t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} />}
-            {tela === "escalas" && lider && <AmEscalas t={t} dados={dados} salvar={saveMusicApp} />}
-            {tela === "equipe" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} />}
-            {tela === "patrimonio" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
-            {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
-            {tela === "historico" && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
-            {tela === "grupo" && (
-              <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
-                <AvivarMusic repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
-              </div>
-            )}
-          </div>
-        )}
+      <div className="flex relative" style={{ zIndex: 10 }}>
+        <aside className="hidden lg:flex flex-col gap-1 w-64 shrink-0 p-4 sticky top-16 self-start h-[calc(100vh-4rem)] overflow-y-auto" style={{ background: t.card, borderRight: `1px solid ${t.line}` }} aria-label="Menu do Avivar Music">
+          {principais.map((it) => <BotaoMenu key={it.k} it={it} />)}
+          <p className="text-[10px] font-mono uppercase tracking-wider mt-4 mb-1 px-3" style={{ color: t.dim }}>Mais</p>
+          {extras.map((it) => <BotaoMenu key={it.k} it={it} />)}
+          {!musico && !lider && <BotaoMenu it={{ k: "entrar", r: "Entrar (músico ou líder)", i: Lock }} />}
+          <p className="text-[11px] px-3 mt-auto pt-4" style={{ color: t.dim }}>{lider ? "Você pode inserir, editar e remover." : "Você está vendo em modo leitura. Só a liderança autorizada altera."}</p>
+        </aside>
+
+        <main className="flex-1 min-w-0 px-4 sm:px-6 pt-6 pb-28 lg:pb-12 mx-auto max-w-5xl">
+          {tela === "entrar" && (musico || lider ? <AmVazio t={t}>Você já está identificado.</AmVazio> : <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />)}
+          {tela === "inicio" && <AmInicio t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} abrirCulto={abrirCulto} plId={plId} setPlId={setPlId} />}
+          {tela === "agenda" && (lider ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
+          {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
+          {tela === "membros" && <AmMembros t={t} musicos={musicos} saveMusicos={saveMusicos} dados={dados} salvar={saveMusicApp} lider={lider} acao={acao} limparAcao={limparAcao} />}
+          {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
+          {tela === "equipamentos" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
+          {tela === "comunicados" && <AmComunicados t={t} dados={dados} salvar={saveMusicApp} lider={lider} />}
+          {tela === "minha" && musico && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} />}
+          {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
+          {tela === "acessos" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} />}
+          {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
+          {tela === "historico" && (lider || musico) && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
+          {tela === "albuns" && (
+            <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
+              <AvivarMusic abas={["albuns", "repertorio"]} repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
+            </div>
+          )}
+          {!lider && (
+            <div className="mt-8 rounded-2xl p-4 text-sm flex flex-wrap items-center gap-3" style={{ background: t.card2, color: t.ink }}>
+              <Lock size={16} style={{ color: t.accent }} />
+              <span className="flex-1 min-w-[200px]">Para inserir ou alterar membros, músicas, playlists e escalas, é preciso ser autorizado pelo administrador.</span>
+              <AmBotao t={t} onClick={() => irPara("entrar")}>Sou da liderança</AmBotao>
+            </div>
+          )}
+        </main>
       </div>
+
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5" style={{ background: t.card, borderTop: `1px solid ${t.line}` }} aria-label="Navegação principal">
+        {baixo.map((it) => (
+          <button key={it.k} onClick={() => irPara(it.k)} aria-current={tela === it.k ? "page" : undefined} className="min-h-[58px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold focus:outline-none focus:ring-2" style={{ color: tela === it.k ? t.accent : t.dim }}>
+            <it.i size={20} /><span>{it.rc || it.r}</span>
+          </button>
+        ))}
+        <button onClick={() => setMaisAberto(true)} aria-haspopup="dialog" className="min-h-[58px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold focus:outline-none focus:ring-2" style={{ color: baixo.some((b) => b.k === tela) ? t.dim : t.accent }}>
+          <Menu size={20} /><span>Mais</span>
+        </button>
+      </nav>
+
+      {maisAberto && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Mais opções" style={{ background: "#00000088" }} onClick={() => setMaisAberto(false)}>
+          <div className="rounded-t-3xl p-4 pb-6 space-y-1 max-h-[80vh] overflow-y-auto" style={{ background: t.card }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-display font-bold" style={{ color: t.ink }}>Mais</p>
+              <button onClick={() => setMaisAberto(false)} aria-label="Fechar" className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><X size={18} /></button>
+            </div>
+            {[...principais.slice(4), ...extras].map((it) => <BotaoMenu key={it.k} it={it} />)}
+            {!musico && !lider && <BotaoMenu it={{ k: "entrar", r: "Entrar (músico ou líder)", i: Lock }} />}
+            {musico && !lider && <button onClick={sair} className="w-full min-h-[46px] px-3 rounded-xl inline-flex items-center gap-3 text-sm font-semibold" style={{ color: "#D0473A" }}><LogOut size={18} /> Sair</button>}
+          </div>
+        </div>
+      )}
       {culto && musicasCulto.length > 0 && <AmModoCulto evento={culto} musicas={musicasCulto} onSair={() => setCulto(null)} />}
     </div>
   );
@@ -10603,6 +11613,7 @@ export default function App() {
     const photos = [];
     (galeria || []).forEach((sessao) => {
       (sessao.fotos || []).forEach((url) => {
+        if (String(url).startsWith("kv:")) return;
         photos.push({ url, label: sessao.titulo || "Galeria", target: "eventos" });
       });
     });
@@ -12364,7 +13375,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         .live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
         /* ---- Banner de boas-vindas: degradê pulsante (só o fundo se move) ---- */
-        .bn-wrap { background: #2a1b66; border: 2px solid #FFD66B; isolation: isolate; }
+        .bn-wrap { background: #2a1b66; border: 1px solid #fff; box-shadow: 0 0 0 1px #ffffff55; isolation: isolate; }
         .bn-fundo { position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(120deg, #3b1d8f, #7b3fe4, #c04fd8, #f2a33a, #c04fd8, #7b3fe4, #3b1d8f); background-size: 300% 300%; animation: bnGrad 9s ease-in-out infinite, bnPulso 3.2s ease-in-out infinite; }
         @keyframes bnGrad { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes bnPulso { 0%,100% { filter: brightness(0.82) saturate(1); } 50% { filter: brightness(1.22) saturate(1.2); } }
@@ -12394,10 +13405,10 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
 
       <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
       <NoticiasCarousel />
-      <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />
+      {SIDE_CAROUSEL_ATIVO && <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />}
 
-      <main className="lg:ml-[200px]">
-        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} podeRelatorioCelulas={adminMode || (!!celulaAuth && celulaAuth.papel === "coordenador")} onRelatorioCelulas={() => setRelatorioCelulasOpen(true)} /><PrestacaoPublica area="home" items={caixa} extra={caixaExtra} /></section>
+      <main className={SIDE_CAROUSEL_ATIVO ? "lg:ml-[200px]" : ""}>
+        <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} podeRelatorioCelulas={adminMode || (!!celulaAuth && celulaAuth.papel === "coordenador")} onRelatorioCelulas={() => setRelatorioCelulasOpen(true)} musicApp={musicApp} /><PrestacaoPublica area="home" items={caixa} extra={caixaExtra} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="loja" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>
@@ -12407,7 +13418,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             independentes entre si, cada um com o seu próprio controle de acesso. */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-8 items-start">
           <section id="escala" className="scroll-mt-24 lg:col-span-2 min-w-0"><div className="pt-4"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="escala" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><EscalaObreiros embutido data={escala} save={persist.escala} adminMode={adminMode} operatorMode={podeSetor("escala")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
-          <section id="visitantes" className="scroll-mt-24 min-w-0"><div className="pt-4 lg:invisible"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes embutido onFinalizarBanner={finalizarBannerVisitantes} items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
+          <section id="visitantes" className="scroll-mt-24 min-w-0"><div className="pt-4 lg:invisible"><button onClick={voltar} className="inline-flex items-center gap-1.5 text-sm font-semibold focus:outline-none focus:ring-2 rounded-md" style={{ color: C.violet }}><ArrowLeft size={15} /> Voltar</button></div><SetorAcessoBar embutido setor="visitantes" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Visitantes embutido onFinalizarBanner={finalizarBannerVisitantes} bannerNoTopo={bannerNoAr(visitantesDoDia && visitantesDoDia.banner)} onOcultarBanner={() => persist.visitantesDoDia({ ...DEFAULT_VISITANTES_DIA, ...(visitantesDoDia || {}), banner: { ...DEFAULT_BANNER, ...((visitantesDoDia && visitantesDoDia.banner) || {}), ativo: false } })} items={visitantes} save={persist.visitantes} refresh={() => loadKey("avivar:visitantes", []).then(setVisitantes)} adminMode={adminMode} operatorMode={podeSetor("visitantes")} onRequestOperator={() => setOperatorGateOpen(true)} /></section>
         </div>
         <section id="estudos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Estudos items={estudos} save={persist.estudos} adminMode={adminMode} /></section>
         <section id="biblioteca" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><BibliotecaAvivar items={biblioteca} save={persist.biblioteca} adminMode={adminMode} setPage={scrollToSection} /></section>
