@@ -7212,18 +7212,21 @@ function NomeEscalado({ e, className = "", style }) {
 
 // Escala em UMA coluna: uma linha por função, com tarja colorida à esquerda e o(s) nome(s) à direita.
 function EscalaUmaColuna({ linhas }) {
+  // Duas colunas (uma só no celular bem estreito), fonte pequena; se o número de funções for ímpar,
+  // a última ocupa a largura toda para não sobrar espaço vazio.
   return (
-    <div className="flex flex-col gap-1.5">
-      {linhas.map(({ posto, escalados }) => {
+    <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-1">
+      {linhas.map(({ posto, escalados }, i) => {
         const cor = corTarjaPosto(posto);
+        const ultimaImpar = linhas.length % 2 === 1 && i === linhas.length - 1;
         return (
-          <div key={posto} className="flex items-stretch rounded-lg overflow-hidden border" style={{ borderColor: cor + "66", background: cor + "12" }}>
-            <div className="w-[36%] sm:w-[32%] shrink-0 px-2 py-1.5 flex items-center text-[10px] sm:text-[11px] font-bold uppercase leading-tight tracking-wide" style={{ background: cor, color: "#fff" }}>{posto}</div>
-            <div className="flex-1 min-w-0 px-2.5 py-1.5 flex flex-col justify-center gap-1">
+          <div key={posto} className={`flex items-stretch rounded-md overflow-hidden border ${ultimaImpar ? "min-[480px]:col-span-2" : ""}`} style={{ borderColor: cor + "66", background: cor + "12" }}>
+            <div className="w-[38%] shrink-0 px-1.5 py-1 flex items-center text-[9px] font-bold uppercase leading-tight tracking-wide" style={{ background: cor, color: "#fff" }}>{posto}</div>
+            <div className="flex-1 min-w-0 px-1.5 py-1 flex flex-col justify-center gap-0.5">
               {escalados.length === 0 ? (
-                <span className="text-[12px] italic" style={{ color: C.stone }}>—</span>
+                <span className="text-[11px] italic" style={{ color: C.stone }}>—</span>
               ) : escalados.map((e) => (
-                <NomeEscalado key={e.id} e={e} className="text-[12px] sm:text-[13px] font-semibold leading-tight" style={{ color: C.ink }} />
+                <NomeEscalado key={e.id} e={e} className="text-[11px] font-semibold leading-tight" style={{ color: C.ink }} />
               ))}
             </div>
           </div>
