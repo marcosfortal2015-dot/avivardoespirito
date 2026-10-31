@@ -2119,7 +2119,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
     : [];
   const linhasEscalaDestaque = postosEscalaDestaque.map((posto) => {
     return { posto, escalados: escaladosDestaque.filter((e) => e.posto === posto) };
-  });
+  }).filter((l) => l.escalados.length > 0); // função sem obreiro escalado não aparece
   const diaSemanaDestaque = dataEscalaDestaque ? diaSemanaFromData(dataEscalaDestaque) : "";
   const horarioDestaque = dataEscalaDestaque ? horarioDoDia(diaSemanaDestaque, safeEscala.horarios) : null;
 
@@ -2153,11 +2153,14 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
           return (
             <div className={`grid grid-cols-2 gap-3 ${COLS3} lg:grid-rows-[auto_1fr]`}>
               {/* Título da escala (esquerda) e Pedido de Oração (direita) lado a lado — também no celular */}
-              <div className="lg:col-start-2 lg:row-start-1 rounded-xl border p-3 sm:p-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{diaSemanaDestaque}</span></div>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
-                <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+              <div className="lg:col-start-2 lg:row-start-1 rounded-xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
+                <div className="p-3 sm:p-4 flex flex-wrap content-center items-center gap-x-4 gap-y-2">
+                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
+                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{diaSemanaDestaque}</span></div>
+                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
+                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+                </div>
+                <PalavraDoDia />
               </div>
               <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
               <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 p-2" style={{ borderColor: C.gold, background: C.cream }}>
@@ -7198,6 +7201,69 @@ const corTarjaPosto = (posto) => {
 // Nome de quem substitui (só vale enquanto o escalado continua como "Não vou poder").
 const substitutoDe = (e) => (e && e.status === "indisponivel" && e.substituto ? e.substituto : "");
 const addLogDia = (dia, texto) => [...((dia && dia.log) || []), { id: uid(), em: nowISO(), texto }];
+
+// ---- Palavra do dia (card dourado ao lado da escala): um versículo por dia, em rodízio; o toque abre o capítulo ----
+const VERSICULOS_DIA = [
+  { ref: "Salmos 23:1", texto: "O Senhor é o meu pastor, nada me faltará." },
+  { ref: "Josué 1:9", texto: "Não to mandei eu? Esforça-te, e tem bom ânimo; não pasmes, nem te espantes, porque o Senhor teu Deus é contigo, por onde quer que andares." },
+  { ref: "Isaías 41:10", texto: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça." },
+  { ref: "Filipenses 4:13", texto: "Posso todas as coisas em Cristo que me fortalece." },
+  { ref: "Provérbios 3:5", texto: "Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento." },
+  { ref: "Jeremias 29:11", texto: "Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais." },
+  { ref: "Mateus 11:28", texto: "Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei." },
+  { ref: "João 3:16", texto: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna." },
+  { ref: "Romanos 8:28", texto: "E sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus, daqueles que são chamados segundo o seu propósito." },
+  { ref: "Salmos 46:1", texto: "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia." },
+  { ref: "Salmos 119:105", texto: "Lâmpada para os meus pés é tua palavra, e luz para o meu caminho." },
+  { ref: "Isaías 40:31", texto: "Mas os que esperam no Senhor renovarão as suas forças, subirão com asas como águias; correrão, e não se cansarão; caminharão, e não se fatigarão." },
+  { ref: "Mateus 6:33", texto: "Mas buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas." },
+  { ref: "Salmos 91:1", texto: "Aquele que habita no esconderijo do Altíssimo, à sombra do Onipotente descansará." },
+  { ref: "Salmos 27:1", texto: "O Senhor é a minha luz e a minha salvação; a quem temerei? O Senhor é a força da minha vida; de quem me recearei?" },
+  { ref: "Joel 2:28", texto: "E há de ser que, depois, derramarei o meu Espírito sobre toda a carne, e vossos filhos e vossas filhas profetizarão, os vossos velhos terão sonhos, os vossos jovens terão visões." },
+  { ref: "Salmos 37:5", texto: "Entrega o teu caminho ao Senhor; confia nele, e ele o fará." },
+  { ref: "Hebreus 11:1", texto: "Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem." },
+  { ref: "Tiago 1:5", texto: "E, se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente, e o não lança em rosto, e ser-lhe-á dada." },
+  { ref: "1 Pedro 5:7", texto: "Lançando sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós." },
+  { ref: "Filipenses 4:6", texto: "Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica, com ação de graças." },
+  { ref: "Salmos 34:8", texto: "Provai, e vede que o Senhor é bom; bem-aventurado o homem que nele confia." },
+  { ref: "Lamentações 3:23", texto: "Novas são cada manhã; grande é a tua fidelidade." },
+  { ref: "Romanos 8:31", texto: "Que diremos, pois, a estas coisas? Se Deus é por nós, quem será contra nós?" },
+  { ref: "João 14:6", texto: "Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida; ninguém vem ao Pai, senão por mim." },
+  { ref: "Efésios 2:8", texto: "Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus." },
+  { ref: "2 Timóteo 1:7", texto: "Porque Deus não nos deu o espírito de temor, mas de fortaleza, e de amor, e de moderação." },
+  { ref: "Salmos 118:24", texto: "Este é o dia que fez o Senhor; regozijemo-nos, e alegremo-nos nele." },
+  { ref: "Provérbios 16:3", texto: "Confia ao Senhor as tuas obras, e teus pensamentos serão estabelecidos." },
+  { ref: "Isaías 26:3", texto: "Tu conservarás em paz aquele cujo propósito está firme em ti; porque confia em ti." },
+  { ref: "Mateus 5:16", texto: "Assim resplandeça a vossa luz diante dos homens, para que vejam as vossas boas obras e glorifiquem a vosso Pai, que está nos céus." },
+  { ref: "Romanos 10:17", texto: "De sorte que a fé é pelo ouvir, e o ouvir pela palavra de Deus." },
+  { ref: "1 João 4:19", texto: "Nós o amamos a ele, porque ele nos amou primeiro." },
+  { ref: "Números 6:24-26", texto: "O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti, e tenha misericórdia de ti; o Senhor sobre ti levante o seu rosto, e te dê a paz." },
+  { ref: "Zacarias 4:6", texto: "Não por força nem por violência, mas pelo meu Espírito, diz o Senhor dos Exércitos." },
+  { ref: "Mateus 28:20", texto: "Ensinando-os a guardar todas as coisas que eu vos tenho mandado; e eis que eu estou convosco todos os dias, até à consumação dos séculos. Amém." },
+];
+function versiculoDoDia(d = new Date()) {
+  const diaDoAno = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return VERSICULOS_DIA[diaDoAno % VERSICULOS_DIA.length];
+}
+function PalavraDoDia() {
+  const v = versiculoDoDia();
+  const url = `https://www.biblegateway.com/passage/?search=${encodeURIComponent(v.ref)}&version=ARC`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Palavra do dia: ${v.ref}. Abrir o versículo na Bíblia`}
+      className="block p-3 sm:p-4 transition hover:brightness-105 focus:outline-none focus:ring-2"
+      style={{ background: "linear-gradient(135deg, #E2B64A, #B8860B)", color: "#2A1B00" }}
+    >
+      <span className="text-[9px] font-mono uppercase tracking-wider font-bold flex items-center gap-1"><BookOpen size={11} /> Palavra do dia</span>
+      <p className="font-display italic text-[12px] sm:text-[13px] leading-snug mt-1.5 line-clamp-6">“{v.texto}”</p>
+      <p className="text-[11px] font-bold mt-1.5">{v.ref} <span className="font-normal opacity-75">· Almeida Corrigida</span></p>
+      <span className="text-[10px] font-semibold underline mt-1 inline-flex items-center gap-1">Toque para ler o versículo <ExternalLink size={10} /></span>
+    </a>
+  );
+}
 
 // Nome do escalado: risco por cima quando foi substituído, com "Substituído por: NOME" em vermelho e negrito.
 function NomeEscalado({ e, className = "", style }) {
