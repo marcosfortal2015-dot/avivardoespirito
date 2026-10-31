@@ -2118,13 +2118,10 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
       ]
     : [];
   const linhasEscalaDestaque = postosEscalaDestaque.map((posto) => {
-    const nomes = escaladosDestaque.filter((e) => e.posto === posto).map((e) => e.obreiroNome);
-    return { posto, nomes: nomes.length ? nomes.join(", ") : "—" };
+    return { posto, escalados: escaladosDestaque.filter((e) => e.posto === posto) };
   });
-  const gruposColunas = [linhasEscalaDestaque.slice(0, 3), linhasEscalaDestaque.slice(3, 6), linhasEscalaDestaque.slice(6)];
   const diaSemanaDestaque = dataEscalaDestaque ? diaSemanaFromData(dataEscalaDestaque) : "";
   const horarioDestaque = dataEscalaDestaque ? horarioDoDia(diaSemanaDestaque, safeEscala.horarios) : null;
-  const CORES_COLUNAS = [C.cream, "#E8DCC4", "#F3DCE0"]; // creme, bege, róseo suave
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
@@ -2163,17 +2160,8 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
                 <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
               </div>
               <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 overflow-hidden grid grid-cols-1 sm:grid-cols-3" style={{ borderColor: C.gold }}>
-                {gruposColunas.map((grupo, i) => (
-                  <div key={i} className="p-2.5 flex flex-col justify-center gap-1" style={{ background: CORES_COLUNAS[i] }}>
-                    {grupo.length === 0 && <span className="text-[10px] italic" style={{ color: C.stone }}>—</span>}
-                    {grupo.map((l) => (
-                      <p key={l.posto} className="text-[11px] leading-tight" style={{ color: C.ink }}>
-                        <span className="font-bold uppercase">{l.posto}:</span> {l.nomes}
-                      </p>
-                    ))}
-                  </div>
-                ))}
+              <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 p-2" style={{ borderColor: C.gold, background: C.cream }}>
+                <EscalaUmaColuna linhas={linhasEscalaDestaque} />
               </div>
               <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-2">{cardPix}</div>
               <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
@@ -7197,6 +7185,148 @@ function diaSemanaFromData(dataStr) {
   if (isNaN(d.getTime())) return "";
   return DIAS_SEMANA_PT[d.getDay()];
 }
+
+// ---- Escala: tarjas de cor por função, substituição, resumo do mês e PDF do culto ----
+const MESES_PT_LONGO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const CORES_TARJA_POSTOS = ["#5B2394", "#9A6B00", "#C2185B", "#1E7A4C", "#1F5FA8", "#D9541E", "#0E7C86", "#7A4A1E", "#8E2A2A"];
+// Cada função tem sempre a mesma cor (pela posição na ordem fixa da tabela); funções criadas depois ganham cor pelo nome.
+const corTarjaPosto = (posto) => {
+  const i = ORDEM_POSTOS_TABELA.indexOf(posto);
+  const n = i >= 0 ? i : String(posto || "").split("").reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  return CORES_TARJA_POSTOS[n % CORES_TARJA_POSTOS.length];
+};
+// Nome de quem substitui (só vale enquanto o escalado continua como "Não vou poder").
+const substitutoDe = (e) => (e && e.status === "indisponivel" && e.substituto ? e.substituto : "");
+const addLogDia = (dia, texto) => [...((dia && dia.log) || []), { id: uid(), em: nowISO(), texto }];
+
+// Nome do escalado: risco por cima quando foi substituído, com "Substituído por: NOME" em vermelho e negrito.
+function NomeEscalado({ e, className = "", style }) {
+  const sub = substitutoDe(e);
+  return (
+    <span className={`inline-block align-top ${className}`} style={style}>
+      <span style={sub ? { textDecoration: "line-through", textDecorationColor: C.liveRed, textDecorationThickness: "2px" } : undefined}>{e.obreiroNome}</span>
+      {sub && <span className="block font-bold text-[0.92em] leading-tight" style={{ color: C.liveRed }}>Substituído por: {sub}</span>}
+    </span>
+  );
+}
+
+// Escala em UMA coluna: uma linha por função, com tarja colorida à esquerda e o(s) nome(s) à direita.
+function EscalaUmaColuna({ linhas }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {linhas.map(({ posto, escalados }) => {
+        const cor = corTarjaPosto(posto);
+        return (
+          <div key={posto} className="flex items-stretch rounded-lg overflow-hidden border" style={{ borderColor: cor + "66", background: cor + "12" }}>
+            <div className="w-[36%] sm:w-[32%] shrink-0 px-2 py-1.5 flex items-center text-[10px] sm:text-[11px] font-bold uppercase leading-tight tracking-wide" style={{ background: cor, color: "#fff" }}>{posto}</div>
+            <div className="flex-1 min-w-0 px-2.5 py-1.5 flex flex-col justify-center gap-1">
+              {escalados.length === 0 ? (
+                <span className="text-[12px] italic" style={{ color: C.stone }}>—</span>
+              ) : escalados.map((e) => (
+                <NomeEscalado key={e.id} e={e} className="text-[12px] sm:text-[13px] font-semibold leading-tight" style={{ color: C.ink }} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Quantos dias a pessoa trabalhou / negou no mês do culto, para mostrar antes de ela confirmar.
+function resumoMesObreiro(escala, nome, dataStr, ignorarId) {
+  const mes = String(dataStr || "").slice(0, 7);
+  const hoje = new Date().toISOString().slice(0, 10);
+  const trab = {}, neg = {};
+  Object.entries((escala && escala.escalasPorDia) || {}).forEach(([d, dia]) => {
+    if (d.slice(0, 7) !== mes) return;
+    ((dia && dia.escalados) || []).forEach((e) => {
+      if (e.obreiroNome !== nome || e.id === ignorarId) return;
+      if (e.status === "disponivel" && d <= hoje) (trab[d] = trab[d] || []).push(e.posto);
+      else if (e.status === "indisponivel") (neg[d] = neg[d] || []).push(e.posto);
+    });
+  });
+  const lista = (m) => Object.keys(m).sort().map((d) => ({ data: d, postos: m[d] }));
+  const [ano, mm] = mes.split("-");
+  return { mesNome: `${MESES_PT_LONGO[(parseInt(mm, 10) || 1) - 1] || ""} de ${ano}`, trabalhou: lista(trab), negou: lista(neg) };
+}
+function ResumoMesObreiro({ escala, nome, dataStr, ignorarId }) {
+  const r = resumoMesObreiro(escala, nome, dataStr, ignorarId);
+  const dd = (d) => d.slice(8, 10);
+  const linha = (x) => `dia ${dd(x.data)} (${x.postos.join(", ")})`;
+  const nt = r.trabalhou.length, nn = r.negou.length;
+  return (
+    <div className="mt-3 rounded-xl border p-3 text-left" style={{ borderColor: C.gold, background: C.cream }}>
+      <p className="text-[10px] font-mono uppercase font-bold" style={{ color: C.ember }}>Seu histórico em {r.mesNome}</p>
+      <p className="text-sm mt-1.5" style={{ color: C.ink }}>
+        <b style={{ color: "#2E7D4F" }}>✔ Você trabalhou {nt} dia{nt === 1 ? "" : "s"}</b> no mês de {r.mesNome.split(" de ")[0]}
+        {nt > 0 ? <>: {r.trabalhou.map(linha).join("; ")}.</> : "."}
+      </p>
+      <p className="text-sm mt-1" style={{ color: C.ink }}>
+        <b style={{ color: C.liveRed }}>✖ Negou {nn} vez{nn === 1 ? "" : "es"}</b>
+        {nn > 0 ? <> ({r.negou.map(linha).join("; ")}).</> : "."}
+      </p>
+    </div>
+  );
+}
+
+// PDF do culto (abre a janela de impressão: escolha "Salvar como PDF"). Usa tudo o que está guardado do dia.
+function gerarPdfCultoEscala(escala, dataStr) {
+  const safe = { ...DEFAULT_ESCALA_OBREIROS, ...(escala || {}), escalasPorDia: (escala && escala.escalasPorDia) || {} };
+  const dia = safe.escalasPorDia[dataStr];
+  if (!dia) return;
+  const escalados = dia.escalados || [];
+  const postos = [
+    ...ORDEM_POSTOS_TABELA.filter((p) => safe.postos.includes(p)),
+    ...safe.postos.filter((p) => !ORDEM_POSTOS_TABELA.includes(p)),
+  ].filter((p) => escalados.some((e) => e.posto === p));
+  const dSem = diaSemanaFromData(dataStr);
+  const h = horarioDoDia(dSem, safe.horarios);
+  const hm = (iso) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "");
+  const nDisp = escalados.filter((e) => e.status === "disponivel").length;
+  const nIndisp = escalados.filter((e) => e.status === "indisponivel").length;
+  const nSub = escalados.filter((e) => substitutoDe(e)).length;
+  const nAguard = escalados.length - nDisp - nIndisp;
+  const linhas = postos.map((posto) => {
+    const cor = corTarjaPosto(posto);
+    const doPosto = escalados.filter((e) => e.posto === posto);
+    return doPosto.map((e, i) => {
+      const sub = substitutoDe(e);
+      const sit = e.status === "disponivel" ? `Disponível ${hm(e.horarioConfirmacao)}` : e.status === "indisponivel" ? `Não vai poder ${hm(e.horarioConfirmacao)}` : "Aguardando";
+      const obs = [e.motivoMudanca ? `Mudou de ideia: ${e.motivoMudanca}` : "", e.textoObs || ""].filter(Boolean).join(" · ");
+      return `<tr>${i === 0 ? `<td class="tarja" rowspan="${doPosto.length}" style="background:${cor}">${escHtml(posto)}</td>` : ""}
+        <td>${sub ? `<s>${escHtml(e.obreiroNome)}</s>` : escHtml(e.obreiroNome)}${sub ? `<div class="sub">Substituído por: ${escHtml(sub)}</div>` : ""}</td>
+        <td>${escHtml(sit.trim())}</td><td>${escHtml(obs)}</td></tr>`;
+    }).join("");
+  }).join("");
+  const log = (dia.log || []).map((x) => `<li><b>${escHtml(new Date(x.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}</b> — ${escHtml(x.texto)}</li>`).join("");
+  const titulo = `Escala de Serviços Ministeriais — ${fmtDate(dataStr)}`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(titulo)}</title><style>
+    @page { size: A4; margin: 14mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: Georgia, 'Times New Roman', serif; color: #1F1B2E; margin: 0; }
+    h1 { font-size: 20px; margin: 0; padding-bottom: 6px; border-bottom: 3px solid #5B2394; }
+    .sub0 { font-size: 12px; margin: 6px 0 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #bbb; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; }
+    th { background: #F1E7D3; }
+    td.tarja { color: #fff; font-weight: bold; text-transform: uppercase; width: 24%; vertical-align: middle; }
+    .sub { color: #C1272D; font-weight: bold; margin-top: 2px; }
+    .res { font-size: 12px; margin: 8px 0; }
+    h3 { font-size: 13px; margin: 16px 0 4px; }
+    ul { font-size: 11.5px; padding-left: 18px; margin: 4px 0; }
+    .ass { margin-top: 28px; font-size: 12px; }
+  </style></head><body>
+    <h1>${escHtml(titulo)}</h1>
+    <p class="sub0">${escHtml(dSem)}, ${escHtml(fmtDate(dataStr))}${h ? ` · ${escHtml(h.inicio)}–${escHtml(h.fim)}` : ""} · Ministério Avivar do Espírito</p>
+    <p class="res"><b>${escalados.length}</b> escalado(s) · <b>${nDisp}</b> disponível(is) · <b>${nIndisp}</b> não vai(ão) poder · <b>${nSub}</b> substituído(s) · <b>${nAguard}</b> aguardando</p>
+    <table><thead><tr><th>Função</th><th>Nome</th><th>Situação</th><th>Observações</th></tr></thead><tbody>${linhas}</tbody></table>
+    ${log ? `<h3>Registro do culto</h3><ul>${log}</ul>` : ""}
+    <p class="ass">${dia.conferidoEm ? `Conferido por <b>${escHtml(dia.conferidoPor || "")}</b> em ${escHtml(new Date(dia.conferidoEm).toLocaleString("pt-BR"))}.` : "Escala ainda não conferida."}<br/>Gerado em ${escHtml(new Date().toLocaleString("pt-BR"))}.</p>
+  </body></html>`;
+  imprimirHtml(html);
+}
+
 function horarioDoDia(dia, horarios) {
   return (horarios || []).find((h) => h.dia === dia) || null;
 }
@@ -7254,9 +7384,9 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
 
   const marcar = (status) => {
     const novosEscalados = diaEncontrado.escalados.map((e) =>
-      e.id === escalaId ? { ...e, status, horarioConfirmacao: nowISO() } : e
+      e.id === escalaId ? { ...e, status, horarioConfirmacao: nowISO(), ...(status === "disponivel" ? { substituto: "" } : {}) } : e
     );
-    save({ ...safeData, escalasPorDia: { ...safeData.escalasPorDia, [dataEncontrada]: { ...diaEncontrado, escalados: novosEscalados } } });
+    save({ ...safeData, escalasPorDia: { ...safeData.escalasPorDia, [dataEncontrada]: { ...diaEncontrado, escalados: novosEscalados, log: addLogDia(diaEncontrado, `${escaladoEncontrado.obreiroNome} (${escaladoEncontrado.posto}) marcou ${status === "disponivel" ? "Disponível" : "Não vou poder"}`) } } });
     setEditando(false);
   };
 
@@ -7268,6 +7398,7 @@ function ConfirmarEscalaObreiro({ escala, save, escalaId, onVoltar }) {
         <p className="font-display text-xl font-semibold mt-1">{escaladoEncontrado.obreiroNome}</p>
         <p className="text-sm mt-2" style={{ color: C.ink }}>Posto: <b>{escaladoEncontrado.posto}</b></p>
         <p className="text-sm" style={{ color: C.ink }}>{diaSemana}, {fmtDate(dataEncontrada)}{horario ? ` · ${horario.inicio}–${horario.fim}` : ""}</p>
+        {!fechado && <ResumoMesObreiro escala={safeData} nome={escaladoEncontrado.obreiroNome} dataStr={dataEncontrada} ignorarId={escalaId} />}
 
         {fechado ? (
           <p className="text-sm mt-5 italic" style={{ color: C.stone }}>
@@ -7405,14 +7536,14 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
           <div className="mt-3 space-y-3">
             {postos.map((posto) => (
               <div key={posto} className="rounded-xl border overflow-hidden" style={{ borderColor: C.line }}>
-                <p className="px-3 py-1.5 text-[11px] font-mono font-bold uppercase" style={{ background: C.parchmentDeep, color: C.ink }}>{posto}</p>
+                <p className="px-3 py-1.5 text-[11px] font-mono font-bold uppercase" style={{ background: corTarjaPosto(posto), color: "#fff" }}>{posto}</p>
                 <div className="divide-y" style={{ borderColor: C.line }}>
                   {escalados.filter((e) => e.posto === posto).map((e) => {
                     const respondeu = e.status === "disponivel" || e.status === "indisponivel";
-                    const bloqueado = fechado || e.travado;
+                    const bloqueado = fechado || e.travado || !!substitutoDe(e);
                     return (
                       <div key={e.id} className="px-3 py-2 flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: C.line }}>
-                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
+                        <NomeEscalado e={e} className="text-sm font-medium" style={{ color: C.ink }} />
                         {bloqueado ? (
                           <span className="text-xs font-semibold" style={{ color: e.status === "disponivel" ? "#2E7D4F" : e.status === "indisponivel" ? C.liveRed : C.stone }}>
                             {e.status === "disponivel" ? "✔ Disponível" : e.status === "indisponivel" ? "✖ Indisponível" : "aguardando"}
@@ -7452,9 +7583,10 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
       </div>
       {pedido && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#000000aa" }} onClick={() => setPedido(null)}>
-          <div className="w-full max-w-xs rounded-2xl p-5 text-center" style={{ background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
+          <div className="w-full max-w-sm max-h-[92vh] overflow-y-auto rounded-2xl p-5 text-center" style={{ background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
             <p className="font-display font-semibold text-lg">{pedido.e.obreiroNome}</p>
             <p className="text-xs mt-0.5" style={{ color: C.stone }}>{pedido.e.posto} · {pedido.status === "disponivel" ? "Disponível" : "Não vou poder"}</p>
+            <ResumoMesObreiro escala={safe} nome={pedido.e.obreiroNome} dataStr={dataStr} ignorarId={pedido.e.id} />
             {temPin(pedido.e.obreiroNome) ? (
               <>
                 <p className="text-sm mt-3" style={{ color: C.ink }}>Digite o seu <b>código de 4 dígitos</b></p>
@@ -7519,6 +7651,8 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   const [obsAbertoId, setObsAbertoId] = useState(null); // id do escalado com o campo de texto de observação aberto
   const [obsTextoDraft, setObsTextoDraft] = useState("");
   const [postoAberto, setPostoAberto] = useState(null); // posto cujo quadro de obreiros está aberto
+  const [substituindoId, setSubstituindoId] = useState(null); // escalado que está recebendo um substituto
+  const [substDraft, setSubstDraft] = useState("");
 
   const diaSemana = diaSemanaFromData(dataCulto);
   const horarioAtual = horarioDoDia(diaSemana, safeData.horarios);
@@ -7545,12 +7679,37 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   const escalarObreiro = (nome, posto) => {
     if (fechado && !adminMode) return;
     const novo = { id: uid(), obreiroNome: nome, posto, status: "aguardando", horarioConfirmacao: null, motivoMudanca: "" };
-    salvarDia({ escalados: [...escalados, novo] });
+    salvarDia({ escalados: [...escalados, novo], log: addLogDia(diaAtual, `${nome} escalado(a) em ${posto}`) });
   };
-  const removerEscalado = (id) => salvarDia({ escalados: escalados.filter((e) => e.id !== id) });
+  const removerEscalado = (id) => {
+    const x = escalados.find((e) => e.id === id);
+    salvarDia({ escalados: escalados.filter((e) => e.id !== id), log: x ? addLogDia(diaAtual, `${x.obreiroNome} removido(a) de ${x.posto}`) : diaAtual.log });
+  };
   const marcarStatus = (id, status) => {
+    const x = escalados.find((e) => e.id === id);
     salvarDia({
-      escalados: escalados.map((e) => (e.id === id ? { ...e, status, horarioConfirmacao: nowISO() } : e)),
+      escalados: escalados.map((e) => (e.id === id ? { ...e, status, horarioConfirmacao: nowISO(), ...(status === "disponivel" ? { substituto: "" } : {}) } : e)),
+      log: x ? addLogDia(diaAtual, `${x.obreiroNome} (${x.posto}) marcado(a) como ${status === "disponivel" ? "Disponível" : "Não vou poder"} pela liderança`) : diaAtual.log,
+    });
+  };
+  // Substituição: quem negou continua na escala (riscado) e o substituto aparece abaixo, em vermelho.
+  const substituirEscalado = (id, nome) => {
+    const n = String(nome || "").trim();
+    const x = escalados.find((e) => e.id === id);
+    if (!n || !x) return;
+    salvarDia({
+      escalados: escalados.map((e) => (e.id === id ? { ...e, substituto: n, substituidoEm: nowISO() } : e)),
+      log: addLogDia(diaAtual, `${x.obreiroNome} (${x.posto}) substituído(a) por ${n}`),
+    });
+    setSubstituindoId(null);
+    setSubstDraft("");
+  };
+  const desfazerSubstituicao = (id) => {
+    const x = escalados.find((e) => e.id === id);
+    if (!x) return;
+    salvarDia({
+      escalados: escalados.map((e) => (e.id === id ? { ...e, substituto: "", substituidoEm: null } : e)),
+      log: addLogDia(diaAtual, `Substituição desfeita em ${x.posto} (${x.obreiroNome})`),
     });
   };
   const confirmarMudancaDeIdeia = (id) => {
@@ -7559,17 +7718,18 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
     const novoStatus = atual.status === "disponivel" ? "indisponivel" : "disponivel";
     salvarDia({
       escalados: escalados.map((e) =>
-        e.id === id ? { ...e, status: novoStatus, horarioConfirmacao: nowISO(), motivoMudanca: motivoDraft.trim() } : e
+        e.id === id ? { ...e, status: novoStatus, horarioConfirmacao: nowISO(), motivoMudanca: motivoDraft.trim(), ...(novoStatus === "disponivel" ? { substituto: "" } : {}) } : e
       ),
+      log: addLogDia(diaAtual, `${atual.obreiroNome} (${atual.posto}) mudou de ideia: agora ${novoStatus === "disponivel" ? "Disponível" : "Não vou poder"}${motivoDraft.trim() ? ` — ${motivoDraft.trim()}` : ""}`),
     });
     setMudandoIdeiaId(null);
     setMotivoDraft("");
   };
   const conferirDia = () => {
     if (!nomeConferente.trim()) return;
-    salvarDia({ conferidoPor: nomeConferente.trim(), conferidoEm: nowISO() });
+    salvarDia({ conferidoPor: nomeConferente.trim(), conferidoEm: nowISO(), log: addLogDia(diaAtual, `Escala conferida por ${nomeConferente.trim()}`) });
   };
-  const reabrirDia = () => salvarDia({ conferidoPor: null, conferidoEm: null });
+  const reabrirDia = () => salvarDia({ conferidoPor: null, conferidoEm: null, log: addLogDia(diaAtual, "Escala reaberta pela liderança") });
   const responderObs = (id, respondeu, texto) => {
     salvarDia({
       escalados: escalados.map((e) => (e.id === id ? { ...e, respondeuObs: true, textoObs: respondeu ? texto || "" : "", travado: true } : e)),
@@ -7659,7 +7819,7 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
     const h = horarioDoDia(dia, safeData.horarios);
     const linhas = postosTabela
       .filter((p) => escalados.some((e) => e.posto === p))
-      .map((p) => `*${p}:* ${escalados.filter((e) => e.posto === p).map((e) => e.obreiroNome).join(", ")}`)
+      .map((p) => `*${p}:* ${escalados.filter((e) => e.posto === p).map((e) => (substitutoDe(e) ? `~${e.obreiroNome}~ → *${substitutoDe(e)}*` : e.obreiroNome)).join(", ")}`)
       .join("\n");
     return (
       `📋 *Escala de Serviços Ministeriais*\n${dia}, ${fmtDate(dataCulto)}${h ? ` · ${h.inicio}–${h.fim}` : ""}\n\n${linhas}\n\n` +
@@ -7731,6 +7891,45 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
   };
   const escolherGrupoEEnviar = () => window.open(`https://wa.me/?text=${encodeURIComponent(mensagemEscalaCompletaWhatsapp())}`, "_blank", "noopener,noreferrer");
 
+  // Bloco "Substituir" — aparece ao lado de quem marcou "Não vou poder" (só admin ou pessoa autorizada).
+  const blocoSubstituir = (e) => {
+    if (e.status !== "indisponivel" || !canManage || (fechado && !adminMode)) return null;
+    if (substituindoId === e.id) {
+      return (
+        <span className="flex items-center gap-1 flex-wrap basis-full mt-1">
+          <input
+            autoFocus
+            list={`dl-subst-${e.id}`}
+            placeholder="Nome de quem vai substituir"
+            value={substDraft}
+            onChange={(ev) => setSubstDraft(ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === "Enter") substituirEscalado(e.id, substDraft); }}
+            className="text-xs rounded-md border px-2 py-1 w-52"
+            style={{ borderColor: C.line }}
+          />
+          <datalist id={`dl-subst-${e.id}`}>
+            {safeData.obreiros.filter((o) => o !== e.obreiroNome).map((o) => <option key={o} value={o} />)}
+          </datalist>
+          <button onClick={() => substituirEscalado(e.id, substDraft)} className="text-xs font-semibold px-2 py-1 rounded-md" style={{ background: C.violet, color: "#fff" }}>Confirmar</button>
+          <button onClick={() => { setSubstituindoId(null); setSubstDraft(""); }} className="underline text-xs" style={{ color: C.stone }}>cancelar</button>
+        </span>
+      );
+    }
+    if (e.substituto) {
+      return (
+        <span className="flex items-center gap-2 flex-wrap basis-full">
+          <button onClick={() => { setSubstituindoId(e.id); setSubstDraft(e.substituto); }} className="underline text-[11px]" style={{ color: C.violet }}>trocar substituto</button>
+          <button onClick={() => desfazerSubstituicao(e.id)} className="underline text-[11px]" style={{ color: C.stone }}>desfazer</button>
+        </span>
+      );
+    }
+    return (
+      <button onClick={() => { setSubstituindoId(e.id); setSubstDraft(""); }} className="text-xs font-semibold px-2.5 py-1 rounded-md" style={{ background: C.violet, color: "#fff" }}>
+        Substituir
+      </button>
+    );
+  };
+
   const StatusObreiro = ({ e }) => {
     if (e.travado) {
       // Status travado — depois de responder às observações, a pessoa não pode mais
@@ -7745,6 +7944,7 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
             {isDispTravado ? "Disponível" : "Indisponível"}
           </span>
           {e.horarioConfirmacao && <span style={{ color: C.stone }}>· {fmtHM(e.horarioConfirmacao)}</span>}
+          {blocoSubstituir(e)}
         </span>
       );
     }
@@ -7783,6 +7983,7 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
             <button onClick={() => { setMudandoIdeiaId(e.id); setMotivoDraft(""); }} className="underline" style={{ color: C.stone }}>Mudei de ideia</button>
           )
         )}
+        {blocoSubstituir(e)}
       </div>
     );
   };
@@ -7890,8 +8091,8 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
                   {doPosto.map((e) => (
                     <div key={e.id} className="px-2 py-1.5 rounded-md flex items-center justify-between gap-2 flex-wrap" style={{ background: C.parchment }}>
                       <div>
-                        <span className="text-sm font-medium" style={{ color: C.ink }}>{e.obreiroNome}</span>
-                        <span className="ml-2"><StatusObreiro e={e} /></span>
+                        <NomeEscalado e={e} className="text-sm font-medium" style={{ color: C.ink }} />
+                        <span className="ml-2 inline-block align-top"><StatusObreiro e={e} /></span>
                       </div>
                       {podeMexerNoDia && (!fechado || adminMode) && (
                         <button onClick={() => removerEscalado(e.id)} className="text-[10px] underline" style={{ color: "#B03428" }}>remover da escala</button>
@@ -8037,8 +8238,8 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
                   }
                   return doPosto.map((e) => (
                     <tr key={e.id} className="border-b align-top" style={{ borderColor: C.line }}>
-                      <td className="py-1.5 pr-3 font-medium" style={{ color: C.ink }}>{posto}</td>
-                      <td className="py-1.5 pr-3" style={{ color: C.ink }}>{e.obreiroNome}</td>
+                      <td className="py-1.5 pr-3 font-bold uppercase text-[11px]" style={{ background: corTarjaPosto(posto), color: "#fff" }}>{posto}</td>
+                      <td className="py-1.5 pr-3 pl-2" style={{ color: C.ink }}><NomeEscalado e={e} /></td>
                       <td className="py-1.5 pr-3"><StatusObreiro e={e} /></td>
                       <td className="py-1.5 pr-3"><ObsCell e={e} /></td>
                       {canManage && (
@@ -8077,6 +8278,9 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
                 <button onClick={() => window.open(linkEscalaDia(), "_blank", "noopener,noreferrer")} className="text-xs px-3 py-2 rounded-md" style={{ background: C.parchmentDeep, color: C.ink }}>
                   Ver a página que os obreiros vão abrir
                 </button>
+                <button onClick={() => gerarPdfCultoEscala(safeData, dataCulto)} className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5" style={{ background: C.violet, color: "#fff" }}>
+                  <FileText size={13} /> PDF deste culto
+                </button>
               </div>
               {avisoGrupo && <p className="text-xs mt-2 font-semibold" style={{ color: "#1B8A55" }}>{avisoGrupo}</p>}
               <p className="text-[10px] mt-1.5" style={{ color: C.stone }}>
@@ -8102,6 +8306,38 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
           )}
         </details>
       )}
+
+      {canManage && (() => {
+        const datas = Object.keys(safeData.escalasPorDia).filter((d) => (safeData.escalasPorDia[d].escalados || []).length > 0).sort().reverse();
+        if (datas.length === 0) return null;
+        return (
+          <details className="mt-4 p-3 rounded-lg border" style={{ borderColor: C.line, background: "#00000006" }}>
+            <summary className="cursor-pointer text-xs font-mono uppercase font-semibold" style={{ color: C.violet }}>Histórico dos cultos ({datas.length}) — guardado e pronto para PDF</summary>
+            <div className="mt-3 space-y-1.5">
+              {datas.map((d) => {
+                const dia = safeData.escalasPorDia[d];
+                const lista = dia.escalados || [];
+                const nd = lista.filter((x) => x.status === "disponivel").length;
+                const ni = lista.filter((x) => x.status === "indisponivel").length;
+                const ns = lista.filter((x) => substitutoDe(x)).length;
+                return (
+                  <div key={d} className="px-3 py-2 rounded-lg border flex items-center gap-2 flex-wrap" style={{ borderColor: d === dataCulto ? C.gold : C.line, background: "#fff" }}>
+                    <div className="flex-1 min-w-[150px]">
+                      <p className="text-sm font-semibold leading-tight" style={{ color: C.ink }}>{diaSemanaFromData(d)}, {fmtDate(d)}</p>
+                      <p className="text-[11px]" style={{ color: C.stone }}>
+                        {lista.length} escalado(s) · <span style={{ color: "#2E7D4F" }}>{nd} disp.</span> · <span style={{ color: C.liveRed }}>{ni} não vai(ão) poder</span>{ns > 0 ? ` · ${ns} substituído(s)` : ""}{dia.conferidoEm ? " · ✔ conferida" : ""}
+                      </p>
+                    </div>
+                    <button onClick={() => { setDataCulto(d); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-xs px-3 py-1.5 rounded-md" style={{ background: C.parchmentDeep, color: C.ink }}>Abrir</button>
+                    <button onClick={() => gerarPdfCultoEscala(safeData, d)} className="text-xs font-semibold px-3 py-1.5 rounded-md flex items-center gap-1" style={{ background: C.violet, color: "#fff" }}><FileText size={12} /> Gerar PDF</button>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] mt-2" style={{ color: C.stone }}>Cada culto guarda a escala, quem confirmou, quem negou, as substituições e o registro de alterações. Ao gerar o PDF, escolha “Salvar como PDF” na janela de impressão.</p>
+          </details>
+        );
+      })()}
 
       {!canManage && (
         <p className="text-xs mt-4 italic" style={{ color: C.stone }}>
@@ -13429,7 +13665,9 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       const e0 = { ...DEFAULT_ESCALA_OBREIROS, ...(esc || {}), escalasPorDia: (esc && esc.escalasPorDia) || {} };
       const dia = e0.escalasPorDia[escalaDiaLink.data];
       if (!dia || dia.conferidoEm) return e0;
-      return { ...e0, escalasPorDia: { ...e0.escalasPorDia, [escalaDiaLink.data]: { ...dia, escalados: (dia.escalados || []).map((x) => (x.id === id && !x.travado ? { ...x, status, horarioConfirmacao: nowISO() } : x)) } } };
+      const alvo = (dia.escalados || []).find((x) => x.id === id);
+      if (!alvo || alvo.travado || alvo.substituto) return e0;
+      return { ...e0, escalasPorDia: { ...e0.escalasPorDia, [escalaDiaLink.data]: { ...dia, escalados: (dia.escalados || []).map((x) => (x.id === id ? { ...x, status, horarioConfirmacao: nowISO() } : x)), log: addLogDia(dia, `${alvo.obreiroNome} (${alvo.posto}) marcou ${status === "disponivel" ? "Disponível" : "Não vou poder"}`) } } };
     };
     // Lê o dado MAIS RECENTE antes de gravar — vários obreiros tocam ao mesmo tempo nos
     // próprios celulares e não podem apagar a resposta uns dos outros com uma cópia velha.
