@@ -73,6 +73,10 @@ const EVENTO_ALMOCO_BANNER = "/3-evento-almoco-avivar.jpg";
 const EVENTO_BATISMO_BANNER = "/4-evento-batismo.jpg";
 const LOUVOR_LOGO = "/5-louvor-avivar-logo.png";
 const BIBLIA_URL = "https://biblia-avivar.vercel.app";
+// Barra "Notícias Avivar" (faixa rolante no topo): desligada. Para religar, troque para true.
+const NOTICIAS_BARRA_ATIVA = false;
+// WhatsApp para onde o botão "Enviar" da Palavra do dia (só admin) abre a conversa — DDI+DDD+número.
+const WHATSAPP_PALAVRA_DIA = "5585992071505";
 const CODIGOS_REVISTA_BANNER = "/25-codigos-avivar-revista.jpg";
 const TRILOGIA_LIVROS_BANNER = "/26-trilogia-livros-avivar.jpg";
 const LIVRO_DONS_CAPA = "/27-livro-conquistando-os-dons.jpg";
@@ -1676,7 +1680,7 @@ function HeroDoacoesCard({ data, bgImage, onClick, compacto = false }) {
         img.onerror = reject;
         img.src = url;
       });
-      const size = img.width || 160;
+      const size = Math.max(img.width || 160, 512);
       const canvas = document.createElement("canvas");
       canvas.width = size;
       canvas.height = size;
@@ -1709,7 +1713,25 @@ function HeroDoacoesCard({ data, bgImage, onClick, compacto = false }) {
       <div className="relative rounded-xl overflow-hidden border-2 h-full" style={{ borderColor: "#2E8B57", background: "#14583A" }}>
         {bgImage && <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />}
         <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #14583Aee, #0B3B26f2)" }} />
-        <div onClick={onClick} className="relative p-3 sm:p-4 flex items-center gap-3 h-full">
+        {/* Celular e tablet: só o nome, o QR Code pequeno, a chave Pix pequena e o botão de copiar */}
+        <div className="relative lg:hidden p-3 flex flex-col items-center justify-center gap-1.5 h-full text-center">
+          <p className="font-display font-semibold text-[15px] text-white leading-tight">Dízimos e Ofertas</p>
+          {payload && (
+            <div className="flex flex-col items-center gap-0.5">
+              <div onClick={copiarQRComoImagem} title="Toque para copiar o QR Code como imagem" className="bg-white p-1 rounded-md cursor-pointer">
+                <QRCodeSVG value={payload} size={72} bgColor="#ffffff" fgColor="#0B0B0C" />
+              </div>
+              <span className="text-[9px] leading-tight" style={{ color: erroImg ? "#F2A6A6" : "#ffffffb3" }}>
+                {copiadoImg ? "Copiado!" : erroImg ? "não foi possível copiar a imagem" : "Toque no QR Code para copiar."}
+              </span>
+            </div>
+          )}
+          <p className="text-[9px] font-mono break-all text-white leading-tight">{data.pixKey || "Chave PIX ainda não cadastrada"}</p>
+          <button onClick={copiar} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md" style={{ background: "#ffffff22", color: "#fff" }}>
+            <Copy size={10} /> {copiado ? "Copiado!" : "Copiar chave PIX"}
+          </button>
+        </div>
+        <div onClick={onClick} className="relative hidden lg:flex p-4 items-center gap-3 h-full">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: "#9FE3B9" }}><HandHeart size={11} className="inline mr-1" />Semeando com generosidade</p>
             <p className="font-display font-semibold text-base text-white leading-tight mt-0.5">Dízimo e Oferta</p>
@@ -2028,14 +2050,22 @@ function BannerAdminPanel({ vd, save, adminMode }) {
 // Card do topo da Home (coluna da direita, ao lado da Escala de Serviço): cor de brasa, abre o formulário.
 function PedidoOracaoTopo({ onClick }) {
   return (
-    <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
-      <HandHeart size={24} color="#fff" className="shrink-0" />
-      <span className="flex-1 min-w-0">
-        <span className="block text-[10px] font-mono uppercase tracking-wider" style={{ color: "#ffffffbb" }}>Intercessão</span>
-        <span className="block font-display font-bold text-base sm:text-lg text-white leading-tight">Pedido de Oração</span>
-        <span className="hidden sm:block text-[11px] mt-0.5" style={{ color: "#ffffffdd" }}>Toque e preencha o seu pedido — vamos orar com você.</span>
+    <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 px-3 lg:px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
+      {/* Celular e tablet: só as mãos orando, o nome e o botão */}
+      <span className="lg:hidden flex flex-col items-center justify-center gap-1.5 w-full h-full text-center">
+        <span className="text-3xl leading-none" aria-hidden="true">🙏</span>
+        <span className="block font-display font-bold text-base text-white leading-tight">Peça Oração</span>
+        <span className="purple-light-pulse text-[11px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
       </span>
-      <span className="purple-light-pulse shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-md text-center" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
+      <span className="hidden lg:contents">
+        <HandHeart size={24} color="#fff" className="shrink-0" />
+        <span className="flex-1 min-w-0">
+          <span className="block text-[10px] font-mono uppercase tracking-wider" style={{ color: "#ffffffbb" }}>Intercessão</span>
+          <span className="block font-display font-bold text-lg text-white leading-tight">Pedido de Oração</span>
+          <span className="block text-[11px] mt-0.5" style={{ color: "#ffffffdd" }}>Toque e preencha o seu pedido — vamos orar com você.</span>
+        </span>
+        <span className="purple-light-pulse shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-md text-center" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
+      </span>
     </button>
   );
 }
@@ -2141,8 +2171,8 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
               <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2">
                 <BannerCeleste banner={banner} vd={vd} adminMode={adminMode} podeGerir={adminMode || podeVisitantesDia} onDesligar={() => saveVisitantesDoDia({ ...vd, banner: { ...banner, ativo: false } })} />
               </div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-1">{cardPedido}</div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-2">{cardPix}</div>
+              <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+              <div className="lg:col-start-3 lg:row-start-2">{cardPix}</div>
               <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
             </div>
           );
@@ -2152,22 +2182,24 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
         if (mostrarEscalaNaHome) {
           return (
             <div className={`grid grid-cols-2 gap-3 ${COLS3} lg:grid-rows-[auto_1fr]`}>
-              {/* Título da escala (esquerda) e Pedido de Oração (direita) lado a lado — também no celular */}
-              <div className="lg:col-start-2 lg:row-start-1 rounded-xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
-                <div className="p-3 sm:p-4 flex flex-wrap content-center items-center gap-x-4 gap-y-2">
-                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider w-full">Escalas de Serviço</span>
-                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{diaSemanaDestaque}</span></div>
-                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
-                  <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+              {/* Celular: cabeçalho (título + dia/data/hora em linha) e a Palavra do dia, depois a tabela, depois Pedido de Oração e Dízimos lado a lado, e por último o Avivar Music. */}
+              <div className="col-span-2 lg:col-span-1 order-1 lg:order-none lg:col-start-2 lg:row-start-1 rounded-xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
+                <div className="p-3 sm:p-4 flex flex-col justify-center gap-2">
+                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Escalas de Serviço</span>
+                  <div className="flex items-end justify-between lg:justify-start gap-3 lg:gap-4 flex-nowrap lg:flex-wrap">
+                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{diaSemanaDestaque}</span></div>
+                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
+                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
+                  </div>
                 </div>
-                <PalavraDoDia />
+                <PalavraDoDia podeEnviar={adminMode} />
               </div>
-              <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 p-2" style={{ borderColor: C.gold, background: C.cream }}>
+              <div className="order-3 lg:order-none lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+              <div className="order-2 lg:order-none col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 p-2" style={{ borderColor: C.gold, background: C.cream }}>
                 <EscalaUmaColuna linhas={linhasEscalaDestaque} />
               </div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-2">{cardPix}</div>
-              <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
+              <div className="order-4 lg:order-none lg:col-start-3 lg:row-start-2">{cardPix}</div>
+              <div className="order-5 lg:order-none col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
             </div>
           );
         }
@@ -2183,14 +2215,20 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
           </button>
         ) : null;
         if (!esquerda) {
-          return (<div className={`grid gap-3 ${COLS3}`}>{cardMusic}{cardPedido}{cardPix}</div>);
+          return (
+            <div className={`grid grid-cols-2 gap-3 ${COLS3}`}>
+              <div className="col-span-2 lg:col-span-1 order-3 lg:order-none">{cardMusic}</div>
+              <div className="order-1 lg:order-none">{cardPedido}</div>
+              <div className="order-2 lg:order-none">{cardPix}</div>
+            </div>
+          );
         }
         return (
-          <div className={`grid gap-3 ${COLS3}`}>
-            <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">{esquerda}</div>
+          <div className={`grid grid-cols-2 gap-3 ${COLS3}`}>
+            <div className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2">{esquerda}</div>
             <div className="lg:col-start-3 lg:row-start-1">{cardPedido}</div>
             <div className="lg:col-start-3 lg:row-start-2">{cardPix}</div>
-            <div className="lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
+            <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
           </div>
         );
       })()}
@@ -6851,7 +6889,7 @@ function PaginaIgreja({ igreja, all, save, adminMode, onVoltar }) {
 
       {/* Mesmo carrossel de notícias (Google News) do site principal */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <NoticiasCarousel />
+        {NOTICIAS_BARRA_ATIVA && <NoticiasCarousel />}
       </div>
 
       {/* Sobre a unidade */}
@@ -7245,23 +7283,42 @@ function versiculoDoDia(d = new Date()) {
   const diaDoAno = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(d.getFullYear(), 0, 0)) / 86400000);
   return VERSICULOS_DIA[diaDoAno % VERSICULOS_DIA.length];
 }
-function PalavraDoDia() {
+const mensagemPalavraDoDia = (v) =>
+  `📖 *Palavra do dia* — ${new Date().toLocaleDateString("pt-BR")}\n\n“${v.texto}”\n— *${v.ref}*\n\nLeia na Bíblia Avivar: ${BIBLIA_URL}\n\n_Ministério Avivar do Espírito_`;
+function PalavraDoDia({ podeEnviar = false }) {
   const v = versiculoDoDia();
-  const url = `https://www.biblegateway.com/passage/?search=${encodeURIComponent(v.ref)}&version=ARC`;
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`Palavra do dia: ${v.ref}. Abrir o versículo na Bíblia`}
-      className="block p-3 sm:p-4 transition hover:brightness-105 focus:outline-none focus:ring-2"
-      style={{ background: "linear-gradient(135deg, #E2B64A, #B8860B)", color: "#2A1B00" }}
-    >
-      <span className="text-[9px] font-mono uppercase tracking-wider font-bold flex items-center gap-1"><BookOpen size={11} /> Palavra do dia</span>
-      <p className="font-display italic text-[12px] sm:text-[13px] leading-snug mt-1.5 line-clamp-6">“{v.texto}”</p>
-      <p className="text-[11px] font-bold mt-1.5">{v.ref} <span className="font-normal opacity-75">· Almeida Corrigida</span></p>
-      <span className="text-[10px] font-semibold underline mt-1 inline-flex items-center gap-1">Toque para ler o versículo <ExternalLink size={10} /></span>
-    </a>
+    <div className="relative h-full">
+      <style>{`
+        @keyframes palavraCor { 0%, 100% { background-color: #9A6B00; } 20% { background-color: #C2185B; } 40% { background-color: #1F5FA8; } 60% { background-color: #1E7A4C; } 80% { background-color: #C2410C; } }
+        @keyframes palavraPisca { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+        .palavra-dia { background-color: #9A6B00; animation: palavraCor 15s ease-in-out infinite, palavraPisca 1.4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .palavra-dia { animation: none; } }
+      `}</style>
+      <a
+        href={BIBLIA_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Palavra do dia: ${v.ref}. Abrir a Bíblia Avivar`}
+        className="palavra-dia block h-full p-3 sm:p-4 focus:outline-none focus:ring-2"
+        style={{ color: "#fff" }}
+      >
+        <span className="text-[9px] font-mono uppercase tracking-wider font-bold flex items-center gap-1"><BookOpen size={11} /> Palavra do dia</span>
+        <p className="font-display italic text-[12px] sm:text-[13px] leading-snug mt-1.5 line-clamp-6">“{v.texto}”</p>
+        <p className="text-[11px] font-bold mt-1.5">{v.ref}</p>
+        <span className="text-[10px] font-semibold underline mt-1 inline-flex items-center gap-1">Toque para ler na Bíblia Avivar <ExternalLink size={10} /></span>
+      </a>
+      {podeEnviar && (
+        <button
+          onClick={() => window.open(waLink(WHATSAPP_PALAVRA_DIA, mensagemPalavraDoDia(v)), "_blank", "noopener,noreferrer")}
+          title="Enviar a palavra do dia no WhatsApp"
+          className="absolute top-1.5 right-1.5 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow"
+          style={{ background: "#25D366", color: "#06371c" }}
+        >
+          <MessageCircle size={11} /> Enviar
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -13992,7 +14049,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       `}</style>
 
       <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
-      <NoticiasCarousel />
+      {NOTICIAS_BARRA_ATIVA && <NoticiasCarousel />}
       {SIDE_CAROUSEL_ATIVO && <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />}
 
       <main className={SIDE_CAROUSEL_ATIVO ? "lg:ml-[200px]" : ""}>
