@@ -1714,8 +1714,8 @@ function HeroDoacoesCard({ data, bgImage, onClick, compacto = false }) {
         {bgImage && <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />}
         <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #14583Aee, #0B3B26f2)" }} />
         {/* Celular e tablet: só o nome, o QR Code pequeno, a chave Pix pequena e o botão de copiar */}
-        <div className="relative lg:hidden p-3 flex flex-col items-center justify-center gap-1.5 h-full text-center">
-          <p className="font-display font-semibold text-[15px] text-white leading-tight">Dízimos e Ofertas</p>
+        <div className="relative lg:hidden p-3 flex flex-col items-center justify-start gap-1.5 h-full text-center">
+          <p className="h-6 flex items-center justify-center font-display font-semibold text-[15px] text-white leading-tight">Dízimos e Ofertas</p>
           {payload && (
             <div className="flex flex-col items-center gap-0.5">
               <div onClick={copiarQRComoImagem} title="Toque para copiar o QR Code como imagem" className="bg-white p-1 rounded-md cursor-pointer">
@@ -2049,13 +2049,17 @@ function BannerAdminPanel({ vd, save, adminMode }) {
 
 // Card do topo da Home (coluna da direita, ao lado da Escala de Serviço): cor de brasa, abre o formulário.
 function PedidoOracaoTopo({ onClick }) {
+  const vOr = versiculoOracaoDoDia();
   return (
     <button onClick={onClick} className="w-full h-full text-left rounded-xl overflow-hidden border-2 shadow-md focus:outline-none focus:ring-2 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 px-3 lg:px-4 py-3 transition hover:brightness-105" style={{ borderColor: C.ember, background: `linear-gradient(135deg, ${C.ember}, ${C.emberDeep})` }}>
-      {/* Celular e tablet: só as mãos orando, o nome e o botão */}
-      <span className="lg:hidden flex flex-col items-center justify-center gap-1.5 w-full h-full text-center">
-        <span className="text-3xl leading-none" aria-hidden="true">🙏</span>
-        <span className="block font-display font-bold text-base text-white leading-tight">Peça Oração</span>
+      {/* Celular e tablet: mãos + título na linha do topo (alinhada ao título de "Dízimos e Ofertas"), botão e um versículo sobre oração embaixo */}
+      <span className="lg:hidden flex flex-col items-center gap-1.5 w-full h-full text-center">
+        <span className="h-6 flex items-center justify-center gap-1.5">
+          <span className="text-xl leading-none" aria-hidden="true">🙏</span>
+          <span className="font-display font-bold text-[15px] text-white leading-tight">Peça Oração</span>
+        </span>
         <span className="purple-light-pulse text-[11px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#fff", color: C.emberDeep }}>Pedir oração</span>
+        <span className="mt-auto block text-[9px] leading-tight italic" style={{ color: "#ffffffdd" }}>“{vOr.texto}” <b className="not-italic whitespace-nowrap">— {vOr.ref}</b></span>
       </span>
       <span className="hidden lg:contents">
         <HandHeart size={24} color="#fff" className="shrink-0" />
@@ -2155,6 +2159,7 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      <PalavraDoDia podeEnviar={adminMode} />
       {(() => {
         const cardPedido = <PedidoOracaoTopo onClick={onPedidoOracao} />;
         const cardPix = <HeroDoacoesCard compacto data={doacoes || DEFAULT_DOACOES} bgImage={bgPix} onClick={() => {}} />;
@@ -2182,24 +2187,19 @@ function MancheteBar({ manchete, save, adminMode, avivarNews, oracaoLocalDia, se
         if (mostrarEscalaNaHome) {
           return (
             <div className={`grid grid-cols-2 gap-3 ${COLS3} lg:grid-rows-[auto_1fr]`}>
-              {/* Celular: cabeçalho (título + dia/data/hora em linha) e a Palavra do dia, depois a tabela, depois Pedido de Oração e Dízimos lado a lado, e por último o Avivar Music. */}
-              <div className="col-span-2 lg:col-span-1 order-1 lg:order-none lg:col-start-2 lg:row-start-1 rounded-xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2" style={{ borderColor: "#fff", background: C.violet, color: "#fff", boxShadow: "0 0 0 1px #ffffff55" }}>
-                <div className="p-3 sm:p-4 flex flex-col justify-center gap-2">
+              {/* Tabela da escala: o título (com dia, data e hora) fica DENTRO do filete dourado, como cabeçalho da própria tabela. */}
+              <div className="order-1 lg:order-none col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2 rounded-xl border-2 overflow-hidden flex flex-col" style={{ borderColor: C.gold, background: C.cream }}>
+                <div className="px-3 py-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5" style={{ background: C.violet, color: "#fff" }}>
                   <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Escalas de Serviço</span>
-                  <div className="flex items-end justify-between lg:justify-start gap-3 lg:gap-4 flex-nowrap lg:flex-wrap">
-                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Dia</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{diaSemanaDestaque}</span></div>
-                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Data</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{fmtDate(dataEscalaDestaque)}</span></div>
-                    <div><span className="text-[9px] font-mono uppercase opacity-70 block">Hora</span><span className="font-display font-bold text-sm sm:text-lg lg:text-base xl:text-lg leading-tight">{horarioDestaque ? horarioDestaque.inicio : "—"}</span></div>
-                  </div>
+                  <span className="font-display font-bold text-[13px] sm:text-sm leading-tight">{diaSemanaDestaque} · {fmtDate(dataEscalaDestaque)} · {horarioDestaque ? horarioDestaque.inicio : "—"}</span>
                 </div>
-                <PalavraDoDia podeEnviar={adminMode} />
+                <div className="p-2 flex-1">
+                  <EscalaUmaColuna linhas={linhasEscalaDestaque} />
+                </div>
               </div>
-              <div className="order-3 lg:order-none lg:col-start-3 lg:row-start-1">{cardPedido}</div>
-              <div className="order-2 lg:order-none col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 rounded-xl border-2 p-2" style={{ borderColor: C.gold, background: C.cream }}>
-                <EscalaUmaColuna linhas={linhasEscalaDestaque} />
-              </div>
-              <div className="order-4 lg:order-none lg:col-start-3 lg:row-start-2">{cardPix}</div>
-              <div className="order-5 lg:order-none col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
+              <div className="order-2 lg:order-none lg:col-start-3 lg:row-start-1">{cardPedido}</div>
+              <div className="order-3 lg:order-none lg:col-start-3 lg:row-start-2">{cardPix}</div>
+              <div className="order-4 lg:order-none col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">{cardMusic}</div>
             </div>
           );
         }
@@ -7279,44 +7279,50 @@ const VERSICULOS_DIA = [
   { ref: "Zacarias 4:6", texto: "Não por força nem por violência, mas pelo meu Espírito, diz o Senhor dos Exércitos." },
   { ref: "Mateus 28:20", texto: "Ensinando-os a guardar todas as coisas que eu vos tenho mandado; e eis que eu estou convosco todos os dias, até à consumação dos séculos. Amém." },
 ];
+const diaDoAno = (d = new Date()) => Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(d.getFullYear(), 0, 0)) / 86400000);
 function versiculoDoDia(d = new Date()) {
-  const diaDoAno = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(d.getFullYear(), 0, 0)) / 86400000);
-  return VERSICULOS_DIA[diaDoAno % VERSICULOS_DIA.length];
+  return VERSICULOS_DIA[diaDoAno(d) % VERSICULOS_DIA.length];
 }
+// Versículos sobre oração (card "Peça Oração"), também em rodízio diário.
+const VERSICULOS_ORACAO = [
+  { ref: "Mateus 7:7", texto: "Pedi, e dar-se-vos-á; buscai, e encontrareis; batei, e abrir-se-vos-á." },
+  { ref: "Jeremias 33:3", texto: "Clama a mim, e responder-te-ei, e anunciar-te-ei coisas grandes e firmes que não sabes." },
+  { ref: "1 Tessalonicenses 5:17", texto: "Orai sem cessar." },
+];
+const versiculoOracaoDoDia = (d = new Date()) => VERSICULOS_ORACAO[diaDoAno(d) % VERSICULOS_ORACAO.length];
+// Uma cor para cada dia (sem piscar). Sem o roxo, que é a cor do botão.
+const CORES_PALAVRA_DIA = ["#9A6B00", "#C2185B", "#1F5FA8", "#1E7A4C", "#C2410C", "#0E7C86"];
 const mensagemPalavraDoDia = (v) =>
   `📖 *Palavra do dia* — ${new Date().toLocaleDateString("pt-BR")}\n\n“${v.texto}”\n— *${v.ref}*\n\nLeia na Bíblia Avivar: ${BIBLIA_URL}\n\n_Ministério Avivar do Espírito_`;
 function PalavraDoDia({ podeEnviar = false }) {
   const v = versiculoDoDia();
+  const cor = CORES_PALAVRA_DIA[diaDoAno() % CORES_PALAVRA_DIA.length];
   return (
-    <div className="relative h-full">
-      <style>{`
-        @keyframes palavraCor { 0%, 100% { background-color: #9A6B00; } 20% { background-color: #C2185B; } 40% { background-color: #1F5FA8; } 60% { background-color: #1E7A4C; } 80% { background-color: #C2410C; } }
-        @keyframes palavraPisca { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
-        .palavra-dia { background-color: #9A6B00; animation: palavraCor 15s ease-in-out infinite, palavraPisca 1.4s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .palavra-dia { animation: none; } }
-      `}</style>
+    <div className="rounded-xl border-2 overflow-hidden mb-3" style={{ background: cor, borderColor: "#ffffff88", color: "#fff" }}>
       <a
         href={BIBLIA_URL}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Palavra do dia: ${v.ref}. Abrir a Bíblia Avivar`}
-        className="palavra-dia block h-full p-3 sm:p-4 focus:outline-none focus:ring-2"
-        style={{ color: "#fff" }}
+        className="block px-3 sm:px-4 py-2.5 focus:outline-none focus:ring-2"
       >
-        <span className="text-[9px] font-mono uppercase tracking-wider font-bold flex items-center gap-1"><BookOpen size={11} /> Palavra do dia</span>
-        <p className="font-display italic text-[12px] sm:text-[13px] leading-snug mt-1.5 line-clamp-6">“{v.texto}”</p>
-        <p className="text-[11px] font-bold mt-1.5">{v.ref}</p>
-        <span className="text-[10px] font-semibold underline mt-1 inline-flex items-center gap-1">Toque para ler na Bíblia Avivar <ExternalLink size={10} /></span>
+        <span className="flex items-center justify-between gap-2">
+          <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider font-bold flex items-center gap-1.5"><BookOpen size={13} /> Palavra do dia</span>
+          <span className="text-[11px] sm:text-xs font-bold px-3 py-1 rounded-md border" style={{ background: C.violet, color: "#fff", borderColor: "#ffffffaa" }}>Bíblia Avivar</span>
+        </span>
+        <p className="font-display italic text-[13px] sm:text-[15px] leading-snug mt-1.5">“{v.texto}” <b className="not-italic text-[11px] sm:text-xs whitespace-nowrap">— {v.ref}</b></p>
       </a>
       {podeEnviar && (
-        <button
-          onClick={() => window.open(waLink(WHATSAPP_PALAVRA_DIA, mensagemPalavraDoDia(v)), "_blank", "noopener,noreferrer")}
-          title="Enviar a palavra do dia no WhatsApp"
-          className="absolute top-1.5 right-1.5 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow"
-          style={{ background: "#25D366", color: "#06371c" }}
-        >
-          <MessageCircle size={11} /> Enviar
-        </button>
+        <div className="px-3 sm:px-4 pb-2 flex justify-end">
+          <button
+            onClick={() => window.open(waLink(WHATSAPP_PALAVRA_DIA, mensagemPalavraDoDia(v)), "_blank", "noopener,noreferrer")}
+            title="Enviar a palavra do dia no WhatsApp (só o admin vê)"
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow"
+            style={{ background: "#25D366", color: "#06371c" }}
+          >
+            <MessageCircle size={11} /> Enviar no WhatsApp
+          </button>
+        </div>
       )}
     </div>
   );
@@ -7335,21 +7341,24 @@ function NomeEscalado({ e, className = "", style }) {
 
 // Escala em UMA coluna: uma linha por função, com tarja colorida à esquerda e o(s) nome(s) à direita.
 function EscalaUmaColuna({ linhas }) {
-  // Duas colunas (uma só no celular bem estreito), fonte pequena; se o número de funções for ímpar,
-  // a última ocupa a largura toda para não sobrar espaço vazio.
+  // Duas colunas (uma só no celular bem estreito), fonte pequena. Função com mais de um obreiro, ou a última quando
+  // o total é ímpar, ocupa a largura toda — assim os nomes ficam numa linha só, separados por um divisor, e não sobra espaço vazio.
   return (
-    <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-1">
+    <div className="grid grid-cols-1 min-[480px]:grid-cols-2 grid-flow-dense gap-1">
       {linhas.map(({ posto, escalados }, i) => {
         const cor = corTarjaPosto(posto);
-        const ultimaImpar = linhas.length % 2 === 1 && i === linhas.length - 1;
+        const larga = escalados.length > 1 || (linhas.length % 2 === 1 && i === linhas.length - 1);
         return (
-          <div key={posto} className={`flex items-stretch rounded-md overflow-hidden border ${ultimaImpar ? "min-[480px]:col-span-2" : ""}`} style={{ borderColor: cor + "66", background: cor + "12" }}>
-            <div className="w-[38%] shrink-0 px-1.5 py-1 flex items-center text-[9px] font-bold uppercase leading-tight tracking-wide" style={{ background: cor, color: "#fff" }}>{posto}</div>
-            <div className="flex-1 min-w-0 px-1.5 py-1 flex flex-col justify-center gap-0.5">
-              {escalados.length === 0 ? (
-                <span className="text-[11px] italic" style={{ color: C.stone }}>—</span>
-              ) : escalados.map((e) => (
-                <NomeEscalado key={e.id} e={e} className="text-[11px] font-semibold leading-tight" style={{ color: C.ink }} />
+          <div key={posto} className={`flex items-stretch rounded-md overflow-hidden border ${larga ? "min-[480px]:col-span-2" : ""}`} style={{ borderColor: cor + "66", background: cor + "12" }}>
+            <div className={`${larga ? "w-[19%] min-[480px]:w-[16%]" : "w-[38%]"} shrink-0 px-1.5 py-1 flex items-center text-[9px] font-bold uppercase leading-tight tracking-wide`} style={{ background: cor, color: "#fff" }}>{posto}</div>
+            <div className="flex-1 min-w-0 px-1.5 py-1 flex flex-wrap items-center gap-y-0.5">
+              {escalados.map((e, k) => (
+                <NomeEscalado
+                  key={e.id}
+                  e={e}
+                  className={`text-[11px] font-semibold leading-tight ${k > 0 ? "border-l ml-2 pl-2" : ""}`}
+                  style={{ color: C.ink, borderColor: cor + "AA" }}
+                />
               ))}
             </div>
           </div>
