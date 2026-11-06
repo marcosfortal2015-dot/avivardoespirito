@@ -37,6 +37,30 @@
         "description": "Ministério Avivar do Espírito — uma igreja cristã interdenominacional com forte viés pentecostal."
       }
     </script>
+    <!-- Avivar Music como aplicativo próprio: só age quando o link tem ?app=music -->
+    <script>
+      (function () {
+        try {
+          if (new URLSearchParams(location.search).get("app") !== "music") return;
+          var l = document.createElement("link");
+          l.rel = "manifest";
+          l.href = "/manifest-music.json";
+          document.head.appendChild(l);
+          document.title = "Avivar Music";
+          var tc = document.querySelector('meta[name="theme-color"]');
+          if (tc) tc.setAttribute("content", "#351052");
+          var ai = document.querySelector('link[rel="apple-touch-icon"]');
+          if (ai) ai.setAttribute("href", "/avivar-music-180.png");
+          var ic = document.querySelector('link[rel="icon"]');
+          if (ic) ic.setAttribute("href", "/avivar-music-192.png");
+          if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+              navigator.serviceWorker.register("/sw-music.js").catch(function () {});
+            });
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

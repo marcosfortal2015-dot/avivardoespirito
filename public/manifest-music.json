@@ -1,0 +1,19 @@
+{
+  "id": "/?app=music",
+  "name": "Avivar Music",
+  "short_name": "Avivar Music",
+  "description": "Escalas, repertório e cifras do ministério de louvor — Ministério Avivar do Espírito.",
+  "lang": "pt-BR",
+  "start_url": "/?app=music",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#351052",
+  "theme_color": "#351052",
+  "categories": ["music", "lifestyle"],
+  "icons": [
+    { "src": "/avivar-music-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/avivar-music-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/avivar-music-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

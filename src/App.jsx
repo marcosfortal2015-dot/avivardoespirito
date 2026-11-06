@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Flame, Menu, X, ChevronLeft, ChevronRight, Lock, Unlock, Plus, Trash2,
   Phone, Calendar, Clock, MapPin, Video, Image as ImageIcon, Users, Church,
@@ -98,6 +99,10 @@ const CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES = "/76-codigos-artigo-refidim-maos-mois
 const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+// Modo "app só do Avivar Music": o link avivardoespirito.com.br/?app=music (e o ícone instalado no celular)
+// abre direto no Avivar Music, sem passar pelo site.
+const MODO_APP_MUSIC = (() => { try { return new URLSearchParams(window.location.search).get("app") === "music"; } catch (e) { return false; } })();
 // Compara nomes ignorando acento e maiúscula/minúscula — usado pra achar o
 // Pastor Marcos e a Pastora Wládia entre os colaboradores sem depender de
 // como o nome foi digitado.
@@ -10060,8 +10065,9 @@ function AmEscalaMusico({ t, dados, salvar, musico, abrirCulto }) {
 }
 
 /* ---------- B) Acervo + tela da cifra ---------- */
-function AmCifra({ musica, onFechar, escuroInicial }) {
+function AmCifra({ musica, onFechar, escuroInicial, lider, onSalvarMapa, extraTopo }) {
   const [escuro, setEscuro] = useState(escuroInicial);
+  const [sync, setSync] = useState(""); // "" | "ver" | "mapear"
   const [fonte, setFonte] = useState(16);
   const [rolando, setRolando] = useState(false);
   const [vel, setVel] = useState(2);
@@ -10081,13 +10087,18 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: t.bg, color: t.ink }}>
       <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }}>
         <button onClick={onFechar} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: t.ink }}><ArrowLeft size={16} /> Acervo</button>
-        <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>{escuro ? "Modo claro" : "Modo escuro (altar)"}</button>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {musica.mapa && (musica.mapa.tempos || []).length > 0 && <button onClick={() => setSync("ver")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: t.accent, color: t.onAccent }}><Play size={14} /> Acompanhar</button>}
+          {lider && onSalvarMapa && musica.cifra && <button onClick={() => setSync("mapear")} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>Mapear</button>}
+          {extraTopo}
+          <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>{escuro ? "Claro" : "Escuro (altar)"}</button>
+        </div>
       </div>
       <div ref={areaRef} className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-2xl font-bold">{musica.titulo}</h2>
           {musica.artista && <p className="text-sm" style={{ color: t.dim }}>{musica.artista}</p>}
-          <div className="grid grid-cols-3 gap-2 mt-3">
+          <div className={musica.somenteTexto ? "hidden" : "grid grid-cols-3 gap-2 mt-3"}>
             {[["Tom da igreja", musica.tomIgreja], ["Tom original", musica.tomOriginal], ["BPM", musica.bpm]].map(([r, v]) => (
               <div key={r} className="rounded-xl p-3 text-center" style={{ background: t.card2 }}>
                 <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: t.dim }}>{r}</p>
@@ -10121,6 +10132,8 @@ function AmCifra({ musica, onFechar, escuroInicial }) {
         <span className="text-xs font-mono w-6 text-center" style={{ color: t.dim }}>{vel}x</span>
         <button aria-label="Rolagem mais rápida" onClick={() => setVel((v) => Math.min(8, v + 1))} className="w-12 h-12 rounded-xl" style={{ background: t.card2, color: t.ink }}><Plus size={16} className="mx-auto" /></button>
       </div>
+      {sync === "ver" && <AmSeguirMusica t={t} musica={musica} onFechar={() => setSync("")} />}
+      {sync === "mapear" && <AmMapeador t={t} musica={musica} onSalvar={(tempos) => { onSalvarMapa(tempos); setSync(""); }} onFechar={() => setSync("")} />}
     </div>
   );
 }
@@ -10131,6 +10144,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
   const [filtro, setFiltro] = useState("todas"); // todas | favoritas | recentes
   const [aberta, setAberta] = useState(null);
   const [form, setForm] = useState(null); // null | objeto em edição
+  const [nota, setNota] = useState("");
   useEffect(() => { if (acaoInicial === "nova" && lider) { setForm({ ...AM_MUSICA_VAZIA }); if (limparAcao) limparAcao(); } }, [acaoInicial, lider]);
   // Músicas do repertório antigo (por culto) entram no acervo só para consulta.
   const doAcervo = dados.acervo || [];
@@ -10143,8 +10157,20 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
   const todas = [...doAcervo, ...antigas];
   const ehFav = (id) => (dados.favoritos || []).some((f) => f.musicoId === userKey && f.musicaId === id);
   const alternarFav = (id) => salvar({ ...dados, favoritos: ehFav(id) ? dados.favoritos.filter((f) => !(f.musicoId === userKey && f.musicaId === id)) : [...(dados.favoritos || []), { musicoId: userKey, musicaId: id }] });
+  const selEnsaio = dados.ensaioSelecao || [];
+  const ehSel = (id) => selEnsaio.some((s) => s.musicoId === userKey && s.tipo === "louvor" && s.refId === id);
+  const alternarSel = (id) => salvar({ ...dados, ensaioSelecao: ehSel(id) ? selEnsaio.filter((s) => !(s.musicoId === userKey && s.tipo === "louvor" && s.refId === id)) : [...selEnsaio, { musicoId: userKey, tipo: "louvor", refId: id }] });
+  const salvarMapa = (m, tempos) => {
+    const agora = new Date().toISOString();
+    const existe = doAcervo.some((x) => x.id === m.id);
+    let item = { ...m, mapa: { versao: 1, tempos, atualizadoEm: agora }, atualizadoEm: agora }; delete item.doRepertorio;
+    if (!existe) item = { ...item, id: uid(), criadoEm: agora };
+    salvar(amAud({ ...dados, acervo: existe ? doAcervo.map((x) => (x.id === m.id ? item : x)) : [...doAcervo, item] }, `Cifra mapeada: ${m.titulo}`));
+    setAberta(item);
+  };
   let lista = todas.filter((m) => semAcento(m.titulo).includes(semAcento(busca)) || semAcento(m.artista).includes(semAcento(busca)));
   if (filtro === "favoritas") lista = lista.filter((m) => ehFav(m.id));
+  if (filtro === "ensaio") lista = lista.filter((m) => ehSel(m.id));
   if (filtro === "recentes") lista = lista.filter((m) => m.atualizadoEm || m.criadoEm).sort((a, b) => (b.atualizadoEm || b.criadoEm).localeCompare(a.atualizadoEm || a.criadoEm)).slice(0, 15);
   else lista = lista.sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"));
   const gravar = () => {
@@ -10170,11 +10196,12 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
         {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MUSICA_VAZIA })}><Plus size={16} /> Nova</AmBotao>}
       </div>
       <AmInput t={t} placeholder="Pesquisar por música ou artista..." value={busca} onChange={(e) => setBusca(e.target.value)} />
-      <div className="grid grid-cols-3 gap-1.5">
-        {[["todas", "Todas"], ["favoritas", "⭐ Favoritas"], ["recentes", "Recentes"]].map(([k, r]) => (
+      <div className="grid grid-cols-4 gap-1.5">
+        {[["todas", "Todas"], ["favoritas", "⭐ Favoritas"], ["ensaio", "Ensaio"], ["recentes", "Recentes"]].map(([k, r]) => (
           <button key={k} onClick={() => setFiltro(k)} className="min-h-[44px] rounded-xl text-xs font-semibold" style={{ background: filtro === k ? t.accent : t.card2, color: filtro === k ? t.onAccent : t.ink }}>{r}</button>
         ))}
       </div>
+      {nota && <p className="text-xs rounded-xl px-3 py-2" style={{ background: t.card2, color: t.dim }}><Lock size={12} className="inline mr-1" />{nota}</p>}
       {form && (
         <AmCard t={t}>
           <p className="font-display font-bold mb-3" style={{ color: t.ink }}>{doAcervo.some((m) => m.id === form.id) ? "Editar música" : "Nova música"}</p>
@@ -10217,12 +10244,15 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
         {lista.map((m) => (
           <div key={m.id} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
             {podeFav ? (<button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>) : <span className="w-3 shrink-0" />}
-            <button onClick={() => setAberta(m)} className="flex-1 text-left py-4 pr-3 min-h-[64px] focus:outline-none focus:ring-2">
+            <button onClick={() => (podeFav ? setAberta(m) : setNota("Entre como músico para abrir cifras e letras."))} className="flex-1 text-left py-4 pr-3 min-h-[64px] focus:outline-none focus:ring-2">
               <p className="font-semibold" style={{ color: t.ink }}>{m.titulo}</p>
               <p className="text-xs mt-0.5" style={{ color: t.dim }}>
-                {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.youtubeUrl ? " · vídeo" : ""}
+                {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.mapa ? " · mapeada" : ""}{m.youtubeUrl ? " · vídeo" : ""}
               </p>
             </button>
+            {podeFav && (
+              <button aria-label={ehSel(m.id) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(m.id)} onClick={() => alternarSel(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehSel(m.id) ? "#2E9E5B" : t.dim }}><CheckCircle2 size={20} fill={ehSel(m.id) ? "#2E9E5B33" : "none"} /></button>
+            )}
             {lider && (
               <div className="flex items-center gap-1 pr-2">
                 <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...AM_MUSICA_VAZIA, ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
@@ -10232,7 +10262,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
           </div>
         ))}
       </div>
-      {aberta && <AmCifra musica={aberta} onFechar={() => setAberta(null)} escuroInicial={escuro} />}
+      {aberta && createPortal(<AmCifra musica={aberta} onFechar={() => setAberta(null)} escuroInicial={escuro} lider={lider} onSalvarMapa={(tempos) => salvarMapa(aberta, tempos)} />, document.body)}
     </div>
   );
 }
@@ -11661,6 +11691,631 @@ async function amBuscarGospel() {
   }
   return [];
 }
+/* ================================================================ */
+/* Avivar Music — Harpa Cristã, mapeador de cifras, separador         */
+/* ================================================================ */
+
+// Ícone da harpa (mesmo traço usado na Bíblia Avivar)
+function AmHarpaIcon({ size = 18, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3c5 0 9 3 9 8 0 4-2 7-4 10H6V3z" />
+      <path d="M6 3c0 6 2 12 5 18" />
+      <path d="M9 5v13M12 7v11M14.5 9.5v8" />
+      <path d="M4 21h9" />
+    </svg>
+  );
+}
+
+/* ---------- Cifra em blocos (acordes + letra) ---------- */
+const AM_ACORDE_RE = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?\d*(sus\d?|add\d+|\([^)]*\))*(\/[A-G][#b]?)?$/;
+const amEhLinhaAcordes = (linha) => {
+  const toks = String(linha || "").trim().split(/\s+/).filter(Boolean);
+  return toks.length > 0 && toks.every((tk) => AM_ACORDE_RE.test(tk) || /^[|\-–x%.:()0-9]+$/.test(tk));
+};
+const amEhSecao = (linha) => /^\s*[\[(]?\s*(intro|verso|pr[eé]-?refr[aã]o|refr[aã]o|ponte|final|coro|solo|interl[uú]dio|estrofe)[^\n]{0,24}[\])]?\s*:?\s*$/i.test(String(linha || ""));
+
+// Quebra a cifra em blocos: cada bloco = (linha de acordes) + (linha de letra). Seções ("Refrão") grudam no próximo bloco.
+function amBlocosCifra(cifra) {
+  const linhas = String(cifra || "").replace(/\r/g, "").split("\n");
+  const blocos = [];
+  let secao = "";
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    if (!l.trim()) continue;
+    if (amEhSecao(l) && !amEhLinhaAcordes(l)) { secao = l.replace(/[\[\]():]/g, "").trim(); continue; }
+    if (amEhLinhaAcordes(l)) {
+      let letra = "";
+      const prox = linhas[i + 1];
+      if (prox !== undefined && prox.trim() && !amEhLinhaAcordes(prox) && !amEhSecao(prox)) { letra = prox.trim(); i++; }
+      blocos.push({ acordes: l.replace(/\s+$/, ""), letra, secao });
+    } else {
+      blocos.push({ acordes: "", letra: l.trim(), secao });
+    }
+    secao = "";
+  }
+  return blocos;
+}
+const amFmtTempo = (s) => { const n = Math.max(0, Number(s) || 0); const m = Math.floor(n / 60); const r = n - m * 60; return `${m}:${r < 10 ? "0" : ""}${r.toFixed(1)}`; };
+
+/* ---------- Player (arquivo do próprio aparelho OU vídeo de referência do YouTube) ---------- */
+// Nada é baixado nem guardado: o áudio do arquivo fica só na memória do aparelho e o vídeo toca no player oficial do YouTube.
+const amYtId = (url) => { const m = String(url || "").match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/); return m ? m[1] : ""; };
+let amYtPromise = null;
+function amCarregarYT() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (!amYtPromise) {
+    amYtPromise = new Promise((resolve) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(window.YT); };
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    });
+  }
+  return amYtPromise;
+}
+
+function useAmPlayer() {
+  const audioRef = useRef(null);
+  const ytRef = useRef(null);
+  const ytWrapRef = useRef(null);
+  const urlRef = useRef("");
+  const [modo, setModo] = useState("nenhum"); // nenhum | arquivo | youtube
+  const [nome, setNome] = useState("");
+  const [tempo, setTempo] = useState(0);
+  const [dur, setDur] = useState(0);
+  const [tocando, setTocando] = useState(false);
+  const [vel, setVelState] = useState(1);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      try {
+        if (modo === "arquivo" && audioRef.current) setTempo(audioRef.current.currentTime || 0);
+        else if (modo === "youtube" && ytRef.current && ytRef.current.getCurrentTime) setTempo(ytRef.current.getCurrentTime() || 0);
+      } catch (e) { /* player ainda carregando */ }
+    }, 120);
+    return () => clearInterval(id);
+  }, [modo]);
+  useEffect(() => () => {
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    try { if (ytRef.current && ytRef.current.destroy) ytRef.current.destroy(); } catch (e) { /* ok */ }
+  }, []);
+
+  const soltarYT = () => { try { if (ytRef.current && ytRef.current.destroy) ytRef.current.destroy(); } catch (e) { /* ok */ } ytRef.current = null; if (ytWrapRef.current) ytWrapRef.current.innerHTML = ""; };
+  const carregarArquivo = (file) => {
+    if (!file) return;
+    setErro("");
+    soltarYT();
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = URL.createObjectURL(file);
+    const a = audioRef.current;
+    if (a) { a.src = urlRef.current; a.playbackRate = vel; a.load(); }
+    setNome(file.name); setModo("arquivo"); setTocando(false); setTempo(0);
+  };
+  const usarYT = async (id) => {
+    if (!id) return;
+    setErro("");
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute("src"); }
+    soltarYT();
+    setModo("youtube"); setNome("Vídeo de referência (YouTube)"); setTempo(0); setTocando(false);
+    try {
+      const YT = await amCarregarYT();
+      const host = document.createElement("div");
+      ytWrapRef.current.appendChild(host);
+      ytRef.current = new YT.Player(host, {
+        videoId: id,
+        width: "100%", height: "100%",
+        playerVars: { playsinline: 1, rel: 0 },
+        events: {
+          onReady: (e) => { try { setDur(e.target.getDuration() || 0); } catch (x) { /* ok */ } },
+          onStateChange: (e) => setTocando(e.data === 1),
+        },
+      });
+    } catch (e) { setErro("Não consegui carregar o vídeo do YouTube."); }
+  };
+  const tocar = () => {
+    try {
+      if (modo === "arquivo" && audioRef.current) audioRef.current.play().catch(() => setErro("Toque em um arquivo de áudio válido."));
+      else if (modo === "youtube" && ytRef.current) ytRef.current.playVideo();
+    } catch (e) { /* ok */ }
+  };
+  const pausar = () => {
+    try {
+      if (modo === "arquivo" && audioRef.current) audioRef.current.pause();
+      else if (modo === "youtube" && ytRef.current) ytRef.current.pauseVideo();
+    } catch (e) { /* ok */ }
+  };
+  const ir = (s) => {
+    const v = Math.max(0, s);
+    try {
+      if (modo === "arquivo" && audioRef.current) audioRef.current.currentTime = v;
+      else if (modo === "youtube" && ytRef.current) ytRef.current.seekTo(v, true);
+    } catch (e) { /* ok */ }
+    setTempo(v);
+  };
+  const setVel = (v) => {
+    setVelState(v);
+    try {
+      if (audioRef.current) audioRef.current.playbackRate = v;
+      if (ytRef.current && ytRef.current.setPlaybackRate) ytRef.current.setPlaybackRate(v);
+    } catch (e) { /* ok */ }
+  };
+  const palco = (
+    <>
+      <audio ref={audioRef} preload="auto" onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)} onPlay={() => setTocando(true)} onPause={() => setTocando(false)} onEnded={() => setTocando(false)} onError={() => { if (modo === "arquivo") setErro("Esse arquivo não pôde ser tocado. Use MP3, M4A ou WAV."); }} />
+      <div ref={ytWrapRef} className={modo === "youtube" ? "aspect-video rounded-xl overflow-hidden bg-black w-full" : "hidden"} />
+    </>
+  );
+  return { modo, nome, tempo, dur, tocando, vel, erro, palco, carregarArquivo, usarYT, tocar, pausar, ir, setVel };
+}
+
+function AmControlesPlayer({ t, p, ytUrl }) {
+  const id = amYtId(ytUrl);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>
+          <Music2 size={16} /> Arquivo de áudio do aparelho
+          <input type="file" accept="audio/*,video/mp4" className="hidden" onChange={(e) => { p.carregarArquivo(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+        </label>
+        {id && <button onClick={() => p.usarYT(id)} className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2" style={{ background: t.card2, color: t.ink }}><PlayCircle size={16} /> Vídeo de referência</button>}
+      </div>
+      {p.palco}
+      {p.modo !== "nenhum" && (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: t.card2 }}>
+          <p className="text-xs truncate" style={{ color: t.dim }}>{p.nome}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button aria-label="Voltar 5 segundos" onClick={() => p.ir(p.tempo - 5)} className="w-11 h-11 rounded-xl font-bold text-xs" style={{ background: t.card, color: t.ink }}>−5s</button>
+            <button onClick={() => (p.tocando ? p.pausar() : p.tocar())} className="h-11 px-5 rounded-xl text-sm font-bold inline-flex items-center gap-2" style={{ background: t.accent, color: t.onAccent }}>{p.tocando ? <Pause size={16} /> : <Play size={16} />}{p.tocando ? "Pausar" : "Tocar"}</button>
+            <button aria-label="Avançar 5 segundos" onClick={() => p.ir(p.tempo + 5)} className="w-11 h-11 rounded-xl font-bold text-xs" style={{ background: t.card, color: t.ink }}>+5s</button>
+            <span className="font-mono text-sm" style={{ color: t.ink }}>{amFmtTempo(p.tempo)}{p.dur ? ` / ${amFmtTempo(p.dur)}` : ""}</span>
+            <select aria-label="Velocidade" value={p.vel} onChange={(e) => p.setVel(Number(e.target.value))} className="h-11 rounded-xl px-2 text-xs font-semibold" style={{ background: t.card, color: t.ink, border: `1px solid ${t.line}` }}>
+              {[0.5, 0.75, 1, 1.25].map((v) => <option key={v} value={v}>{v}x</option>)}
+            </select>
+          </div>
+          {p.dur > 0 && <input aria-label="Posição" type="range" min={0} max={p.dur} step={0.1} value={Math.min(p.tempo, p.dur)} onChange={(e) => p.ir(Number(e.target.value))} className="w-full" />}
+        </div>
+      )}
+      {p.erro && <p className="text-xs" style={{ color: "#D0473A" }}>{p.erro}</p>}
+    </div>
+  );
+}
+
+/* ---------- MAPEADOR: marca, ao ouvir a música, o instante de cada linha (legenda + cifra) ---------- */
+function AmMapeador({ t, musica, onSalvar, onFechar }) {
+  const blocos = useMemo(() => amBlocosCifra(musica.cifra), [musica.cifra]);
+  const [tempos, setTempos] = useState(() => {
+    const antigos = (musica.mapa && musica.mapa.tempos) || [];
+    return blocos.map((_, i) => (typeof antigos[i] === "number" ? antigos[i] : null));
+  });
+  const [sel, setSel] = useState(() => { const i = tempos.findIndex((x) => x == null); return i < 0 ? 0 : i; });
+  const p = useAmPlayer();
+  const linhaRef = useRef(null);
+  const aviso = musica.mapa && musica.mapa.tempos && musica.mapa.tempos.length !== blocos.length ? "A cifra mudou desde o último mapeamento: confira os tempos." : "";
+
+  const marcar = () => {
+    if (!blocos.length) return;
+    const v = Math.round(p.tempo * 10) / 10;
+    setTempos((ts) => ts.map((x, i) => (i === sel ? v : x)));
+    setSel((s) => Math.min(blocos.length - 1, s + 1));
+  };
+  const marcarRef = useRef(marcar);
+  marcarRef.current = marcar;
+  useEffect(() => {
+    const h = (e) => {
+      const tag = (e.target && e.target.tagName) || "";
+      if (e.code === "Space" && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(tag)) { e.preventDefault(); marcarRef.current(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+  useEffect(() => { if (linhaRef.current && linhaRef.current.scrollIntoView) linhaRef.current.scrollIntoView({ block: "center", behavior: "smooth" }); }, [sel]);
+
+  const ajustar = (i, d) => setTempos((ts) => ts.map((x, j) => (j === i ? Math.max(0, Math.round(((x || 0) + d) * 10) / 10) : x)));
+  const feitos = tempos.filter((x) => x != null).length;
+  const ordemOk = tempos.every((x, i) => x == null || i === 0 || tempos[i - 1] == null || x >= tempos[i - 1]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: t.bg, color: t.ink }}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }}>
+        <button onClick={onFechar} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5"><ArrowLeft size={16} /> Fechar</button>
+        <p className="font-display font-bold truncate">Mapear: {musica.titulo}</p>
+        <AmBotao t={t} onClick={() => onSalvar(tempos)} disabled={!feitos}><Save size={16} /> Salvar</AmBotao>
+      </div>
+      <div className="px-3 sm:px-6 py-3 space-y-3 overflow-y-auto">
+        <div className="mx-auto max-w-3xl space-y-3">
+          <p className="text-xs leading-snug" style={{ color: t.dim }}>Toque o áudio (arquivo seu ou o vídeo de referência) e, quando cada linha começar a ser cantada, aperte <b>MARCAR</b> (ou a barra de espaço). O app guarda só os tempos; o áudio não é salvo.</p>
+          <AmControlesPlayer t={t} p={p} ytUrl={musica.youtubeUrl} />
+          <button onClick={marcar} disabled={!blocos.length} className="w-full min-h-[64px] rounded-2xl text-lg font-bold tracking-wide disabled:opacity-40" style={{ background: t.accent, color: t.onAccent }}>MARCAR LINHA {Math.min(sel + 1, blocos.length)} de {blocos.length}</button>
+          <p className="text-xs" style={{ color: t.dim }}>{feitos} de {blocos.length} linhas marcadas.{!ordemOk ? " Atenção: há tempos fora de ordem." : ""} {aviso}</p>
+          {blocos.length === 0 && <AmVazio t={t}>Esta música ainda não tem cifra. Cole a cifra (acordes sobre a letra) para poder mapear.</AmVazio>}
+          <div className="space-y-1.5 pb-24">
+            {blocos.map((b, i) => (
+              <div key={i} ref={i === sel ? linhaRef : null} className="rounded-xl p-2.5 flex items-center gap-2" style={{ background: i === sel ? t.card2 : t.card, border: `1px solid ${i === sel ? t.accent : t.line}` }}>
+                <button onClick={() => setSel(i)} className="flex-1 min-w-0 text-left">
+                  {b.secao && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 mr-1" style={{ background: t.accent, color: t.onAccent }}>{b.secao}</span>}
+                  {b.acordes && <p className="font-mono text-xs truncate" style={{ color: t.accent }}>{b.acordes}</p>}
+                  <p className="text-sm truncate">{b.letra || "(instrumental)"}</p>
+                </button>
+                <span className="font-mono text-xs w-12 text-right" style={{ color: tempos[i] == null ? t.dim : t.ink }}>{tempos[i] == null ? "--" : amFmtTempo(tempos[i])}</span>
+                <div className="flex gap-1">
+                  <button aria-label="Menos 0,5s" onClick={() => ajustar(i, -0.5)} disabled={tempos[i] == null} className="w-9 h-9 rounded-lg text-xs font-bold disabled:opacity-30" style={{ background: t.card2 }}>−</button>
+                  <button aria-label="Mais 0,5s" onClick={() => ajustar(i, 0.5)} disabled={tempos[i] == null} className="w-9 h-9 rounded-lg text-xs font-bold disabled:opacity-30" style={{ background: t.card2 }}>+</button>
+                  <button aria-label="Ouvir daqui" onClick={() => { if (tempos[i] != null) { p.ir(Math.max(0, tempos[i] - 1.5)); p.tocar(); } }} disabled={tempos[i] == null} className="w-9 h-9 rounded-lg disabled:opacity-30 inline-flex items-center justify-center" style={{ background: t.card2 }}><Play size={13} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {blocos.length > 0 && <AmBotao t={t} tom="perigo" onClick={() => { setTempos(blocos.map(() => null)); setSel(0); }}>Limpar todas as marcas</AmBotao>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- ACOMPANHAR: a cifra e a legenda andam junto com a música ---------- */
+function AmSeguirMusica({ t, musica, onFechar }) {
+  const blocos = useMemo(() => amBlocosCifra(musica.cifra), [musica.cifra]);
+  const tempos = (musica.mapa && musica.mapa.tempos) || [];
+  const p = useAmPlayer();
+  const [legenda, setLegenda] = useState(false);
+  const [fonte, setFonte] = useState(18);
+  const atualRef = useRef(null);
+  let atual = -1;
+  tempos.forEach((x, i) => { if (typeof x === "number" && x <= p.tempo + 0.05 && i < blocos.length) atual = i; });
+  useEffect(() => { if (!legenda && atualRef.current && atualRef.current.scrollIntoView) atualRef.current.scrollIntoView({ block: "center", behavior: "smooth" }); }, [atual, legenda]);
+  const prox = atual + 1 < blocos.length ? blocos[atual + 1] : null;
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: t.bg, color: t.ink }}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ background: t.card, borderBottom: `1px solid ${t.line}` }}>
+        <button onClick={onFechar} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5"><ArrowLeft size={16} /> Fechar</button>
+        <p className="font-display font-bold truncate">{musica.titulo}</p>
+        <button onClick={() => setLegenda((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2 }}>{legenda ? "Ver cifra" : "Ver legenda"}</button>
+      </div>
+      <div className="px-3 sm:px-6 pt-3">
+        <div className="mx-auto max-w-3xl"><AmControlesPlayer t={t} p={p} ytUrl={musica.youtubeUrl} /></div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-3 sm:px-8 py-4">
+        <div className="mx-auto max-w-3xl">
+          {legenda ? (
+            <div className="text-center pt-8 pb-24 space-y-6">
+              <p className="font-display font-bold leading-snug" style={{ fontSize: Math.max(28, fonte * 2), color: t.ink }}>{atual >= 0 ? (blocos[atual].letra || "♪") : "♪"}</p>
+              {prox && <p className="leading-snug" style={{ fontSize: Math.max(16, fonte), color: t.dim }}>{prox.letra || "♪"}</p>}
+            </div>
+          ) : (
+            <div className="space-y-2 pb-40">
+              {blocos.map((b, i) => (
+                <div key={i} ref={i === atual ? atualRef : null} className="rounded-xl px-3 py-2" style={{ background: i === atual ? t.accent : "transparent", color: i === atual ? t.onAccent : t.ink, opacity: i < atual ? 0.55 : 1 }}>
+                  {b.secao && <p className="text-[10px] font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{b.secao}</p>}
+                  {b.acordes && <pre className="font-mono font-bold whitespace-pre-wrap" style={{ fontSize: fonte, color: i === atual ? t.onAccent : t.accent }}>{b.acordes}</pre>}
+                  <p style={{ fontSize: fonte }}>{b.letra || "(instrumental)"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="px-3 py-2 flex items-center justify-center gap-2" style={{ background: t.card, borderTop: `1px solid ${t.line}` }}>
+        <button aria-label="Diminuir letra" onClick={() => setFonte((f) => Math.max(12, f - 2))} className="w-12 h-12 rounded-xl font-bold" style={{ background: t.card2, color: t.ink }}>A−</button>
+        <button aria-label="Aumentar letra" onClick={() => setFonte((f) => Math.min(40, f + 2))} className="w-12 h-12 rounded-xl font-bold text-lg" style={{ background: t.card2, color: t.ink }}>A+</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Harpa Cristã no Avivar Music ---------- */
+// As letras só aparecem para músico logado e liderança; o público vê apenas a lista. Para leitura no culto, o líder leva o hino ao acervo.
+const AM_FORMATOS_LOTE = [
+  ["auto", "Detectar sozinho"],
+  ["marcado", "### 12 - Título  (ou Hino 12 - Título)"],
+  ["numerado", "12. Título  (ou 12 - Título, 12) Título)"],
+  ["linha", "Número sozinho na linha, título na linha de baixo"],
+];
+function amParseHinosComo(txt, formato) {
+  const linhas = String(txt || "").replace(/^﻿/, "").split(/\r?\n/).map((l) => l.replace(/\s+$/, ""));
+  const out = [];
+  let cur = null;
+  let ultimo = 0;
+  const abre = (numero, titulo) => { if (cur) out.push(cur); cur = { numero, titulo: titulo.trim(), letra: "" }; ultimo = numero; };
+  const seq = (n) => n > ultimo && n <= ultimo + 5; // evita confundir "2." de estrofe com hino novo
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    let m;
+    if (formato === "marcado" && (m = l.match(/^\s*(?:#{1,3}\s*|hino\s+)(\d{1,3})\s*[-–—.:)]?\s*(.*)$/i))) { abre(Number(m[1]), m[2] || ""); continue; }
+    if (formato === "numerado" && (m = l.match(/^\s*(\d{1,3})\s*[-–—.)]\s*(\S.{0,80})$/)) && (ultimo === 0 || seq(Number(m[1])))) { abre(Number(m[1]), m[2]); continue; }
+    if (formato === "linha" && (m = l.match(/^\s*(\d{1,3})\s*$/)) && (ultimo === 0 || seq(Number(m[1])))) {
+      let j = i + 1;
+      while (j < linhas.length && !linhas[j].trim()) j++;
+      if (j < linhas.length) { abre(Number(m[1]), linhas[j]); i = j; continue; }
+    }
+    if (cur) cur.letra += l + "\n";
+  }
+  if (cur) out.push(cur);
+  return out.map((h) => ({ ...h, letra: h.letra.replace(/\n{3,}/g, "\n\n").trim() })).filter((h) => h.numero && h.titulo && h.letra);
+}
+function amParseHinos(txt, formato = "auto") {
+  if (formato !== "auto") return amParseHinosComo(txt, formato);
+  for (const f of ["marcado", "numerado", "linha"]) { const r = amParseHinosComo(txt, f); if (r.length) return r; }
+  return [];
+}
+
+function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, escuro }) {
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos"); // todos | ensaio
+  const [aberto, setAberto] = useState(null);
+  const [form, setForm] = useState(null);
+  const [painel, setPainel] = useState(false);
+  const [lote, setLote] = useState("");
+  const [formato, setFormato] = useState("auto");
+  const [aviso, setAviso] = useState("");
+  const podeLer = !!(musico || lider);
+  const sel = dados.ensaioSelecao || [];
+  const ehSel = (n) => sel.some((s) => s.musicoId === userKey && s.tipo === "harpa" && s.refId === n);
+  const alternarSel = (n) => salvar({ ...dados, ensaioSelecao: ehSel(n) ? sel.filter((s) => !(s.musicoId === userKey && s.tipo === "harpa" && s.refId === n)) : [...sel, { musicoId: userKey, tipo: "harpa", refId: n }] });
+  const q = semAcento(busca).trim();
+  let lista = [...hinos].sort((a, b) => a.numero - b.numero).filter((h) => !q || String(h.numero).startsWith(q) || semAcento(h.titulo).includes(q));
+  if (filtro === "ensaio") lista = lista.filter((h) => ehSel(h.numero));
+  const previa = useMemo(() => (lote.trim() ? amParseHinos(lote, formato) : []), [lote, formato]);
+
+  const salvarUm = () => {
+    const numero = Number(form.numero);
+    if (!numero || !form.titulo.trim() || !form.letra.trim()) { setAviso("Preencha número, título e texto."); return; }
+    const antigo = hinos.find((h) => h.numero === numero);
+    saveHinos([...hinos.filter((h) => h.numero !== numero), { ...(antigo || {}), numero, titulo: form.titulo.trim(), letra: form.letra.trim() }]);
+    setForm(null); setAviso(`Hino ${numero} salvo.`);
+  };
+  const importar = () => {
+    if (!previa.length) return;
+    const nums = new Set(previa.map((h) => h.numero));
+    const antigos = Object.fromEntries(hinos.map((h) => [h.numero, h]));
+    saveHinos([...hinos.filter((h) => !nums.has(h.numero)), ...previa.map((h) => ({ ...(antigos[h.numero] || {}), ...h }))]);
+    setLote(""); setAviso(`${previa.length} hino(s) importado(s).`);
+  };
+  const lerArquivo = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => setLote(String(r.result || "")); r.readAsText(f, "utf-8"); e.target.value = ""; };
+  const excluir = (h) => { if (window.confirm(`Excluir o hino ${h.numero}?`)) { saveHinos(hinos.filter((x) => x.numero !== h.numero)); setAberto(null); } };
+  const levarAoAcervo = (h) => {
+    const jaTem = (dados.acervo || []).some((m) => m.origemHarpa === h.numero);
+    if (jaTem) { setAviso(`O hino ${h.numero} já está no acervo de louvores.`); return; }
+    const agora = new Date().toISOString();
+    salvar(amAud({ ...dados, acervo: [...(dados.acervo || []), { id: uid(), titulo: `Harpa ${h.numero} — ${h.titulo}`, artista: "Harpa Cristã", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: h.letra, estrutura: [], observacoes: "", origemHarpa: h.numero, criadoEm: agora, atualizadoEm: agora }] }, `Hino da Harpa levado ao acervo: ${h.numero}`));
+    setAviso(`Hino ${h.numero} agora está no acervo de louvores e pode entrar nos cultos.`);
+  };
+  const salvarMapaHino = (h, tempos) => {
+    const novo = { ...h, mapa: { versao: 1, tempos, atualizadoEm: new Date().toISOString() } };
+    saveHinos(hinos.map((x) => (x.numero === h.numero ? novo : x)));
+    setAberto(novo);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><AmHarpaIcon size={22} color={t.accent} /> Harpa Cristã</p>
+          <p className="text-xs" style={{ color: t.dim }}>{hinos.length ? `${hinos.length} hinos cadastrados` : "Nenhum hino cadastrado ainda"}</p>
+        </div>
+        {lider && <AmBotao t={t} tom="suave" onClick={() => setPainel((v) => !v)}><Plus size={16} /> {painel ? "Fechar" : "Cadastrar / importar"}</AmBotao>}
+      </div>
+      <AmInput t={t} placeholder="Buscar por número ou título..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="grid grid-cols-2 gap-1.5">
+        {[["todos", "Todos"], ["ensaio", "Para o ensaio"]].map(([k, r]) => (
+          <button key={k} onClick={() => setFiltro(k)} className="min-h-[44px] rounded-xl text-xs font-semibold" style={{ background: filtro === k ? t.accent : t.card2, color: filtro === k ? t.onAccent : t.ink }}>{r}</button>
+        ))}
+      </div>
+      {!podeLer && <p className="text-xs rounded-xl px-3 py-2" style={{ background: t.card2, color: t.dim }}><Lock size={12} className="inline mr-1" />As letras ficam só para músicos e liderança. Entre para abrir os hinos.</p>}
+      {aviso && <p className="text-xs" style={{ color: t.accent }}>{aviso}</p>}
+
+      {lider && painel && (
+        <AmCard t={t}>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Administração do hinário</p>
+          <p className="text-xs mt-1 leading-snug" style={{ color: t.dim }}>Cadastre apenas textos que o ministério tem direito de usar. As letras não ficam à mostra: só músicos logados e a liderança abrem.</p>
+          {form ? (
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <div className="w-24"><AmInput t={t} type="number" placeholder="Nº" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
+                <AmInput t={t} placeholder="Título do hino" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+              </div>
+              <textarea rows={10} placeholder="Texto do hino (separe as estrofes com uma linha em branco)" value={form.letra} onChange={(e) => setForm({ ...form, letra: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+              <div className="flex gap-2"><AmBotao t={t} onClick={salvarUm}><Save size={16} /> Salvar hino</AmBotao><AmBotao t={t} tom="suave" onClick={() => setForm(null)}>Cancelar</AmBotao></div>
+            </div>
+          ) : (
+            <div className="mt-3"><AmBotao t={t} onClick={() => setForm({ numero: "", titulo: "", letra: "" })}><Plus size={16} /> Cadastrar um hino</AmBotao></div>
+          )}
+          <p className="text-sm font-semibold mt-5" style={{ color: t.ink }}>Importar vários de uma vez</p>
+          <p className="text-[11px] mt-1 mb-2 leading-snug" style={{ color: t.dim }}>Escolha um arquivo .txt ou cole o texto. Hinos com o mesmo número são substituídos. Se as estrofes também forem numeradas (1., 2., 3.), use “###” ou “Número sozinho na linha”. Confira o resumo antes de importar.</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>Escolher arquivo .txt<input type="file" accept=".txt,.text,text/plain" className="hidden" onChange={lerArquivo} /></label>
+            <div className="min-w-[200px] flex-1"><AmSelect t={t} value={formato} onChange={(e) => setFormato(e.target.value)}>{AM_FORMATOS_LOTE.map(([k, r]) => <option key={k} value={k}>{r}</option>)}</AmSelect></div>
+          </div>
+          <textarea rows={5} value={lote} onChange={(e) => setLote(e.target.value)} placeholder={"### 1 - Título do hino\nTexto do hino...\n\n### 2 - Outro título\nTexto..."} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          {lote.trim() && <p className="text-xs mt-2" style={{ color: previa.length ? "#2E9E5B" : "#D0473A" }}>{previa.length ? `Encontrei ${previa.length} hino(s): do nº ${previa[0].numero} (${previa[0].titulo}) ao nº ${previa[previa.length - 1].numero} (${previa[previa.length - 1].titulo}).` : "Não encontrei hinos nesse formato. Troque o formato."}</p>}
+          <div className="mt-2"><AmBotao t={t} onClick={importar} disabled={!previa.length} className="disabled:opacity-40">Importar {previa.length ? `${previa.length} hinos` : "hinos"}</AmBotao></div>
+        </AmCard>
+      )}
+
+      {hinos.length === 0 && <AmVazio t={t}>{lider ? "Cadastre ou importe os hinos usando o botão acima." : "Os hinos ainda não foram cadastrados pela liderança."}</AmVazio>}
+      {hinos.length > 0 && lista.length === 0 && <AmVazio t={t}>{filtro === "ensaio" ? "Você ainda não marcou nenhum hino para o ensaio." : "Nenhum hino encontrado."}</AmVazio>}
+      <div className="space-y-2">
+        {lista.map((h) => (
+          <div key={h.numero} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+            <button onClick={() => (podeLer ? setAberto(h) : setAviso("Entre como músico para abrir os hinos."))} className="flex-1 text-left py-3.5 px-4 min-h-[60px] flex items-center gap-3">
+              <span className="font-mono text-sm font-bold w-10 shrink-0" style={{ color: t.accent }}>{h.numero}</span>
+              <span className="font-semibold" style={{ color: t.ink }}>{h.titulo}</span>
+              {h.mapa && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: t.card2, color: t.accent }}>mapeado</span>}
+            </button>
+            {userKey && (
+              <button aria-label={ehSel(h.numero) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(h.numero)} onClick={() => alternarSel(h.numero)} className="w-14 flex items-center justify-center shrink-0" style={{ color: ehSel(h.numero) ? "#2E9E5B" : t.dim }}>
+                <CheckCircle2 size={22} fill={ehSel(h.numero) ? "#2E9E5B33" : "none"} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {aberto && createPortal(
+        <AmCifra
+          musica={{ titulo: `${aberto.numero} — ${aberto.titulo}`, artista: "Harpa Cristã", cifra: aberto.letra, somenteTexto: true, mapa: aberto.mapa }}
+          onFechar={() => setAberto(null)}
+          escuroInicial={escuro}
+          lider={lider}
+          onSalvarMapa={(tempos) => salvarMapaHino(aberto, tempos)}
+          extraTopo={lider ? (
+            <>
+              <button onClick={() => levarAoAcervo(aberto)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: "#D6B46A33" }}>Usar nos cultos</button>
+              <button onClick={() => { setForm({ numero: aberto.numero, titulo: aberto.titulo, letra: aberto.letra }); setPainel(true); setAberto(null); }} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: "#D6B46A33" }}>Editar</button>
+              <button onClick={() => excluir(aberto)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ color: "#D0473A" }}>Excluir</button>
+            </>
+          ) : null}
+        />, document.body)}
+    </div>
+  );
+}
+
+/* ---------- Separador de instrumentos (ESTRUTURA PRONTA) ---------- */
+// Parte 1 (funciona hoje): mesa de mixagem com várias faixas tocando juntas — o músico carrega as faixas (voz, bateria, baixo,
+//   guitarra, violão, teclado, outros) de arquivos que ele tem direito de usar e ouve só o que quiser (mudo / solo / volume).
+// Parte 2 (a construir): separação automática de UMA música em faixas, por inteligência artificial, num servidor.
+//   Contrato já definido abaixo — quando o servidor existir, as faixas devolvidas entram direto na mesa (carregarDeUrl).
+//   POST /api/separar  { arquivoUrl, modelo: "htdemucs_6s" }  ->  { jobId }
+//   GET  /api/separar?jobId=...  ->  { status: "fila"|"processando"|"pronto"|"erro", stems: { voz, bateria, baixo, guitarra, teclado, outros } (URLs) }
+const AM_STEMS = [["voz", "Voz"], ["bateria", "Bateria"], ["baixo", "Baixo"], ["guitarra", "Guitarra"], ["violao", "Violão"], ["teclado", "Teclado"], ["outros", "Outros"]];
+const AM_SEPARADOR_API = "/api/separar";
+
+function AmSeparador({ t }) {
+  const [faixas, setFaixas] = useState({}); // chave -> { nome, dur }
+  const [vol, setVol] = useState({});
+  const [mudo, setMudo] = useState({});
+  const [solo, setSolo] = useState({});
+  const [tocando, setTocando] = useState(false);
+  const [pos, setPos] = useState(0);
+  const [msg, setMsg] = useState("");
+  const [statusServidor, setStatusServidor] = useState("");
+  const ctxRef = useRef(null);
+  const buffersRef = useRef({});
+  const nosRef = useRef({}); // chave -> { src, gain }
+  const inicioRef = useRef(0);
+  const posRef = useRef(0);
+  const dur = Math.max(0, ...Object.values(faixas).map((f) => f.dur || 0));
+
+  const ctx = () => {
+    if (!ctxRef.current) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) throw new Error("Este navegador não toca várias faixas juntas."); ctxRef.current = new AC(); }
+    return ctxRef.current;
+  };
+  const ganhoDe = (k, v = vol, m = mudo, s = solo) => {
+    const temSolo = Object.values(s).some(Boolean);
+    const base = v[k] == null ? 1 : v[k];
+    return temSolo ? (s[k] ? base : 0) : (m[k] ? 0 : base);
+  };
+  useEffect(() => { Object.entries(nosRef.current).forEach(([k, n]) => { n.gain.gain.value = ganhoDe(k); }); }, [vol, mudo, solo]);
+  const parar = () => { Object.values(nosRef.current).forEach((n) => { try { n.src.stop(); } catch (e) { /* já parou */ } try { n.src.disconnect(); n.gain.disconnect(); } catch (e) { /* ok */ } }); nosRef.current = {}; };
+  const iniciar = (offset) => {
+    const c = ctx();
+    if (c.state === "suspended") c.resume();
+    parar();
+    const quando = c.currentTime + 0.08;
+    Object.entries(buffersRef.current).forEach(([k, buf]) => {
+      if (offset >= buf.duration) return;
+      const src = c.createBufferSource(); src.buffer = buf;
+      const gain = c.createGain(); gain.gain.value = ganhoDe(k);
+      src.connect(gain); gain.connect(c.destination);
+      src.start(quando, offset);
+      nosRef.current[k] = { src, gain };
+    });
+    inicioRef.current = quando - offset;
+    setTocando(true);
+  };
+  const tocar = () => { if (!Object.keys(buffersRef.current).length) { setMsg("Carregue pelo menos uma faixa."); return; } try { iniciar(posRef.current >= dur ? 0 : posRef.current); } catch (e) { setMsg(String((e && e.message) || e)); } };
+  const pausar = () => { if (ctxRef.current) { posRef.current = Math.max(0, ctxRef.current.currentTime - inicioRef.current); setPos(posRef.current); } parar(); setTocando(false); };
+  const ir = (v) => { posRef.current = v; setPos(v); if (tocando) iniciar(v); };
+  useEffect(() => {
+    if (!tocando) return undefined;
+    const id = setInterval(() => {
+      const p = ctxRef.current ? ctxRef.current.currentTime - inicioRef.current : 0;
+      if (dur && p >= dur) { parar(); setTocando(false); posRef.current = 0; setPos(0); return; }
+      posRef.current = p; setPos(p);
+    }, 150);
+    return () => clearInterval(id);
+  }, [tocando, dur]);
+  useEffect(() => () => { parar(); try { if (ctxRef.current) ctxRef.current.close(); } catch (e) { /* ok */ } }, []);
+
+  const aceitar = async (k, bytes, nome) => {
+    try {
+      const buf = await ctx().decodeAudioData(bytes);
+      buffersRef.current[k] = buf;
+      setFaixas((f) => ({ ...f, [k]: { nome, dur: buf.duration } }));
+      setMsg("");
+    } catch (e) { setMsg("Não consegui ler esse arquivo. Use MP3, M4A ou WAV."); }
+  };
+  const carregarArquivo = async (k, file) => { if (file) await aceitar(k, await file.arrayBuffer(), file.name); };
+  // Usado pela separação automática quando o servidor existir (as faixas chegam como links).
+  // eslint-disable-next-line no-unused-vars
+  const carregarDeUrl = async (k, url, nome) => { const r = await fetch(url); await aceitar(k, await r.arrayBuffer(), nome || k); };
+  const remover = (k) => { if (tocando) pausar(); delete buffersRef.current[k]; setFaixas((f) => { const n = { ...f }; delete n[k]; return n; }); };
+  const consultarServidor = async () => {
+    setStatusServidor("Consultando...");
+    try {
+      const r = await fetch(AM_SEPARADOR_API);
+      const j = await r.json();
+      setStatusServidor(j.mensagem || "Resposta recebida.");
+    } catch (e) { setStatusServidor("O serviço de separação automática ainda não foi ativado."); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Layers size={20} style={{ color: t.accent }} /> Separador de instrumentos</p>
+        <p className="text-xs mt-1 leading-snug" style={{ color: t.dim }}>Ouça só o que precisa ensaiar: voz, bateria, baixo, guitarra, violão, teclado. Use apenas arquivos que você tem direito de usar (gravações do ministério, multipistas autorizadas, material licenciado). Os arquivos ficam só no seu aparelho.</p>
+      </div>
+      <AmCard t={t}>
+        <p className="font-display font-bold mb-2" style={{ color: t.ink }}>Mesa de faixas</p>
+        <div className="space-y-2">
+          {AM_STEMS.map(([k, r]) => {
+            const f = faixas[k];
+            return (
+              <div key={k} className="rounded-xl p-2.5" style={{ background: t.card2 }}>
+                <div className="flex items-center gap-2">
+                  <span className="w-20 text-sm font-semibold" style={{ color: t.ink }}>{r}</span>
+                  {f ? (
+                    <>
+                      <span className="flex-1 text-[11px] truncate" style={{ color: t.dim }}>{f.nome}</span>
+                      <button aria-label={`Silenciar ${r}`} aria-pressed={!!mudo[k]} onClick={() => setMudo({ ...mudo, [k]: !mudo[k] })} className="w-10 h-10 rounded-lg text-xs font-bold" style={{ background: mudo[k] ? "#D0473A" : t.card, color: mudo[k] ? "#fff" : t.ink }}>M</button>
+                      <button aria-label={`Só ${r}`} aria-pressed={!!solo[k]} onClick={() => setSolo({ ...solo, [k]: !solo[k] })} className="w-10 h-10 rounded-lg text-xs font-bold" style={{ background: solo[k] ? t.accent : t.card, color: solo[k] ? t.onAccent : t.ink }}>S</button>
+                      <button aria-label={`Remover ${r}`} onClick={() => remover(k)} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: t.card, color: t.dim }}><X size={14} /></button>
+                    </>
+                  ) : (
+                    <label className="flex-1 min-h-[40px] rounded-lg text-xs font-semibold inline-flex items-center justify-center cursor-pointer" style={{ background: t.card, color: t.ink }}>
+                      Carregar faixa
+                      <input type="file" accept="audio/*" className="hidden" onChange={(e) => { carregarArquivo(k, e.target.files && e.target.files[0]); e.target.value = ""; }} />
+                    </label>
+                  )}
+                </div>
+                {f && <input aria-label={`Volume ${r}`} type="range" min={0} max={1} step={0.01} value={vol[k] == null ? 1 : vol[k]} onChange={(e) => setVol({ ...vol, [k]: Number(e.target.value) })} className="w-full mt-1.5" />}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap mt-3">
+          <button onClick={() => (tocando ? pausar() : tocar())} className="h-12 px-5 rounded-xl text-sm font-bold inline-flex items-center gap-2" style={{ background: t.accent, color: t.onAccent }}>{tocando ? <Pause size={16} /> : <Play size={16} />}{tocando ? "Pausar" : "Tocar todas"}</button>
+          <button onClick={() => ir(0)} className="h-12 px-4 rounded-xl text-sm font-semibold" style={{ background: t.card2, color: t.ink }}>Do início</button>
+          <span className="font-mono text-sm" style={{ color: t.ink }}>{amFmtTempo(pos)}{dur ? ` / ${amFmtTempo(dur)}` : ""}</span>
+        </div>
+        {dur > 0 && <input aria-label="Posição" type="range" min={0} max={dur} step={0.1} value={Math.min(pos, dur)} onChange={(e) => ir(Number(e.target.value))} className="w-full mt-2" />}
+        {msg && <p className="text-xs mt-2" style={{ color: "#D0473A" }}>{msg}</p>}
+        <p className="text-[11px] mt-3 leading-snug" style={{ color: t.dim }}>M = silenciar a faixa · S = ouvir só aquela faixa. No celular, prefira arquivos MP3 curtos: várias faixas juntas usam bastante memória.</p>
+      </AmCard>
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Separar uma música automaticamente</p>
+        <span className="inline-block text-[10px] font-bold uppercase rounded-full px-2.5 py-1 mt-1" style={{ background: t.card2, color: t.accent }}>Em construção</span>
+        <p className="text-xs mt-2 leading-snug" style={{ color: t.dim }}>A ideia: o músico envia uma música sua, o servidor separa em voz, bateria, baixo, guitarra, teclado e outros, e as faixas já chegam na mesa acima. A estrutura (tela, contrato do serviço e a mesa de faixas) está pronta; falta ligar o servidor de separação por inteligência artificial.</p>
+        <div className="mt-3"><AmBotao t={t} tom="suave" onClick={consultarServidor}>Ver situação do serviço</AmBotao></div>
+        {statusServidor && <p className="text-xs mt-2" style={{ color: t.accent }}>{statusServidor}</p>}
+      </AmCard>
+    </div>
+  );
+}
+
+
 function AmGospelCarrossel() {
   const [itens, setItens] = useState(AM_GOSPEL_FALLBACK);
   useEffect(() => {
@@ -11904,7 +12559,7 @@ function AmPainelMusicos({ t, dados, salvar, lider, musico, musicos, irPara }) {
   );
 }
 
-function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider }) {
+function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider, hinos, saveHinos }) {
   const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
   // Qualquer pessoa vê; só o admin ou quem ele indicou (setor "avivarmusic") altera.
   const [escuro, setEscuro] = useState(() => { try { return localStorage.getItem("am-tema") === "escuro"; } catch (e) { return false; } });
@@ -11934,7 +12589,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const principais = [
     { k: "inicio", r: "Início", i: HomeIcon },
     { k: "agenda", r: "Agenda e escalas", rc: "Agenda", i: Calendar },
-    { k: "repertorio", r: "Repertório", i: ListMusic },
+    { k: "repertorio", r: "Louvores", i: ListMusic },
+    { k: "harpa", r: "Harpa Cristã", rc: "Harpa", i: AmHarpaIcon },
     { k: "membros", r: "Membros", i: Users },
     { k: "ensaios", r: "Ensaios", i: Clock },
     ...(lider ? [{ k: "equipamentos", r: "Equipamentos", i: Package }] : []),
@@ -11945,6 +12601,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const extras = [
     ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
     ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: "Acessos da equipe", i: KeyRound }] : []),
+    { k: "separador", r: "Separador de instrumentos", i: Layers },
     { k: "estudio", r: "Estúdio", i: Settings2 },
     ...(lider || musico ? [{ k: "historico", r: "Histórico", i: History }] : []),
     { k: "albuns", r: "Álbuns", i: Library },
@@ -11967,7 +12624,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     <div className="min-h-screen font-body relative" style={{ background: t.bg, color: t.ink }}>
       <div className="sticky top-0 z-40" style={{ background: "linear-gradient(90deg,#3A1260,#5B2394)", borderBottom: "2px solid #D6B46A" }}>
         <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5">
-          <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao site</span><span className="sm:hidden">Site</span></button>
+          {MODO_APP_MUSIC ? <span className="w-1" /> : <button onClick={onVoltar} className="min-h-[44px] flex items-center gap-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 rounded-md"><ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao site</span><span className="sm:hidden">Site</span></button>}
           <div className="flex items-center gap-2.5 min-w-0">
             <AmLogoImg tam={38} />
             <div className="leading-tight min-w-0">
@@ -11977,6 +12634,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           </div>
           <div className="flex items-center gap-1.5">
             <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: lider ? "#D6B46A" : "#ffffff22", color: lider ? "#351052" : "#fff" }}>{lider ? "Modo edição" : musico ? "Músico" : "Visualização"}</span>
+            <a href={BIBLIA_URL} target="_blank" rel="noopener noreferrer" aria-label="Abrir a Bíblia Avivar" title="Bíblia Avivar" className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><BookOpen size={16} /><span className="hidden sm:inline">Bíblia</span></a>
             <button onClick={alternarTema} aria-label={escuro ? "Tema claro" : "Tema escuro"} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
             {musico && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
             {!musico && !lider && <button onClick={() => irPara("entrar")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><Lock size={14} /> Entrar</button>}
@@ -12000,6 +12658,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           {tela === "inicio" && <AmInicio t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} abrirCulto={abrirCulto} plId={plId} setPlId={setPlId} />}
           {tela === "agenda" && (lider ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
           {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
+          {tela === "harpa" && <AmHarpa t={t} lider={lider} musico={musico} hinos={hinos || []} saveHinos={saveHinos} dados={dados} salvar={saveMusicApp} userKey={userKey} escuro={escuro} />}
+          {tela === "separador" && <AmSeparador t={t} />}
           {tela === "membros" && <AmMembros t={t} musicos={musicos} saveMusicos={saveMusicos} dados={dados} salvar={saveMusicApp} lider={lider} acao={acao} limparAcao={limparAcao} />}
           {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
           {tela === "equipamentos" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
@@ -12159,7 +12819,7 @@ export default function App() {
   // rolagem — a dobra inicial (player/dashboard) cabe na tela sem precisar
   // descer, o resto (biblioteca de vídeos, repertório, admin) fica abaixo.
   const [paginaAvivarNewsTVOpen, setPaginaAvivarNewsTVOpen] = useState(false);
-  const [paginaAvivarMusicOpen, setPaginaAvivarMusicOpen] = useState(false);
+  const [paginaAvivarMusicOpen, setPaginaAvivarMusicOpen] = useState(MODO_APP_MUSIC);
   // Se a pessoa já entrou em Códigos Avivar (nome + código válidos) — levantado pra cá
   // (em vez de ficar só dentro de CodigosAvivar) pra que abrirReportagem saiba, de
   // qualquer lugar do site, se pode abrir uma reportagem "exclusiva" direto ou se deve
@@ -12223,6 +12883,7 @@ export default function App() {
   const [musicos, setMusicos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
   const [musicApp, setMusicApp] = useState(DEFAULT_MUSICAPP);
+  const [harpaHinos, setHarpaHinos] = useState([]);
   const [escala, setEscala] = useState(DEFAULT_ESCALA_OBREIROS);
   const [biblioteca, setBiblioteca] = useState([]);
   const [manchete, setManchete] = useState(DEFAULT_MANCHETE);
@@ -12315,6 +12976,7 @@ export default function App() {
       setMusicos(await loadKey("avivar:musicos", []));
       setAlbuns(await loadKey("avivar:albuns", []));
       setMusicApp(await loadKey("avivar:musicapp", DEFAULT_MUSICAPP));
+      { const h = await loadKey("avivar:harpa", []); setHarpaHinos(Array.isArray(h) ? h : []); }
       setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
       setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
       setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
@@ -13771,6 +14433,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
     albuns: (v) => { setAlbuns(v); saveKey("avivar:albuns", v); },
     musicApp: (v) => { setMusicApp(v); saveKey("avivar:musicapp", v); },
+    harpaHinos: (v) => { setHarpaHinos(v); saveKey("avivar:harpa", v); },
     escala: (v) => { setEscala(v); saveKey("avivar:escalaObreiros", v); },
     manchete: (v) => { setManchete(v); saveKey("avivar:manchete", v); },
     pedidosOracao: (v) => { setPedidosOracao(v); saveKey("avivar:pedidosOracao", v); },
@@ -13989,6 +14652,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         adminMode={adminMode} operatorMode={podeSetor("avivarmusic")} onRequestOperator={() => setOperatorGateOpen(true)}
         onVoltar={() => setPaginaAvivarMusicOpen(false)}
         musicApp={musicApp} saveMusicApp={persist.musicApp}
+        hinos={harpaHinos} saveHinos={persist.harpaHinos}
         tentarCodigoLider={(codigo) => {
           const digitado = String(codigo || "").trim().toLowerCase();
           if (!digitado) return false;
