@@ -10419,21 +10419,21 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
         </AmCard>
       )}
       {lista.length === 0 && <AmVazio t={t}>{vazioMsg}</AmVazio>}
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
         {lista.map((m) => (
           <div key={m.id} className="rounded-2xl flex flex-col overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
             <div className="flex items-stretch flex-1">
               {podeFav && (
-                <button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>
+                <button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-8 sm:w-11 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>
               )}
-              <button onClick={() => (podeFav ? setAberta(m) : setNota("Entre como músico para abrir cifras e letras."))} className={`flex-1 min-w-0 text-left py-3.5 min-h-[64px] focus:outline-none focus:ring-2 ${podeFav ? "pr-2" : "px-4"}`}>
+              <button onClick={() => (podeFav ? setAberta(m) : setNota("Entre como músico para abrir cifras e letras."))} className={`flex-1 min-w-0 text-left py-3.5 min-h-[64px] focus:outline-none focus:ring-2 ${podeFav ? "pr-1 sm:pr-2" : "px-3 sm:px-4"}`}>
                 <p className="font-semibold leading-tight line-clamp-2" style={{ color: t.ink }}>{m.titulo}</p>
                 <p className="text-xs mt-0.5 line-clamp-2" style={{ color: t.dim }}>
                   {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.mapa ? " · mapeada" : ""}{m.youtubeUrl ? " · vídeo" : ""}{m.audio ? " · áudio" : ""}
                 </p>
               </button>
               {podeFav && (
-                <button aria-label={ehSel(m.id) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(m.id)} onClick={() => alternarSel(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehSel(m.id) ? "#2E9E5B" : t.dim }}><CheckCircle2 size={20} fill={ehSel(m.id) ? "#2E9E5B33" : "none"} /></button>
+                <button aria-label={ehSel(m.id) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(m.id)} onClick={() => alternarSel(m.id)} className="w-8 sm:w-11 flex items-center justify-center shrink-0" style={{ color: ehSel(m.id) ? "#2E9E5B" : t.dim }}><CheckCircle2 size={20} fill={ehSel(m.id) ? "#2E9E5B33" : "none"} /></button>
               )}
             </div>
             {lider && (
@@ -12515,17 +12515,17 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
 
       {hinos.length === 0 && <AmVazio t={t}>{lider ? "Cadastre ou importe os hinos usando o botão acima." : "Os hinos ainda não foram cadastrados pela liderança."}</AmVazio>}
       {hinos.length > 0 && lista.length === 0 && <AmVazio t={t}>{filtro === "audio" ? "Nenhum hino tem áudio ainda." : filtro === "ensaio" ? "Você ainda não marcou nenhum hino para o ensaio." : "Nenhum hino encontrado."}</AmVazio>}
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
         {mostra.map((h) => (
           <div key={h.numero} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
-            <button onClick={() => (podeLer ? setAberto(h) : setAviso("Entre como músico para abrir os hinos."))} className="flex-1 min-w-0 text-left py-3 px-3 min-h-[60px] flex items-center gap-2.5">
-              <span className="font-mono text-sm font-bold w-9 shrink-0" style={{ color: t.accent }}>{h.numero}</span>
+            <button onClick={() => (podeLer ? setAberto(h) : setAviso("Entre como músico para abrir os hinos."))} className="flex-1 min-w-0 text-left py-3 pl-2 pr-1 sm:px-3 min-h-[60px] flex items-center gap-1.5 sm:gap-2.5">
+              <span className="font-mono text-xs sm:text-sm font-bold w-7 sm:w-9 shrink-0" style={{ color: t.accent }}>{h.numero}</span>
               <span className="font-semibold text-sm leading-tight line-clamp-2 flex-1 min-w-0" style={{ color: t.ink }}>{h.titulo}</span>
               {h.audio && <span title="Tem áudio" className="shrink-0" style={{ color: t.accent }}><Headphones size={15} /></span>}
-              {h.mapa && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: t.card2, color: t.accent }}>mapeado</span>}
+              {h.mapa && <span className="hidden sm:inline text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: t.card2, color: t.accent }}>mapeado</span>}
             </button>
             {userKey && (
-              <button aria-label={ehSel(h.numero) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(h.numero)} onClick={() => alternarSel(h.numero)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehSel(h.numero) ? "#2E9E5B" : t.dim }}>
+              <button aria-label={ehSel(h.numero) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(h.numero)} onClick={() => alternarSel(h.numero)} className="w-9 sm:w-12 flex items-center justify-center shrink-0" style={{ color: ehSel(h.numero) ? "#2E9E5B" : t.dim }}>
                 <CheckCircle2 size={22} fill={ehSel(h.numero) ? "#2E9E5B33" : "none"} />
               </button>
             )}
