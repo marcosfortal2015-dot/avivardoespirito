@@ -9601,7 +9601,7 @@ const AM = { bg: "#F0E8F8", card: "#FFFFFF", card2: "#E7D9F4", accent: "#4B1A80"
 /*   patrimonio: [{ id, nome, numero, local, aquisicao, status, obs,  */
 /*                 manutencoes:[{id,data,texto}] }]-> equipment       */
 /* ================================================================ */
-const DEFAULT_MUSICAPP = { videos: [], cursos: [], acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], playlists: [], comunicados: [], forum: [], fotosMusicos: [], equipeImportada: false };
+const DEFAULT_MUSICAPP = { acessos: [], acervo: [], eventos: [], disponibilidade: [], favoritos: [], preparacao: [], notificacoes: [], auditoria: [], patrimonio: [], playlists: [], comunicados: [], forum: [], fotosMusicos: [], equipeImportada: false };
 const AM_TIPOS_EVENTO = ["Culto", "Ensaio", "Treinamento"];
 const AM_STATUS_PATRIMONIO = ["Operacional", "Defeito", "Em Manutenção"];
 const AM_MOTIVOS = ["Trabalho", "Viagem", "Compromisso", "Saúde", "Outro"];
@@ -10221,11 +10221,10 @@ function AmEscalaMusico({ t, dados, salvar, musico, abrirCulto }) {
 }
 
 /* ---------- B) Acervo + tela da cifra ---------- */
-function AmCifra({ musica, onFechar, escuroInicial, lider, onSalvarMapa, extraTopo, audio, onSalvarAudio, aoProjetar, subAudio = "audios" }) {
+function AmCifra({ musica, onFechar, escuroInicial, lider, onSalvarMapa, extraTopo }) {
   const [escuro, setEscuro] = useState(escuroInicial);
   const [sync, setSync] = useState(""); // "" | "ver" | "mapear"
   const [fonte, setFonte] = useState(16);
-  const [modo, setModo] = useState("letra"); // letra | ouvir
   const [rolando, setRolando] = useState(false);
   const [vel, setVel] = useState(2);
   const areaRef = useRef(null);
@@ -10247,22 +10246,10 @@ function AmCifra({ musica, onFechar, escuroInicial, lider, onSalvarMapa, extraTo
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
           {musica.mapa && (musica.mapa.tempos || []).length > 0 && <button onClick={() => setSync("ver")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: t.accent, color: t.onAccent }}><Play size={14} /> Acompanhar</button>}
           {lider && onSalvarMapa && musica.cifra && <button onClick={() => setSync("mapear")} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>Mapear</button>}
-          {aoProjetar && musica.cifra && <button onClick={aoProjetar} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: t.card2, color: t.ink }}><Tv size={14} /> Projetar</button>}
           {extraTopo}
           <button onClick={() => setEscuro((v) => !v)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: t.card2, color: t.ink }}>{escuro ? "Claro" : "Escuro (altar)"}</button>
         </div>
       </div>
-      {(audio || onSalvarAudio) && (
-        <div className="px-3 py-2 space-y-2" style={{ background: t.card2, borderBottom: `1px solid ${t.line}` }}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setModo("letra")} aria-pressed={modo === "letra"} className="min-h-[44px] px-4 rounded-xl text-sm font-bold inline-flex items-center gap-2" style={{ background: modo === "letra" ? t.accent : t.card, color: modo === "letra" ? t.onAccent : t.ink }}><BookOpen size={16} /> Louvar pela letra</button>
-            <button onClick={() => setModo("ouvir")} aria-pressed={modo === "ouvir"} className="min-h-[44px] px-4 rounded-xl text-sm font-bold inline-flex items-center gap-2" style={{ background: modo === "ouvir" ? t.accent : t.card, color: modo === "ouvir" ? t.onAccent : t.ink }}><Headphones size={16} /> Ouvir{audio ? "" : " (sem áudio)"}</button>
-          </div>
-          {modo === "ouvir" && audio && <AmMidiaPlayer item={{ url: audio.url, titulo: musica.titulo }} t={t} compacto />}
-          {modo === "ouvir" && !audio && <p className="text-xs" style={{ color: t.dim }}>Este item ainda não tem áudio.{onSalvarAudio ? " Use o campo abaixo para colocar." : " A liderança pode colocar."}</p>}
-          {onSalvarAudio && <AmAudioEditor t={t} audio={audio} onSalvar={onSalvarAudio} sub={subAudio} rotulo={musica.titulo} />}
-        </div>
-      )}
       <div ref={areaRef} className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-2xl font-bold">{musica.titulo}</h2>
@@ -10314,7 +10301,6 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
   const [aberta, setAberta] = useState(null);
   const [form, setForm] = useState(null); // null | objeto em edição
   const [nota, setNota] = useState("");
-  const [proj, setProj] = useState(null);
   useEffect(() => { if (acaoInicial === "nova" && lider) { setForm({ ...AM_MUSICA_VAZIA }); if (limparAcao) limparAcao(); } }, [acaoInicial, lider]);
   // Músicas do repertório antigo (por culto) entram no acervo só para consulta.
   const doAcervo = dados.acervo || [];
@@ -10330,12 +10316,6 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
   const selEnsaio = dados.ensaioSelecao || [];
   const ehSel = (id) => selEnsaio.some((s) => s.musicoId === userKey && s.tipo === "louvor" && s.refId === id);
   const alternarSel = (id) => salvar({ ...dados, ensaioSelecao: ehSel(id) ? selEnsaio.filter((s) => !(s.musicoId === userKey && s.tipo === "louvor" && s.refId === id)) : [...selEnsaio, { musicoId: userKey, tipo: "louvor", refId: id }] });
-  const salvarAudioMusica = (m, audio) => {
-    const agora = new Date().toISOString();
-    const item = { ...m, atualizadoEm: agora }; delete item.doRepertorio; if (audio) item.audio = audio; else delete item.audio;
-    salvar(amAud({ ...dados, acervo: doAcervo.map((x) => (x.id === m.id ? item : x)) }, `Áudio ${audio ? "cadastrado" : "removido"}: ${m.titulo}`));
-    setAberta(item);
-  };
   const salvarMapa = (m, tempos) => {
     const agora = new Date().toISOString();
     const existe = doAcervo.some((x) => x.id === m.id);
@@ -10369,10 +10349,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Acervo de louvores</p>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {podeFav && todas.some((m) => ehSel(m.id) && m.cifra) && <AmBotao t={t} tom="suave" onClick={() => setProj({ itens: todas.filter((m) => ehSel(m.id) && m.cifra).map(amItemLouvor), inicio: 0 })}><Tv size={16} /> Projetar marcados</AmBotao>}
-          {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MUSICA_VAZIA })}><Plus size={16} /> Nova</AmBotao>}
-        </div>
+        {lider && <AmBotao t={t} onClick={() => setForm({ ...AM_MUSICA_VAZIA })}><Plus size={16} /> Nova</AmBotao>}
       </div>
       <AmInput t={t} placeholder="Pesquisar por música ou artista..." value={busca} onChange={(e) => setBusca(e.target.value)} />
       <div className="grid grid-cols-4 gap-1.5">
@@ -10419,25 +10396,21 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
         </AmCard>
       )}
       {lista.length === 0 && <AmVazio t={t}>{vazioMsg}</AmVazio>}
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-2">
         {lista.map((m) => (
-          <div key={m.id} className="rounded-2xl flex flex-col overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
-            <div className="flex items-stretch flex-1">
-              {podeFav && (
-                <button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>
-              )}
-              <button onClick={() => (podeFav ? setAberta(m) : setNota("Entre como músico para abrir cifras e letras."))} className={`flex-1 min-w-0 text-left py-3.5 min-h-[64px] focus:outline-none focus:ring-2 ${podeFav ? "pr-2" : "px-4"}`}>
-                <p className="font-semibold leading-tight line-clamp-2" style={{ color: t.ink }}>{m.titulo}</p>
-                <p className="text-xs mt-0.5 line-clamp-2" style={{ color: t.dim }}>
-                  {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.mapa ? " · mapeada" : ""}{m.youtubeUrl ? " · vídeo" : ""}{m.audio ? " · áudio" : ""}
-                </p>
-              </button>
-              {podeFav && (
-                <button aria-label={ehSel(m.id) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(m.id)} onClick={() => alternarSel(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehSel(m.id) ? "#2E9E5B" : t.dim }}><CheckCircle2 size={20} fill={ehSel(m.id) ? "#2E9E5B33" : "none"} /></button>
-              )}
-            </div>
+          <div key={m.id} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
+            {podeFav ? (<button aria-label={ehFav(m.id) ? "Tirar dos favoritos" : "Favoritar"} aria-pressed={ehFav(m.id)} onClick={() => alternarFav(m.id)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehFav(m.id) ? "#E0A81F" : t.dim }}><Star size={20} fill={ehFav(m.id) ? "#E0A81F" : "none"} /></button>) : <span className="w-3 shrink-0" />}
+            <button onClick={() => (podeFav ? setAberta(m) : setNota("Entre como músico para abrir cifras e letras."))} className="flex-1 text-left py-4 pr-3 min-h-[64px] focus:outline-none focus:ring-2">
+              <p className="font-semibold" style={{ color: t.ink }}>{m.titulo}</p>
+              <p className="text-xs mt-0.5" style={{ color: t.dim }}>
+                {m.artista ? `${m.artista} · ` : ""}{m.tomIgreja ? `Tom ${m.tomIgreja}` : "Tom a definir"}{m.bpm ? ` · ${m.bpm} BPM` : ""}{m.cifra ? " · cifra" : ""}{m.mapa ? " · mapeada" : ""}{m.youtubeUrl ? " · vídeo" : ""}
+              </p>
+            </button>
+            {podeFav && (
+              <button aria-label={ehSel(m.id) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(m.id)} onClick={() => alternarSel(m.id)} className="w-11 flex items-center justify-center shrink-0" style={{ color: ehSel(m.id) ? "#2E9E5B" : t.dim }}><CheckCircle2 size={20} fill={ehSel(m.id) ? "#2E9E5B33" : "none"} /></button>
+            )}
             {lider && (
-              <div className="flex items-center justify-end gap-1 px-2 pb-2">
+              <div className="flex items-center gap-1 pr-2">
                 <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...AM_MUSICA_VAZIA, ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
                 {!m.doRepertorio && <button aria-label="Excluir" onClick={() => excluir(m)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>}
               </div>
@@ -10445,8 +10418,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
           </div>
         ))}
       </div>
-      {aberta && createPortal(<AmCifra musica={aberta} onFechar={() => setAberta(null)} escuroInicial={escuro} lider={lider} onSalvarMapa={(tempos) => salvarMapa(aberta, tempos)} audio={aberta.audio} onSalvarAudio={lider && doAcervo.some((x) => x.id === aberta.id) ? (au) => salvarAudioMusica(aberta, au) : null} subAudio="louvores" aoProjetar={() => setProj({ itens: [amItemLouvor(aberta)], inicio: 0 })} />, document.body)}
-      {proj && createPortal(<AmProjecao itens={proj.itens} inicio={proj.inicio} onFechar={() => setProj(null)} />, document.body)}
+      {aberta && createPortal(<AmCifra musica={aberta} onFechar={() => setAberta(null)} escuroInicial={escuro} lider={lider} onSalvarMapa={(tempos) => salvarMapa(aberta, tempos)} />, document.body)}
     </div>
   );
 }
@@ -11254,7 +11226,6 @@ const amComunicadosAtivos = (dados, lider) => {
 /* ---------- Início ---------- */
 function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, setPlId }) {
   const amSub = useContext(AmCtx).sub;
-  const [projCulto, setProjCulto] = useState(false);
   const futuros = amEventosFuturos(dados.eventos);
   const proxCulto = futuros.find((e) => e.tipo === "Culto") || futuros[0] || null;
   const proxEnsaio = futuros.find((e) => e.tipo === "Ensaio") || null;
@@ -11341,7 +11312,6 @@ function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, s
                 <div className="mt-3 flex flex-wrap gap-2">
                   <AmBotao t={t} onClick={() => irPara("agenda")}>Ver escala</AmBotao>
                   {(proxCulto.musicas || []).length > 0 && <AmBotao t={t} tom="suave" onClick={() => abrirCulto(proxCulto)}><Maximize size={15} /> Modo culto</AmBotao>}
-                  {(musico || lider) && (proxCulto.musicas || []).some((id) => (dados.acervo || []).some((m) => m.id === id && m.cifra)) && <AmBotao t={t} tom="suave" onClick={() => setProjCulto(true)}><Tv size={15} /> Projetar letras</AmBotao>}
                 </div>
               </>
             ) : <p className="text-sm mt-2" style={{ color: t.dim }}>Nenhum culto agendado ainda.</p>}
@@ -11376,7 +11346,6 @@ function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, s
         </div>
       </AmCard>
       {musico && <AmAvisos t={t} dados={dados} salvar={salvar} para={musico.id} />}
-      {projCulto && proxCulto && createPortal(<AmProjecao itens={(proxCulto.musicas || []).map((id) => (dados.acervo || []).find((m) => m.id === id)).filter((m) => m && m.cifra).map(amItemLouvor)} onFechar={() => setProjCulto(false)} />, document.body)}
     </div>
   );
 }
@@ -12396,9 +12365,6 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
   const [aviso, setAviso] = useState("");
   const [pdfHinos, setPdfHinos] = useState(null);
   const [pdfEstado, setPdfEstado] = useState("");
-  const [proj, setProj] = useState(null);
-  const [limite, setLimite] = useState(150);
-  useEffect(() => { setLimite(150); }, [busca, filtro]);
   const podeLer = !!(musico || lider);
   const sel = dados.ensaioSelecao || [];
   const ehSel = (n) => sel.some((s) => s.musicoId === userKey && s.tipo === "harpa" && s.refId === n);
@@ -12406,10 +12372,6 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
   const q = semAcento(busca).trim();
   let lista = [...hinos].sort((a, b) => a.numero - b.numero).filter((h) => !q || String(h.numero).startsWith(q) || semAcento(h.titulo).includes(q));
   if (filtro === "ensaio") lista = lista.filter((h) => ehSel(h.numero));
-  if (filtro === "audio") lista = lista.filter((h) => !!h.audio);
-  const comAudio = hinos.filter((h) => !!h.audio).length;
-  const marcadosHarpa = hinos.filter((h) => ehSel(h.numero));
-  const mostra = lista.slice(0, limite);
   const previa = useMemo(() => pdfHinos || (lote.trim() ? amParseHinos(lote, formato) : []), [lote, formato, pdfHinos]);
   const lerPdf = async (e) => {
     const f = e.target.files && e.target.files[0];
@@ -12449,11 +12411,6 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
     salvar(amAud({ ...dados, acervo: [...(dados.acervo || []), { id: uid(), titulo: `Harpa ${h.numero} — ${h.titulo}`, artista: "Harpa Cristã", tomIgreja: "", tomOriginal: "", bpm: "", youtubeUrl: "", cifra: h.letra, estrutura: [], observacoes: "", origemHarpa: h.numero, criadoEm: agora, atualizadoEm: agora }] }, `Hino da Harpa levado ao acervo: ${h.numero}`));
     setAviso(`Hino ${h.numero} agora está no acervo de louvores e pode entrar nos cultos.`);
   };
-  const salvarAudioHino = (h, audio) => {
-    const novo = { ...h }; if (audio) novo.audio = audio; else delete novo.audio;
-    saveHinos(hinos.map((x) => (x.numero === h.numero ? novo : x)));
-    setAberto(novo);
-  };
   const salvarMapaHino = (h, tempos) => {
     const novo = { ...h, mapa: { versao: 1, tempos, atualizadoEm: new Date().toISOString() } };
     saveHinos(hinos.map((x) => (x.numero === h.numero ? novo : x)));
@@ -12465,13 +12422,13 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><AmHarpaIcon size={22} color={t.accent} /> Harpa Cristã</p>
-          <p className="text-xs" style={{ color: t.dim }}>{hinos.length ? `${hinos.length} hinos cadastrados${comAudio ? ` · ${comAudio} com áudio` : ""}` : "Nenhum hino cadastrado ainda"}</p>
+          <p className="text-xs" style={{ color: t.dim }}>{hinos.length ? `${hinos.length} hinos cadastrados` : "Nenhum hino cadastrado ainda"}</p>
         </div>
         {lider && <AmBotao t={t} tom="suave" onClick={() => setPainel((v) => !v)}><Plus size={16} /> {painel ? "Fechar" : "Cadastrar / importar"}</AmBotao>}
       </div>
       <AmInput t={t} placeholder="Buscar por número ou título..." value={busca} onChange={(e) => setBusca(e.target.value)} />
-      <div className="grid grid-cols-3 gap-1.5">
-        {[["todos", "Todos"], ["ensaio", "Para o ensaio"], ["audio", "Com áudio"]].map(([k, r]) => (
+      <div className="grid grid-cols-2 gap-1.5">
+        {[["todos", "Todos"], ["ensaio", "Para o ensaio"]].map(([k, r]) => (
           <button key={k} onClick={() => setFiltro(k)} className="min-h-[44px] rounded-xl text-xs font-semibold" style={{ background: filtro === k ? t.accent : t.card2, color: filtro === k ? t.onAccent : t.ink }}>{r}</button>
         ))}
       </div>
@@ -12509,32 +12466,27 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
           <textarea rows={5} value={lote} onChange={(e) => { setPdfHinos(null); setLote(e.target.value); }} placeholder={"### 1 - Título do hino\nTexto do hino...\n\n### 2 - Outro título\nTexto..."} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
           {(lote.trim() || pdfHinos) && <p className="text-xs mt-2" style={{ color: previa.length ? "#2E9E5B" : "#D0473A" }}>{previa.length ? `Encontrei ${previa.length} hino(s): do nº ${previa[0].numero} (${previa[0].titulo}) ao nº ${previa[previa.length - 1].numero} (${previa[previa.length - 1].titulo}).` : "Não encontrei hinos nesse formato. Troque o formato."}</p>}
           <div className="mt-2"><AmBotao t={t} onClick={importar} disabled={!previa.length} className="disabled:opacity-40">Importar {previa.length ? `${previa.length} hinos` : "hinos"}</AmBotao></div>
-          <AmHarpaAudiosLote t={t} hinos={hinos} saveHinos={saveHinos} />
         </AmCard>
       )}
 
       {hinos.length === 0 && <AmVazio t={t}>{lider ? "Cadastre ou importe os hinos usando o botão acima." : "Os hinos ainda não foram cadastrados pela liderança."}</AmVazio>}
-      {hinos.length > 0 && lista.length === 0 && <AmVazio t={t}>{filtro === "audio" ? "Nenhum hino tem áudio ainda." : filtro === "ensaio" ? "Você ainda não marcou nenhum hino para o ensaio." : "Nenhum hino encontrado."}</AmVazio>}
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {mostra.map((h) => (
+      {hinos.length > 0 && lista.length === 0 && <AmVazio t={t}>{filtro === "ensaio" ? "Você ainda não marcou nenhum hino para o ensaio." : "Nenhum hino encontrado."}</AmVazio>}
+      <div className="space-y-2">
+        {lista.map((h) => (
           <div key={h.numero} className="rounded-2xl flex items-stretch overflow-hidden shadow-sm" style={{ background: t.card, border: `1px solid ${t.line}` }}>
-            <button onClick={() => (podeLer ? setAberto(h) : setAviso("Entre como músico para abrir os hinos."))} className="flex-1 min-w-0 text-left py-3 px-3 min-h-[60px] flex items-center gap-2.5">
-              <span className="font-mono text-sm font-bold w-9 shrink-0" style={{ color: t.accent }}>{h.numero}</span>
-              <span className="font-semibold text-sm leading-tight line-clamp-2 flex-1 min-w-0" style={{ color: t.ink }}>{h.titulo}</span>
-              {h.audio && <span title="Tem áudio" className="shrink-0" style={{ color: t.accent }}><Headphones size={15} /></span>}
-              {h.mapa && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: t.card2, color: t.accent }}>mapeado</span>}
+            <button onClick={() => (podeLer ? setAberto(h) : setAviso("Entre como músico para abrir os hinos."))} className="flex-1 text-left py-3.5 px-4 min-h-[60px] flex items-center gap-3">
+              <span className="font-mono text-sm font-bold w-10 shrink-0" style={{ color: t.accent }}>{h.numero}</span>
+              <span className="font-semibold" style={{ color: t.ink }}>{h.titulo}</span>
+              {h.mapa && <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: t.card2, color: t.accent }}>mapeado</span>}
             </button>
             {userKey && (
-              <button aria-label={ehSel(h.numero) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(h.numero)} onClick={() => alternarSel(h.numero)} className="w-12 flex items-center justify-center shrink-0" style={{ color: ehSel(h.numero) ? "#2E9E5B" : t.dim }}>
+              <button aria-label={ehSel(h.numero) ? "Tirar do ensaio" : "Marcar para o ensaio"} aria-pressed={ehSel(h.numero)} onClick={() => alternarSel(h.numero)} className="w-14 flex items-center justify-center shrink-0" style={{ color: ehSel(h.numero) ? "#2E9E5B" : t.dim }}>
                 <CheckCircle2 size={22} fill={ehSel(h.numero) ? "#2E9E5B33" : "none"} />
               </button>
             )}
           </div>
         ))}
       </div>
-      {lista.length > limite && <div className="text-center"><AmBotao t={t} tom="suave" onClick={() => setLimite((v) => v + 150)}>Mostrar mais ({lista.length - limite} restantes)</AmBotao></div>}
-      {podeLer && marcadosHarpa.length > 0 && <div className="flex justify-center"><AmBotao t={t} onClick={() => setProj({ itens: marcadosHarpa.map(amItemHino), inicio: 0 })}><Tv size={16} /> Projetar os {marcadosHarpa.length} marcado(s)</AmBotao></div>}
-      {proj && createPortal(<AmProjecao itens={proj.itens} inicio={proj.inicio} onFechar={() => setProj(null)} />, document.body)}
 
       {aberto && createPortal(
         <AmCifra
@@ -12543,10 +12495,6 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
           escuroInicial={escuro}
           lider={lider}
           onSalvarMapa={(tempos) => salvarMapaHino(aberto, tempos)}
-          audio={aberto.audio}
-          onSalvarAudio={lider ? (au) => salvarAudioHino(aberto, au) : null}
-          subAudio="harpa"
-          aoProjetar={() => setProj({ itens: [amItemHino(aberto)], inicio: 0 })}
           extraTopo={lider ? (
             <>
               <button onClick={() => levarAoAcervo(aberto)} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold" style={{ background: "#D6B46A33" }}>Usar nos cultos</button>
@@ -12555,971 +12503,6 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
             </>
           ) : null}
         />, document.body)}
-    </div>
-  );
-}
-
-/* =============================================================== */
-/* v99 — Áudio dos hinos · Vídeos (estilo YouTube) · Cursos · Projeção */
-/* =============================================================== */
-// Arquivos (áudio dos hinos, vídeos e aulas enviados do aparelho) vão para o Supabase Storage,
-// no espaço "avivar-midia" (criado uma vez com o arquivo SQL de mídia). Links (YouTube, Instagram,
-// Google Drive, Dropbox ou .mp3/.mp4 direto) funcionam sem nenhuma configuração.
-const AM_SB_URL = "https://xnxfzygofnztpumqxqzt.supabase.co";
-const AM_SB_KEY = "sb_publishable_TKv2SXrc_3ovC1hGPMdCow_lGP578sv";
-const AM_BUCKET = "avivar-midia";
-const AM_MIME_EXT = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", ogg: "audio/ogg", oga: "audio/ogg", wav: "audio/wav", flac: "audio/flac", opus: "audio/ogg", mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", webm: "video/webm", ogv: "video/ogg" };
-const AM_EXT_AUDIO = /\.(mp3|m4a|aac|ogg|oga|wav|flac|opus)(\?|#|$)/i;
-const AM_EXT_VIDEO = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
-const amExt = (nome) => ((String(nome || "").match(/\.([A-Za-z0-9]{2,5})$/) || [])[1] || "").toLowerCase();
-const amSlug = (s) => semAcento(String(s || "")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "arquivo";
-const amPastaMidia = (sub) => `${AM_UNIDADE_ID || "principal"}/${sub}`;
-const amCaminhoNovo = (sub, arq) => `${amPastaMidia(sub)}/${Date.now().toString(36)}-${amSlug(String(arq.name || "").replace(/\.[^.]+$/, ""))}${amExt(arq.name) ? "." + amExt(arq.name) : ""}`;
-const amEhAudioArq = (f) => /^audio\//.test(f.type || "") || AM_EXT_AUDIO.test(f.name || "");
-const amEhVideoArq = (f) => /^video\//.test(f.type || "") || AM_EXT_VIDEO.test(f.name || "");
-
-function amMsgErroEnvio(status, msg) {
-  const m = String(msg || "").toLowerCase();
-  if (status === 404 || m.includes("bucket not found")) return "O espaço de arquivos ainda não foi criado no Supabase. Rode o arquivo SQL de mídia (está no passo a passo) e tente de novo.";
-  if (status === 401 || status === 403 || m.includes("row-level security") || m.includes("policy")) return "O Supabase não liberou o envio. Rode o arquivo SQL de mídia (ele libera o envio) e tente de novo.";
-  if (status === 413 || m.includes("exceeded") || m.includes("too large")) return "Arquivo grande demais (o limite é 50 MB). Use o link do YouTube ou do Google Drive.";
-  return `Não consegui enviar o arquivo (${msg || "erro " + status}).`;
-}
-// Envia um arquivo para o Storage e devolve o endereço público.
-function amEnviarMidia(arquivo, caminho, aoProgresso) {
-  return new Promise((resolve, reject) => {
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${AM_SB_URL}/storage/v1/object/${AM_BUCKET}/${caminho}`);
-      xhr.setRequestHeader("apikey", AM_SB_KEY);
-      xhr.setRequestHeader("Authorization", `Bearer ${AM_SB_KEY}`);
-      xhr.setRequestHeader("x-upsert", "true");
-      xhr.setRequestHeader("Content-Type", arquivo.type || AM_MIME_EXT[amExt(arquivo.name)] || "application/octet-stream");
-      if (xhr.upload) xhr.upload.onprogress = (e) => { if (aoProgresso && e.lengthComputable) aoProgresso(Math.round((e.loaded / e.total) * 100)); };
-      xhr.onerror = () => reject(new Error("Sem conexão para enviar o arquivo."));
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) { resolve(`${AM_SB_URL}/storage/v1/object/public/${AM_BUCKET}/${caminho}?v=${Date.now().toString(36)}`); return; }
-        let m = ""; try { m = JSON.parse(xhr.responseText).message || ""; } catch (e) { /* sem corpo */ }
-        reject(new Error(amMsgErroEnvio(xhr.status, m)));
-      };
-      xhr.send(arquivo);
-    } catch (e) { reject(new Error("Não consegui enviar o arquivo.")); }
-  });
-}
-
-function amNormalizarUrl(u) {
-  let s = String(u || "").trim();
-  if (!s) return "";
-  if (/^(www\.)?(youtu|instagram\.com|drive\.google|dropbox\.com)/i.test(s)) s = "https://" + s;
-  if (/dropbox\.com/i.test(s)) {
-    s = s.replace(/([?&])dl=0/i, "$1raw=1");
-    if (!/[?&](raw|dl)=1/i.test(s)) s += (s.includes("?") ? "&" : "?") + "raw=1";
-  }
-  return s;
-}
-// Descobre o tipo de mídia de um endereço: youtube | instagram | drive | audio | video | link | "".
-function amMidiaInfo(url) {
-  const u = amNormalizarUrl(url);
-  if (!u) return { tipo: "", url: "" };
-  const yt = ytId(u);
-  if (yt) return { tipo: "youtube", url: u, id: yt };
-  const ig = u.match(/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
-  if (ig) return { tipo: "instagram", url: u, id: ig[2], kind: /^reel/i.test(ig[1]) ? "reel" : ig[1].toLowerCase() };
-  const dr = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([A-Za-z0-9_-]+)/i);
-  if (dr) return { tipo: "drive", url: u, id: dr[1] };
-  if (AM_EXT_AUDIO.test(u)) return { tipo: "audio", url: u };
-  if (AM_EXT_VIDEO.test(u)) return { tipo: "video", url: u };
-  if (/^https?:\/\//i.test(u)) return { tipo: "link", url: u };
-  return { tipo: "", url: u };
-}
-const amTituloAuto = (info, url) => {
-  if (info.tipo === "youtube") return "Vídeo do YouTube";
-  if (info.tipo === "instagram") return "Publicação do Instagram";
-  if (info.tipo === "drive") return "Arquivo do Google Drive";
-  try { const n = decodeURIComponent(new URL(url).pathname.split("/").pop() || ""); if (n) return n.replace(/\.[^.]+$/, ""); } catch (e) { /* sem nome */ }
-  return "Vídeo";
-};
-async function amBuscarTituloYt(url) {
-  try {
-    const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
-    const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, { signal: c.signal });
-    clearTimeout(tm); const j = await r.json();
-    return (j && j.title) ? String(j.title).slice(0, 140) : "";
-  } catch (e) { return ""; }
-}
-function amHa(iso) {
-  if (!iso) return "";
-  const d = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (!(d >= 0)) return "agora";
-  if (d < 90) return "agora há pouco";
-  if (d < 3600) return `há ${Math.round(d / 60)} min`;
-  if (d < 86400) return `há ${Math.round(d / 3600)} h`;
-  if (d < 86400 * 30) return `há ${Math.round(d / 86400)} dia${Math.round(d / 86400) > 1 ? "s" : ""}`;
-  return `em ${new Date(iso).toLocaleDateString("pt-BR")}`;
-}
-
-// Player de mídia (YouTube, Instagram, Google Drive, arquivo de vídeo/áudio) com tela cheia.
-function AmMidiaPlayer({ item, t, compacto = false, aoTerminar, mostrarBarra = true }) {
-  const caixa = useRef(null);
-  const vref = useRef(null);
-  const info = item && item.mime ? { tipo: String(item.mime).startsWith("audio") ? "audio" : "video", url: item.url } : amMidiaInfo(item && item.url);
-  const origem = item && item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
-  const telaCheia = () => {
-    try {
-      const v = vref.current;
-      if (v) { if (v.requestFullscreen) v.requestFullscreen(); else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); return; }
-      const el = caixa.current; if (!el) return;
-      if (document.fullscreenElement) { document.exitFullscreen(); return; }
-      if (el.requestFullscreen) el.requestFullscreen(); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } catch (e) { /* o navegador não permitiu */ }
-  };
-  if (!item || !info.tipo) return null;
-  const permitir = "accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen";
-  let corpo = null; let estilo = { aspectRatio: "16 / 9" };
-  if (info.tipo === "youtube") {
-    corpo = <iframe key={info.id} title={item.titulo || "Vídeo"} src={`https://www.youtube-nocookie.com/embed/${info.id}?rel=0&playsinline=1&modestbranding=1`} allow={permitir} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" className="absolute inset-0 w-full h-full border-0" />;
-  } else if (info.tipo === "instagram") {
-    corpo = <iframe key={info.id} title={item.titulo || "Instagram"} src={`https://www.instagram.com/${info.kind}/${info.id}/embed`} allow={permitir} allowFullScreen scrolling="no" className="absolute inset-0 w-full h-full border-0 bg-white" />;
-    estilo = { height: "min(78vh, 740px)", maxWidth: 420, margin: "0 auto" };
-  } else if (info.tipo === "drive") {
-    corpo = <iframe key={info.id} title={item.titulo || "Google Drive"} src={`https://drive.google.com/file/d/${info.id}/preview`} allow={permitir} allowFullScreen className="absolute inset-0 w-full h-full border-0" />;
-  } else if (info.tipo === "video") {
-    corpo = <video key={info.url} ref={vref} src={info.url} controls playsInline preload="metadata" onEnded={aoTerminar} className="absolute inset-0 w-full h-full" style={{ background: "#000" }} />;
-  } else if (info.tipo === "audio") {
-    return (
-      <div className="rounded-2xl p-3" style={{ background: t.card2 }}>
-        <audio key={info.url} controls preload="none" src={info.url} onEnded={aoTerminar} className="w-full" />
-        {origem && !compacto && <a href={origem} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold underline mt-2" style={{ color: t.accent }}><ExternalLink size={12} /> Abrir o áudio</a>}
-      </div>
-    );
-  } else {
-    return (
-      <div className="rounded-2xl p-4 text-sm" style={{ background: t.card2, color: t.ink }}>
-        Este link não toca dentro do app. <a href={info.url} target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: t.accent }}>Abrir o link</a>
-      </div>
-    );
-  }
-  return (
-    <div style={compacto ? { maxWidth: 520 } : undefined}>
-      <div ref={caixa} className="relative w-full bg-black overflow-hidden rounded-2xl" style={estilo}>{corpo}</div>
-      {mostrarBarra && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button onClick={telaCheia} className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2" style={{ background: t.card2, color: t.ink }}><Maximize size={16} /> Tela cheia</button>
-          {origem && <a href={origem} target="_blank" rel="noopener noreferrer" className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2" style={{ background: t.card2, color: t.ink }}><ExternalLink size={15} /> Abrir original</a>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Editor do áudio de um hino/louvor (só liderança): link ou arquivo do aparelho.
-function AmAudioEditor({ t, audio, onSalvar, sub, rotulo }) {
-  const [url, setUrl] = useState("");
-  const [msg, setMsg] = useState("");
-  const [prog, setProg] = useState(null);
-  const salvarLink = () => {
-    const info = amMidiaInfo(url);
-    if (!info.tipo || info.tipo === "link") { setMsg("Não reconheci esse link. Use YouTube, Google Drive, Dropbox ou um link direto de .mp3."); return; }
-    onSalvar({ url: amNormalizarUrl(url), nome: rotulo || "", em: new Date().toISOString() });
-    setUrl(""); setMsg("Áudio salvo.");
-  };
-  const enviar = async (e) => {
-    const f = e.target.files && e.target.files[0]; e.target.value = "";
-    if (!f) return;
-    if (!amEhAudioArq(f) && !amEhVideoArq(f)) { setMsg("Escolha um arquivo de áudio (mp3, m4a, wav…)."); return; }
-    try {
-      setMsg(""); setProg(0);
-      const u = await amEnviarMidia(f, amCaminhoNovo(sub, f), setProg);
-      onSalvar({ url: u, nome: f.name, em: new Date().toISOString() });
-      setMsg("Áudio enviado e salvo.");
-    } catch (err) { setMsg(String((err && err.message) || err)); } finally { setProg(null); }
-  };
-  return (
-    <details className="w-full rounded-xl px-3 py-2" style={{ background: t.card }}>
-      <summary className="cursor-pointer text-sm font-semibold min-h-[40px] flex items-center" style={{ color: t.ink }}>Áudio deste item (liderança){audio ? " — já tem áudio" : ""}</summary>
-      <div className="mt-2 space-y-2">
-        <div className="flex gap-2">
-          <div className="flex-1"><AmInput t={t} placeholder="Link: YouTube, Google Drive, Dropbox ou .mp3" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
-          <AmBotao t={t} onClick={salvarLink} disabled={!url.trim()} className="disabled:opacity-40">Salvar link</AmBotao>
-        </div>
-        <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.accent, color: t.onAccent }}>Enviar arquivo de áudio<input type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac" className="hidden" onChange={enviar} /></label>
-        {prog !== null && <p className="text-xs" style={{ color: t.accent }}>Enviando… {prog}%</p>}
-        {audio && <AmBotao t={t} tom="perigo" onClick={() => { if (window.confirm("Remover o áudio deste item?")) { onSalvar(null); setMsg("Áudio removido."); } }}><Trash2 size={15} /> Remover áudio</AmBotao>}
-        {msg && <p className="text-xs" style={{ color: t.accent }}>{msg}</p>}
-        <p className="text-[11px] leading-snug" style={{ color: t.dim }}>Arquivos até 50 MB. Para áudios maiores, coloque no Google Drive (compartilhar: “qualquer pessoa com o link”) e cole o link aqui.</p>
-      </div>
-    </details>
-  );
-}
-
-// Envio de vários áudios da Harpa de uma vez: o número no nome do arquivo diz de qual hino é (ex.: 001.mp3, 12 - Nome.mp3).
-function AmHarpaAudiosLote({ t, hinos, saveHinos }) {
-  const [arqs, setArqs] = useState([]);
-  const [msg, setMsg] = useState("");
-  const [fase, setFase] = useState("");
-  const porNumero = useMemo(() => Object.fromEntries((hinos || []).map((h) => [h.numero, h])), [hinos]);
-  const escolher = (e) => {
-    const lista = Array.from(e.target.files || []); e.target.value = "";
-    const itens = lista.map((f) => { const m = f.name.replace(/\.[^.]+$/, "").match(/(\d{1,3})/); const n = m ? Number(m[1]) : 0; return { f, n, h: porNumero[n] || null }; }).sort((a, b) => a.n - b.n);
-    setArqs(itens); setMsg("");
-  };
-  const ok = arqs.filter((a) => a.h);
-  const enviar = async () => {
-    const feitos = {}; let falhas = 0; let erro = "";
-    for (let k = 0; k < ok.length; k++) {
-      const a = ok[k];
-      const rot = (p) => setFase(`Enviando ${k + 1} de ${ok.length} (hino ${a.n})… ${p}%`);
-      rot(0);
-      try {
-        const u = await amEnviarMidia(a.f, `${amPastaMidia("harpa")}/${String(a.n).padStart(3, "0")}.${amExt(a.f.name) || "mp3"}`, rot);
-        feitos[a.n] = { url: u, nome: a.f.name, em: new Date().toISOString() };
-      } catch (err) { falhas++; erro = String((err && err.message) || err); if (k === 0 && /espaço de arquivos|liberou/.test(erro)) break; }
-    }
-    const n = Object.keys(feitos).length;
-    if (n) saveHinos((hinos || []).map((h) => (feitos[h.numero] ? { ...h, audio: feitos[h.numero] } : h)));
-    setFase(""); setArqs([]);
-    setMsg(n ? `${n} áudio(s) ligado(s) aos hinos.${falhas ? ` ${falhas} falharam: ${erro}` : ""}` : erro || "Nenhum áudio foi enviado.");
-  };
-  return (
-    <div>
-      <p className="text-sm font-semibold mt-5" style={{ color: t.ink }}>Enviar os áudios da Harpa (vários de uma vez)</p>
-      <p className="text-[11px] mt-1 mb-2 leading-snug" style={{ color: t.dim }}>Escolha vários arquivos de áudio de uma vez. O app descobre o hino pelo número no nome do arquivo (001.mp3, 12 - Nome.mp3…). Confira a lista e toque em Enviar. Cada arquivo pode ter até 50 MB.</p>
-      <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.accent, color: t.onAccent }}><Headphones size={16} /> Escolher áudios<input type="file" multiple accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac" className="hidden" onChange={escolher} /></label>
-      {arqs.length > 0 && (
-        <div className="mt-3 rounded-xl p-3 text-xs space-y-1 max-h-56 overflow-y-auto" style={{ background: t.card2, color: t.ink }}>
-          {arqs.map((a, i) => (
-            <p key={i} style={{ color: a.h ? t.ink : "#D0473A" }}>{a.h ? `✓ Hino ${a.n} — ${a.h.titulo}` : `✗ Sem hino correspondente`} <span style={{ color: t.dim }}>({a.f.name})</span></p>
-          ))}
-        </div>
-      )}
-      {arqs.length > 0 && <div className="mt-2"><AmBotao t={t} onClick={enviar} disabled={!ok.length || !!fase} className="disabled:opacity-40">Enviar {ok.length} áudio(s)</AmBotao></div>}
-      {fase && <p className="text-xs mt-2" style={{ color: t.accent }}>{fase}</p>}
-      {msg && <p className="text-xs mt-2" style={{ color: t.accent }}>{msg}</p>}
-    </div>
-  );
-}
-
-/* ---------- Projeção (estilo Holyrics): letra em tela cheia, lista de culto e controle remoto ---------- */
-const AM_RE_ACORDE = /^[A-G](?:#|b)?(?:maj|min|dim|aug|sus|add|m|M)?\d{0,2}(?:\([^)]*\))?(?:\/(?:[A-G](?:#|b)?|\d))?$/;
-function amLinhaAcordes(l) {
-  const toks = String(l).trim().split(/\s+/).filter(Boolean);
-  if (!toks.length) return false;
-  let achou = false;
-  for (const x of toks) {
-    if (AM_RE_ACORDE.test(x)) { achou = true; continue; }
-    if (/^[|/\-–—.%()x×\d:]+$/i.test(x)) continue;
-    return false;
-  }
-  return achou;
-}
-const AM_RE_ROTULO = /^(intro(?:dução)?|verso|estrofe|pré-?coro|pre-?coro|refr[aã]o|coro|ponte|final|solo|interl[úu]dio|instrumental|tag|bridge|chorus|verse)\s*\d*\s*:?\s*$/i;
-const AM_RE_PULAR = /^(intro(?:dução)?|solo|interl[úu]dio|instrumental)\b/i;
-// Transforma a letra (ou cifra) em slides: tira os acordes e marcações, separa por estrofe e quebra estrofes longas.
-function amLetraSlides(texto, max = 4) {
-  const blocos = []; let atual = []; let rot = ""; let pular = false; let esperado = 1;
-  const fecha = () => { if (atual.length && !pular) blocos.push({ linhas: atual, rotulo: rot }); atual = []; rot = ""; pular = false; };
-  String(texto || "").replace(/\r/g, "").split("\n").forEach((bruta) => {
-    const l = bruta.replace(/\s+$/, "");
-    const lt = l.trim();
-    if (!lt) { fecha(); return; }
-    // Hinos numerados (1., 2., 3. …): cada número abre uma estrofe nova e o número não aparece na tela.
-    const num = lt.match(/^(\d{1,2})(\s*[.\-–)])?\s+(\S.*)$/);
-    if (num) {
-      const nn = Number(num[1]);
-      if (nn === esperado || (num[2] && nn > esperado && nn <= esperado + 2)) { if (atual.length) fecha(); esperado = nn + 1; atual.push(num[3]); return; }
-    }
-    const colchete = lt.match(/^\[(.+)\]$/);
-    if (colchete || AM_RE_ROTULO.test(lt)) {
-      fecha();
-      const r = colchete ? colchete[1].trim() : lt.replace(/:\s*$/, "");
-      rot = r; pular = AM_RE_PULAR.test(r);
-      return;
-    }
-    if (amLinhaAcordes(lt)) return;
-    atual.push(lt);
-  });
-  fecha();
-  const slides = [];
-  blocos.forEach((b) => {
-    const n = Math.max(1, Math.ceil(b.linhas.length / max));
-    const tam = Math.ceil(b.linhas.length / n);
-    for (let k = 0; k < n; k++) slides.push({ texto: b.linhas.slice(k * tam, (k + 1) * tam).join("\n"), rotulo: k === 0 ? b.rotulo : "" });
-  });
-  return slides;
-}
-const amItemHino = (h) => ({ id: "h" + h.numero, titulo: `${h.numero} — ${h.titulo}`, sub: "Harpa Cristã", slides: amLetraSlides(h.letra).length ? amLetraSlides(h.letra) : [{ texto: "(sem letra cadastrada)", rotulo: "" }] });
-const amItemLouvor = (m) => { const s = amLetraSlides(m.cifra); return { id: "l" + m.id, titulo: m.titulo, sub: m.artista || "", slides: s.length ? s : [{ texto: "(sem letra cadastrada)", rotulo: "" }] }; };
-const AM_PROJ_TEMAS = [
-  { k: "preto", r: "Preto", bg: "#000000", fg: "#FFFFFF", sombra: "0 2px 14px rgba(0,0,0,.9)" },
-  { k: "azul", r: "Azul-noite", bg: "linear-gradient(160deg,#0A1A3F,#04091A)", fg: "#FFFFFF", sombra: "0 2px 14px rgba(0,0,0,.7)" },
-  { k: "roxo", r: "Roxo Avivar", bg: "linear-gradient(160deg,#4B1D72,#1B0830)", fg: "#F6E7B8", sombra: "0 2px 14px rgba(0,0,0,.6)" },
-  { k: "claro", r: "Claro", bg: "#FFFFFF", fg: "#14111F", sombra: "none" },
-];
-const amLerLS = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
-const amGravarLS = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) { /* sem storage */ } };
-
-function AmProjecao({ itens, inicio = 0, onFechar, sala }) {
-  const lista = itens && itens.length ? itens : [{ id: "vazio", titulo: "", sub: "", slides: [{ texto: "" }] }];
-  const [i, setI] = useState(Math.min(Math.max(0, inicio), lista.length - 1));
-  const [s, setS] = useState(0);
-  const [preto, setPreto] = useState(false);
-  const [logo, setLogo] = useState(false);
-  const [esc, setEsc] = useState(() => Number(amLerLS("am-proj-esc", "1")) || 1);
-  const [tema, setTema] = useState(() => amLerLS("am-proj-tema", "preto"));
-  const [barra, setBarra] = useState(true);
-  const [painel, setPainel] = useState(false);
-  const [dim, setDim] = useState({ w: window.innerWidth, h: window.innerHeight });
-  const caixa = useRef(null);
-  const timer = useRef(null);
-  const sidRef = useRef("");
-  const est = useRef({});
-  const item = lista[i] || lista[0];
-  const total = item.slides.length;
-  const slide = item.slides[Math.min(s, total - 1)] || { texto: "" };
-  const tm = AM_PROJ_TEMAS.find((x) => x.k === tema) || AM_PROJ_TEMAS[0];
-  est.current = { i, s, lista, preto, logo };
-
-  const ir = (ni, ns) => {
-    const ii = Math.max(0, Math.min(est.current.lista.length - 1, ni));
-    const tot = est.current.lista[ii].slides.length;
-    setI(ii); setS(Math.max(0, Math.min(tot - 1, ns)));
-  };
-  const prox = () => { const e = est.current; const tot = e.lista[e.i].slides.length; if (e.s + 1 < tot) ir(e.i, e.s + 1); else if (e.i + 1 < e.lista.length) ir(e.i + 1, 0); };
-  const ant = () => { const e = est.current; if (e.s > 0) ir(e.i, e.s - 1); else if (e.i > 0) ir(e.i - 1, e.lista[e.i - 1].slides.length - 1); };
-  const itemProx = () => ir(est.current.i + 1, 0);
-  const itemAnt = () => ir(est.current.i - 1, 0);
-  const alternarPreto = () => { setPreto((v) => !v); setLogo(false); };
-  const alternarLogo = () => { setLogo((v) => !v); setPreto(false); };
-  const tela = () => {
-    try {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else if (caixa.current && caixa.current.requestFullscreen) caixa.current.requestFullscreen();
-    } catch (e) { /* o navegador não permitiu */ }
-  };
-  const mostrar = () => { setBarra(true); clearTimeout(timer.current); timer.current = setTimeout(() => setBarra(false), 3500); };
-  const mudarEsc = (d) => setEsc((v) => { const n = Math.max(0.5, Math.min(1.8, Math.round((v + d) * 10) / 10)); amGravarLS("am-proj-esc", n); return n; });
-  const trocarTema = () => { const k = AM_PROJ_TEMAS[(AM_PROJ_TEMAS.findIndex((x) => x.k === tema) + 1) % AM_PROJ_TEMAS.length].k; setTema(k); amGravarLS("am-proj-tema", k); };
-  const cmdRef = useRef(null);
-  cmdRef.current = (c) => {
-    if (c.a === "prox") prox(); else if (c.a === "ant") ant();
-    else if (c.a === "itemProx") itemProx(); else if (c.a === "itemAnt") itemAnt();
-    else if (c.a === "preto") alternarPreto(); else if (c.a === "logo") alternarLogo();
-    else if (c.a === "item") ir(Number(c.v) || 0, 0);
-    else if (c.a === "slide") ir(est.current.i, Number(c.v) || 0);
-  };
-
-  useEffect(() => { mostrar(); try { if (caixa.current && caixa.current.requestFullscreen && !document.fullscreenElement) caixa.current.requestFullscreen().catch(() => {}); } catch (e) { /* ok */ } return () => { clearTimeout(timer.current); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { /* ok */ } }; }, []);
-  useEffect(() => { const f = () => setDim({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
-  useEffect(() => {
-    const k = (e) => {
-      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      const c = e.key;
-      if (c === "ArrowRight" || c === " " || c === "PageDown" || c === "Enter") { e.preventDefault(); prox(); }
-      else if (c === "ArrowLeft" || c === "PageUp" || c === "Backspace") { e.preventDefault(); ant(); }
-      else if (c === "ArrowDown") { e.preventDefault(); itemProx(); }
-      else if (c === "ArrowUp") { e.preventDefault(); itemAnt(); }
-      else if (c === "b" || c === "B" || c === ".") alternarPreto();
-      else if (c === "l" || c === "L") alternarLogo();
-      else if (c === "f" || c === "F") tela();
-      else if (c === "+" || c === "=") mudarEsc(0.1);
-      else if (c === "-") mudarEsc(-0.1);
-      else if (c === "Escape") { if (!document.fullscreenElement) onFechar(); }
-      mostrar();
-    };
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, []);
-  // Controle remoto: outro aparelho manda comandos (fila) e recebe o estado da projeção.
-  useEffect(() => {
-    if (!sala) return undefined;
-    const sid = String(Date.now());
-    sidRef.current = sid;
-    let vivo = true; let ultimo = 0;
-    saveKey(`avivar:projcmd:${sala}`, { sid, fila: [] });
-    const id = setInterval(async () => {
-      const r = await loadKey(`avivar:projcmd:${sala}`, null);
-      if (!vivo || !r || r.sid !== sid) return;
-      (r.fila || []).filter((c) => c.id > ultimo).forEach((c) => { ultimo = Math.max(ultimo, c.id); if (cmdRef.current) cmdRef.current(c); });
-    }, 1200);
-    return () => { vivo = false; clearInterval(id); saveKey(`avivar:projest:${sala}`, { sid, fechado: true, ts: Date.now() }); };
-  }, [sala]);
-  useEffect(() => {
-    if (!sala || !sidRef.current) return;
-    saveKey(`avivar:projest:${sala}`, { sid: sidRef.current, titulos: lista.map((x) => x.titulo), totais: lista.map((x) => x.slides.length), i, s, preto, logo, ts: Date.now() });
-  }, [sala, i, s, preto, logo]);
-
-  const linhas = String(slide.texto || "").split("\n");
-  const maxLen = Math.max(8, ...linhas.map((l) => l.length));
-  const fs = Math.max(18, Math.floor(Math.min((dim.h * 0.72) / (linhas.length * 1.32), (dim.w * 0.9) / (maxLen * 0.5), 140) * esc));
-  const btn = "min-h-[44px] min-w-[44px] px-3 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5";
-  const bbg = { background: "rgba(255,255,255,.16)", color: "#fff" };
-  return (
-    <div ref={caixa} className="fixed inset-0 z-[80] select-none overflow-hidden" style={{ background: preto ? "#000" : tm.bg, color: tm.fg, cursor: barra ? "default" : "none" }} onPointerMove={mostrar} onPointerDown={mostrar} role="dialog" aria-modal="true" aria-label="Projeção da letra">
-      {!preto && !logo && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-[4vw] text-center">
-          {slide.rotulo && <p className="uppercase tracking-widest mb-[1.5vh] opacity-60" style={{ fontSize: Math.max(14, Math.floor(fs * 0.3)) }}>{slide.rotulo}</p>}
-          <p className="font-display" data-testid="proj-texto" style={{ fontSize: fs, lineHeight: 1.32, fontWeight: 600, whiteSpace: "pre-line", textShadow: tm.sombra }}>{slide.texto}</p>
-        </div>
-      )}
-      {logo && !preto && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-4">
-          <AmLogoImg tam={Math.min(220, Math.floor(dim.h * 0.3))} />
-          <p className="font-display font-bold" style={{ fontSize: Math.max(22, Math.floor(dim.h * 0.05)) }}>{AM_NOME_APP}</p>
-          <p className="opacity-70" style={{ fontSize: Math.max(14, Math.floor(dim.h * 0.025)) }}>Ministério Avivar do Espírito</p>
-        </div>
-      )}
-      <button aria-label="Slide anterior" onClick={() => { ant(); mostrar(); }} className="absolute left-0 top-[16%] bottom-[16%] w-[30%] opacity-0" />
-      <button aria-label="Próximo slide" onClick={() => { prox(); mostrar(); }} className="absolute right-0 top-[16%] bottom-[16%] w-[70%] opacity-0" />
-      <div className="absolute top-0 inset-x-0 z-10 px-3 py-2 flex flex-wrap items-center gap-1.5 transition-opacity" style={{ background: "linear-gradient(rgba(0,0,0,.78),rgba(0,0,0,0))", opacity: barra ? 1 : 0, pointerEvents: barra ? "auto" : "none" }}>
-        <button onClick={onFechar} className={btn} style={bbg} aria-label="Fechar projeção"><X size={16} /> Sair</button>
-        <div className="min-w-0 flex-1 px-1">
-          <p className="text-sm font-bold truncate" style={{ color: "#fff" }}>{item.titulo}</p>
-          <p className="text-[11px] truncate" style={{ color: "#ffffffbb" }}>{item.sub}{item.sub ? " · " : ""}Louvor {i + 1} de {lista.length}</p>
-        </div>
-        <button onClick={alternarPreto} className={btn} style={{ ...bbg, background: preto ? "#D6B46A" : bbg.background, color: preto ? "#351052" : "#fff" }} aria-pressed={preto}>Tela preta</button>
-        <button onClick={alternarLogo} className={btn} style={{ ...bbg, background: logo ? "#D6B46A" : bbg.background, color: logo ? "#351052" : "#fff" }} aria-pressed={logo}>Logo</button>
-        <button onClick={() => mudarEsc(-0.1)} className={btn} style={bbg} aria-label="Diminuir letra">A−</button>
-        <button onClick={() => mudarEsc(0.1)} className={btn} style={bbg} aria-label="Aumentar letra">A+</button>
-        <button onClick={trocarTema} className={btn} style={bbg}>Fundo: {tm.r}</button>
-        <button onClick={tela} className={btn} style={bbg} aria-label="Tela cheia"><Maximize size={16} /></button>
-        <button onClick={() => setPainel((v) => !v)} className={btn} style={{ ...bbg, background: painel ? "#D6B46A" : bbg.background, color: painel ? "#351052" : "#fff" }}><ListMusic size={16} /> Lista</button>
-      </div>
-      <div className="absolute bottom-0 inset-x-0 z-10 px-3 py-3 flex items-center justify-center gap-2 transition-opacity" style={{ background: "linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.78))", opacity: barra ? 1 : 0, pointerEvents: barra ? "auto" : "none" }}>
-        <button onClick={itemAnt} className={btn} style={bbg} aria-label="Louvor anterior" disabled={i === 0}><SkipForward size={16} className="rotate-180" /></button>
-        <button onClick={() => { ant(); mostrar(); }} className={btn + " min-w-[64px]"} style={bbg} aria-label="Slide anterior"><ChevronLeft size={20} /></button>
-        <span className="text-sm font-mono px-2" style={{ color: "#fff" }} data-testid="proj-contador">{Math.min(s, total - 1) + 1}/{total}</span>
-        <button onClick={() => { prox(); mostrar(); }} className={btn + " min-w-[64px]"} style={{ background: "#D6B46A", color: "#351052" }} aria-label="Próximo slide"><ChevronRight size={20} /></button>
-        <button onClick={itemProx} className={btn} style={bbg} aria-label="Próximo louvor" disabled={i >= lista.length - 1}><SkipForward size={16} /></button>
-      </div>
-      {sala && barra && <p className="absolute bottom-[72px] left-0 right-0 z-10 text-center text-[11px]" style={{ color: "#ffffffcc" }}>Controle remoto: no outro aparelho, abra Projeção &gt; Controlar outra tela e digite o código <b style={{ color: "#D6B46A" }}>{String(sala).split("-").pop()}</b></p>}
-      {painel && (
-        <div className="absolute top-16 bottom-20 right-2 z-20 w-80 max-w-[92vw] rounded-2xl p-3 overflow-y-auto" style={{ background: "rgba(10,6,20,.92)", color: "#fff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#D6B46A" }}>Lista do culto</p>
-          {lista.map((x, k) => (
-            <div key={x.id + k} className="mb-1.5">
-              <button onClick={() => ir(k, 0)} className="w-full text-left rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px]" style={{ background: k === i ? "#D6B46A" : "rgba(255,255,255,.1)", color: k === i ? "#351052" : "#fff" }}>{k + 1}. {x.titulo}</button>
-              {k === i && x.slides.length > 1 && (
-                <div className="flex flex-wrap gap-1 mt-1.5 px-1">
-                  {x.slides.map((_, n) => <button key={n} onClick={() => ir(k, n)} aria-label={`Slide ${n + 1}`} className="w-10 h-10 rounded-lg text-xs font-bold" style={{ background: n === s ? "#D6B46A" : "rgba(255,255,255,.14)", color: n === s ? "#351052" : "#fff" }}>{n + 1}</button>)}
-                </div>
-              )}
-            </div>
-          ))}
-          <p className="text-[10px] mt-3 leading-snug" style={{ color: "#ffffff99" }}>Teclado: → ou espaço avança · ← volta · ↓ ↑ troca de louvor · B tela preta · L logo · F tela cheia · + − tamanho · Esc sai.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Controle remoto: no celular, controla a projeção que está rodando em outro aparelho (computador ligado ao projetor).
-function AmControleRemoto({ t, onFechar }) {
-  const [codigo, setCodigo] = useState(() => amLerLS("am-proj-codigo", ""));
-  const [sala, setSala] = useState("");
-  const [est, setEst] = useState(null);
-  const [erro, setErro] = useState("");
-  const filaRef = useRef({ sid: "", fila: [] });
-  const base = AM_UNIDADE_ID || "principal";
-  useEffect(() => {
-    if (!sala) return undefined;
-    let vivo = true;
-    const ler = async () => {
-      const r = await loadKey(`avivar:projest:${sala}`, null);
-      if (!vivo) return;
-      if (!r) { setEst(null); setErro("Não encontrei essa tela. Confira o código e se a projeção está aberta."); return; }
-      setErro(""); setEst(r);
-      if (r.sid !== filaRef.current.sid) filaRef.current = { sid: r.sid, fila: [] };
-    };
-    ler();
-    const id = setInterval(ler, 1500);
-    return () => { vivo = false; clearInterval(id); };
-  }, [sala]);
-  const enviar = (a, v) => {
-    if (!est || est.fechado) return;
-    const f = filaRef.current;
-    const id = f.fila.reduce((m, c) => Math.max(m, c.id), 0) + 1;
-    f.fila = [...f.fila, { id, a, v }].slice(-15);
-    saveKey(`avivar:projcmd:${sala}`, { sid: f.sid, fila: f.fila });
-  };
-  const conectar = () => { const c = String(codigo).replace(/\D/g, "").slice(0, 4); if (c.length < 4) { setErro("Digite os 4 números do código."); return; } amGravarLS("am-proj-codigo", c); setErro(""); setSala(`${base}-${c}`); };
-  const conectado = est && !est.fechado;
-  const b = "min-h-[64px] rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2";
-  return createPortal(
-    <div className="fixed inset-0 z-[90] overflow-y-auto" style={{ background: t.bg, color: t.ink }}>
-      <div className="max-w-md mx-auto px-4 py-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="font-display text-xl font-bold">Controle remoto</p>
-          <button onClick={onFechar} className="min-h-[44px] px-4 rounded-xl text-sm font-semibold" style={{ background: t.card2, color: t.ink }}><X size={16} className="inline mr-1" />Fechar</button>
-        </div>
-        {!sala && (
-          <AmCard t={t}>
-            <p className="text-sm" style={{ color: t.dim }}>No computador ligado ao projetor, abra a projeção. Ela mostra um código de 4 números. Digite aqui.</p>
-            <div className="mt-3 flex gap-2">
-              <AmInput t={t} inputMode="numeric" maxLength={4} placeholder="Código (4 números)" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))} />
-              <AmBotao t={t} onClick={conectar}>Conectar</AmBotao>
-            </div>
-          </AmCard>
-        )}
-        {sala && !conectado && <p className="text-sm rounded-xl px-3 py-2" style={{ background: t.card2, color: t.dim }}>{est && est.fechado ? "A projeção foi fechada." : erro || "Procurando a tela…"}</p>}
-        {erro && !sala && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
-        {conectado && (
-          <>
-            <AmCard t={t}>
-              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.accent }}>Na tela agora</p>
-              <p className="font-display text-lg font-bold mt-1">{(est.titulos || [])[est.i] || ""}</p>
-              <p className="text-sm" style={{ color: t.dim }}>Slide {est.s + 1} de {(est.totais || [])[est.i] || 1}{est.preto ? " · tela preta" : est.logo ? " · logo" : ""}</p>
-            </AmCard>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => enviar("ant")} className={b} style={{ background: t.card2, color: t.ink }}><ChevronLeft size={22} /> Voltar</button>
-              <button onClick={() => enviar("prox")} className={b} style={{ background: t.accent, color: t.onAccent }}>Avançar <ChevronRight size={22} /></button>
-              <button onClick={() => enviar("itemAnt")} className={b} style={{ background: t.card2, color: t.ink }}><SkipForward size={20} className="rotate-180" /> Louvor anterior</button>
-              <button onClick={() => enviar("itemProx")} className={b} style={{ background: t.card2, color: t.ink }}>Próximo louvor <SkipForward size={20} /></button>
-              <button onClick={() => enviar("preto")} className={b} style={{ background: est.preto ? "#D6B46A" : t.card2, color: est.preto ? "#351052" : t.ink }}>Tela preta</button>
-              <button onClick={() => enviar("logo")} className={b} style={{ background: est.logo ? "#D6B46A" : t.card2, color: est.logo ? "#351052" : t.ink }}>Logo</button>
-            </div>
-            <AmCard t={t}>
-              <p className="text-sm font-semibold mb-2">Lista do culto</p>
-              <div className="space-y-1.5">
-                {(est.titulos || []).map((x, k) => (
-                  <button key={k} onClick={() => enviar("item", k)} className="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold min-h-[48px]" style={{ background: k === est.i ? t.accent : t.card2, color: k === est.i ? t.onAccent : t.ink }}>{k + 1}. {x}</button>
-                ))}
-              </div>
-              {((est.totais || [])[est.i] || 1) > 1 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {Array.from({ length: (est.totais || [])[est.i] || 1 }, (_, n) => <button key={n} onClick={() => enviar("slide", n)} aria-label={`Slide ${n + 1}`} className="w-11 h-11 rounded-xl text-sm font-bold" style={{ background: n === est.s ? t.accent : t.card2, color: n === est.s ? t.onAccent : t.ink }}>{n + 1}</button>)}
-                </div>
-              )}
-            </AmCard>
-          </>
-        )}
-      </div>
-    </div>, document.body);
-}
-
-// Tela "Projeção": monta a lista do culto (hinos + louvores) e abre a projeção ou o controle remoto.
-function AmProjetorTela({ t, dados, hinos, lider, musico, userKey, irPara }) {
-  const podeLer = !!(musico || lider);
-  const base = AM_UNIDADE_ID || "principal";
-  const chave = `am-proj-lista-${base}`;
-  const [refs, setRefs] = useState(() => { try { return JSON.parse(localStorage.getItem(chave) || "[]") || []; } catch (e) { return []; } });
-  const [busca, setBusca] = useState("");
-  const [proj, setProj] = useState(null);
-  const [ctrl, setCtrl] = useState(false);
-  const [codigo] = useState(() => String(1000 + Math.floor(Math.random() * 9000)));
-  const [aviso, setAviso] = useState("");
-  const acervo = dados.acervo || [];
-  const gravar = (n) => { setRefs(n); try { localStorage.setItem(chave, JSON.stringify(n)); } catch (e) { /* sem storage */ } };
-  const resolver = (r) => {
-    if (r.tipo === "hino") { const h = (hinos || []).find((x) => x.numero === r.id); return h ? { ...amItemHino(h), kind: "Harpa" } : null; }
-    const m = acervo.find((x) => x.id === r.id); return m ? { ...amItemLouvor(m), kind: "Louvor" } : null;
-  };
-  const itens = refs.map((r) => ({ r, it: resolver(r) })).filter((x) => x.it);
-  const tem = (tipo, id) => refs.some((r) => r.tipo === tipo && r.id === id);
-  const add = (tipo, id) => { if (!tem(tipo, id)) gravar([...refs, { tipo, id }]); };
-  const q = semAcento(busca).trim();
-  const achados = !q ? [] : [
-    ...(hinos || []).filter((h) => String(h.numero) === q || String(h.numero).startsWith(q) || semAcento(h.titulo).includes(q)).slice(0, 25).map((h) => ({ tipo: "hino", id: h.numero, titulo: `${h.numero} — ${h.titulo}`, kind: "Harpa" })),
-    ...acervo.filter((m) => semAcento(m.titulo).includes(q) || semAcento(m.artista).includes(q)).slice(0, 25).map((m) => ({ tipo: "louvor", id: m.id, titulo: m.titulo, kind: "Louvor" })),
-  ];
-  const doCulto = () => {
-    const prox = amEventosFuturos(dados.eventos).find((e) => e.tipo === "Culto") || amEventosFuturos(dados.eventos)[0];
-    const ids = prox ? (prox.musicas || []) : [];
-    const novos = ids.filter((id) => acervo.some((m) => m.id === id) && !tem("louvor", id)).map((id) => ({ tipo: "louvor", id }));
-    if (!novos.length) { setAviso(prox ? "O próximo culto não tem louvores novos para trazer." : "Não há culto agendado."); return; }
-    gravar([...refs, ...novos]); setAviso(`${novos.length} louvor(es) do próximo culto adicionados.`);
-  };
-  const doEnsaio = () => {
-    const sel = (dados.ensaioSelecao || []).filter((x) => x.musicoId === userKey);
-    const novos = sel.map((x) => ({ tipo: x.tipo === "harpa" ? "hino" : "louvor", id: x.refId })).filter((r) => !tem(r.tipo, r.id) && resolver(r));
-    if (!novos.length) { setAviso("Você ainda não marcou nada para o ensaio (ou já está tudo na lista)."); return; }
-    gravar([...refs, ...novos]); setAviso(`${novos.length} item(ns) marcados para o ensaio adicionados.`);
-  };
-  const mover = (k, d) => { const n = [...refs]; const j = k + d; if (j < 0 || j >= n.length) return; [n[k], n[j]] = [n[j], n[k]]; gravar(n); };
-  if (!podeLer) return <AmSoMusicos t={t} irPara={irPara} titulo="Projeção" />;
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Tv size={22} style={{ color: t.accent }} /> Projeção</p>
-        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Monte a lista do culto e projete a letra em tela cheia, como no Holyrics. Ligue o computador ou o celular ao projetor e toque em Projetar.</p>
-      </div>
-      <AmCard t={t}>
-        <p className="font-display font-bold" style={{ color: t.ink }}>1. Escolha o que projetar</p>
-        <div className="mt-2"><AmInput t={t} placeholder="Buscar hino (número ou título) ou louvor…" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
-        {achados.length > 0 && (
-          <div className="mt-2 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3 max-h-72 overflow-y-auto">
-            {achados.map((a) => (
-              <button key={a.tipo + a.id} onClick={() => add(a.tipo, a.id)} disabled={tem(a.tipo, a.id)} className="text-left rounded-xl px-3 py-2 min-h-[48px] flex items-center gap-2 disabled:opacity-50" style={{ background: t.card2, color: t.ink }}>
-                <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: t.card, color: t.accent }}>{a.kind}</span>
-                <span className="text-sm font-semibold line-clamp-2 flex-1">{a.titulo}</span>
-                <Plus size={16} className="shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-        {q && achados.length === 0 && <p className="text-xs mt-2" style={{ color: t.dim }}>Nada encontrado.</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <AmBotao t={t} tom="suave" onClick={doCulto}><Calendar size={15} /> Trazer louvores do próximo culto</AmBotao>
-          <AmBotao t={t} tom="suave" onClick={doEnsaio}><CheckCircle2 size={15} /> Trazer os marcados para o ensaio</AmBotao>
-        </div>
-        {aviso && <p className="text-xs mt-2" style={{ color: t.accent }}>{aviso}</p>}
-      </AmCard>
-      <AmCard t={t}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="font-display font-bold" style={{ color: t.ink }}>2. Lista do culto ({itens.length})</p>
-          {itens.length > 0 && <button onClick={() => { if (window.confirm("Limpar a lista do culto?")) gravar([]); }} className="text-xs underline" style={{ color: t.dim }}>Limpar</button>}
-        </div>
-        {itens.length === 0 && <p className="text-sm mt-2" style={{ color: t.dim }}>A lista está vazia. Busque acima ou traga os louvores do culto.</p>}
-        <ol className="mt-2 space-y-1.5">
-          {itens.map(({ r, it }, k) => (
-            <li key={r.tipo + r.id} className="rounded-xl flex items-center gap-2 px-2 py-1.5" style={{ background: t.card2 }}>
-              <span className="w-6 text-center text-xs font-bold" style={{ color: t.accent }}>{k + 1}</span>
-              <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: t.card, color: t.accent }}>{it.kind}</span>
-              <button onClick={() => setProj({ inicio: k })} className="flex-1 min-w-0 text-left min-h-[44px]" aria-label={`Projetar a partir de ${it.titulo}`}>
-                <span className="block text-sm font-semibold truncate" style={{ color: t.ink }}>{it.titulo}</span>
-                <span className="block text-[11px]" style={{ color: t.dim }}>{it.slides.length} slide(s)</span>
-              </button>
-              <button aria-label="Subir" onClick={() => mover(k, -1)} disabled={k === 0} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30" style={{ color: t.ink }}><ArrowUp size={16} /></button>
-              <button aria-label="Descer" onClick={() => mover(k, 1)} disabled={k === itens.length - 1} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30" style={{ color: t.ink }}><ArrowDown size={16} /></button>
-              <button aria-label="Tirar da lista" onClick={() => gravar(refs.filter((x) => !(x.tipo === r.tipo && x.id === r.id)))} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ color: "#D0473A" }}><X size={16} /></button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <AmBotao t={t} onClick={() => setProj({ inicio: 0 })} disabled={!itens.length} className="disabled:opacity-40"><Play size={16} /> Projetar agora</AmBotao>
-          <AmBotao t={t} tom="suave" onClick={() => setCtrl(true)}><Phone size={15} /> Controlar outra tela</AmBotao>
-        </div>
-        <p className="text-[11px] mt-3 leading-snug" style={{ color: t.dim }}>Para controlar pelo celular: abra a projeção no computador do projetor (ele mostra um código de 4 números) e, no celular, toque em “Controlar outra tela” e digite o código. Na projeção: teclas → ← avançam e voltam, B apaga a tela, L mostra o logo, F tela cheia.</p>
-      </AmCard>
-      {proj && createPortal(<AmProjecao itens={itens.map((x) => x.it)} inicio={proj.inicio} sala={`${base}-${codigo}`} onFechar={() => setProj(null)} />, document.body)}
-      {ctrl && <AmControleRemoto t={t} onFechar={() => setCtrl(false)} />}
-    </div>
-  );
-}
-
-/* ---------- Vídeos (estilo YouTube) com histórico à direita ---------- */
-function AmVideos({ t, dados, salvar, lider, musico }) {
-  const videos = dados.videos || [];
-  const logado = !!(musico || lider);
-  const [link, setLink] = useState("");
-  const [atual, setAtual] = useState(null); // { id } de um vídeo do histórico, ou { titulo, url, mime, local } temporário
-  const [aviso, setAviso] = useState("");
-  const [prog, setProg] = useState(null);
-  const [edit, setEdit] = useState(null);
-  const [ocupado, setOcupado] = useState(false);
-  const quem = musico ? musico.nome : lider ? "Liderança" : "";
-  const visiveis = [...videos].filter((v) => lider || !v.oculto).sort((a, b) => (b.ultimo || b.em || "").localeCompare(a.ultimo || a.em || ""));
-  const doHistorico = atual && atual.id ? videos.find((v) => v.id === atual.id) : null;
-  const item = doHistorico || (atual && atual.url ? atual : null);
-  const novoRegistro = (extra) => { const agora = new Date().toISOString(); return { id: uid(), titulo: "", url: "", quem, em: agora, ultimo: agora, vezes: 1, historia: "", oculto: false, ...extra }; };
-  const assistir = async () => {
-    setAviso("");
-    const url = amNormalizarUrl(link);
-    const info = amMidiaInfo(url);
-    if (!info.tipo) { setAviso("Cole um link do YouTube, Instagram ou Google Drive."); return; }
-    if (info.tipo === "link") { setAviso("Esse link não toca dentro do app. Use YouTube, Instagram, Google Drive ou um link direto de vídeo (.mp4)."); return; }
-    if (info.tipo === "audio") { setAviso("Esse link é um áudio. Os áudios ficam em cada hino ou louvor."); return; }
-    if (!logado) { setAviso("Entre como músico ou líder para assistir a um link novo e guardá-lo no histórico."); return; }
-    setOcupado(true);
-    const existente = videos.find((v) => v.url === url);
-    if (existente) {
-      salvar({ ...dados, videos: videos.map((v) => (v.id === existente.id ? { ...v, ultimo: new Date().toISOString(), vezes: (v.vezes || 0) + 1 } : v)) });
-      setAtual({ id: existente.id });
-    } else {
-      let titulo = amTituloAuto(info, url);
-      if (info.tipo === "youtube") { const tt = await amBuscarTituloYt(url); if (tt) titulo = tt; }
-      const novo = novoRegistro({ titulo, url, tipo: info.tipo });
-      salvar({ ...dados, videos: [novo, ...videos] });
-      setAtual({ id: novo.id });
-    }
-    setLink(""); setOcupado(false);
-  };
-  const abrirDoHistorico = (v) => {
-    setAtual({ id: v.id }); setEdit(null); setAviso("");
-    if (logado) salvar({ ...dados, videos: videos.map((x) => (x.id === v.id ? { ...x, ultimo: new Date().toISOString(), vezes: (x.vezes || 0) + 1 } : x)) });
-  };
-  const arquivoLocal = async (e) => {
-    const f = e.target.files && e.target.files[0]; e.target.value = "";
-    if (!f) return;
-    if (!amEhVideoArq(f) && !amEhAudioArq(f)) { setAviso("Escolha um arquivo de vídeo (mp4, webm, mov…)."); return; }
-    const mime = f.type || AM_MIME_EXT[amExt(f.name)] || "video/mp4";
-    const blobUrl = URL.createObjectURL(f);
-    setAtual({ titulo: f.name.replace(/\.[^.]+$/, ""), url: blobUrl, mime, local: true }); setEdit(null);
-    if (!lider) { setAviso("Tocando só neste aparelho. Para guardar no histórico de todos, a liderança precisa enviar o arquivo."); return; }
-    try {
-      setAviso(""); setProg(0);
-      const u = await amEnviarMidia(f, amCaminhoNovo("video", f), setProg);
-      const novo = novoRegistro({ titulo: f.name.replace(/\.[^.]+$/, ""), url: u, tipo: "arquivo" });
-      salvar(amAud({ ...dados, videos: [novo, ...videos] }, `Vídeo enviado: ${novo.titulo}`));
-      setAtual({ id: novo.id }); setAviso("Vídeo enviado e guardado no histórico.");
-    } catch (err) { setAviso(String((err && err.message) || err) + " Enquanto isso, o vídeo toca só neste aparelho."); } finally { setProg(null); }
-  };
-  const gravarEdicao = () => {
-    if (!edit.titulo.trim()) return;
-    salvar(amAud({ ...dados, videos: videos.map((v) => (v.id === edit.id ? { ...v, titulo: edit.titulo.trim(), historia: edit.historia } : v)) }, `Vídeo editado: ${edit.titulo.trim()}`));
-    setEdit(null);
-  };
-  const ocultar = (v) => salvar(amAud({ ...dados, videos: videos.map((x) => (x.id === v.id ? { ...x, oculto: !x.oculto } : x)) }, `${v.oculto ? "Vídeo mostrado" : "Vídeo ocultado"}: ${v.titulo}`));
-  const excluir = (v) => { if (!window.confirm(`Excluir "${v.titulo}" do histórico?`)) return; salvar(amAud({ ...dados, videos: videos.filter((x) => x.id !== v.id) }, `Vídeo excluído: ${v.titulo}`)); if (atual && atual.id === v.id) setAtual(null); };
-  const limparTudo = () => { if (!window.confirm("Apagar TODO o histórico de vídeos?")) return; salvar(amAud({ ...dados, videos: [] }, "Histórico de vídeos apagado")); setAtual(null); };
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Video size={22} style={{ color: t.accent }} /> Vídeos</p>
-        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Cole um link do YouTube, Instagram ou Google Drive, ou escolha um vídeo do aparelho. Tudo que é assistido fica no histórico, ao lado.</p>
-      </div>
-      <AmCard t={t}>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1"><AmInput t={t} placeholder="Cole o link do vídeo (YouTube, Instagram, Google Drive…)" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") assistir(); }} /></div>
-          <AmBotao t={t} onClick={assistir} disabled={!link.trim() || ocupado} className="disabled:opacity-40"><Play size={16} /> {ocupado ? "Abrindo…" : "Assistir"}</AmBotao>
-          <label className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}><Plus size={16} /> Vídeo do aparelho<input type="file" accept="video/*,audio/*,.mp4,.webm,.mov,.m4v,.mp3,.m4a" className="hidden" onChange={arquivoLocal} /></label>
-        </div>
-        {prog !== null && <p className="text-xs mt-2" style={{ color: t.accent }}>Enviando o vídeo… {prog}%</p>}
-        {aviso && <p className="text-xs mt-2" style={{ color: t.accent }}>{aviso}</p>}
-      </AmCard>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
-        <div className="space-y-3 min-w-0">
-          {item ? (
-            <>
-              <AmMidiaPlayer key={item.url} item={item} t={t} />
-              <div>
-                <h2 className="font-display text-xl font-bold leading-tight" style={{ color: t.ink }}>{item.titulo}</h2>
-                <p className="text-xs mt-1" style={{ color: t.dim }}>{doHistorico ? [doHistorico.quem ? `Adicionado por ${doHistorico.quem}` : "", amHa(doHistorico.em), `${doHistorico.vezes || 1} visualização(ões)`].filter(Boolean).join(" · ") : "Tocando só neste aparelho"}</p>
-              </div>
-              {doHistorico && (
-                <AmCard t={t}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-display font-bold" style={{ color: t.ink }}>História deste vídeo</p>
-                    {lider && !edit && <AmBotao t={t} tom="suave" onClick={() => setEdit({ id: doHistorico.id, titulo: doHistorico.titulo, historia: doHistorico.historia || "" })}><Pencil size={14} /> Editar</AmBotao>}
-                  </div>
-                  {edit && edit.id === doHistorico.id ? (
-                    <div className="mt-2 space-y-2">
-                      <AmInput t={t} placeholder="Título" value={edit.titulo} onChange={(e) => setEdit({ ...edit, titulo: e.target.value })} />
-                      <textarea rows={6} placeholder="Conte a história do vídeo: de onde veio, quando foi gravado, o que ensina, para que serve…" value={edit.historia} onChange={(e) => setEdit({ ...edit, historia: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
-                      <div className="flex gap-2"><AmBotao t={t} onClick={gravarEdicao}><Save size={15} /> Salvar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setEdit(null)}>Cancelar</AmBotao></div>
-                    </div>
-                  ) : (
-                    <p className="text-sm mt-2 whitespace-pre-line" style={{ color: doHistorico.historia ? t.ink : t.dim }}>{doHistorico.historia || (lider ? "Ainda sem história. Toque em Editar para escrever." : "A liderança ainda não escreveu a história deste vídeo.")}</p>
-                  )}
-                </AmCard>
-              )}
-            </>
-          ) : (
-            <div className="rounded-2xl flex flex-col items-center justify-center text-center px-6 py-16" style={{ background: t.card2, color: t.dim, aspectRatio: "16 / 9" }}>
-              <Video size={34} style={{ color: t.accent }} />
-              <p className="text-sm mt-2">Cole um link acima ou escolha um vídeo do histórico para assistir aqui.</p>
-            </div>
-          )}
-        </div>
-        <aside className="lg:sticky lg:top-20" aria-label="Histórico de vídeos">
-          <AmCard t={t}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><History size={16} style={{ color: t.accent }} /> Histórico ({visiveis.length})</p>
-              {lider && videos.length > 0 && <button onClick={limparTudo} className="text-[11px] underline" style={{ color: "#D0473A" }}>Apagar tudo</button>}
-            </div>
-            {visiveis.length === 0 && <p className="text-sm mt-2" style={{ color: t.dim }}>Nenhum vídeo assistido ainda.</p>}
-            <ul className="mt-2 space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-              {visiveis.map((v) => (
-                <li key={v.id} className="rounded-xl overflow-hidden" style={{ background: v.id === (atual && atual.id) ? t.card2 : "transparent", border: `1px solid ${v.id === (atual && atual.id) ? t.accent : t.line}`, opacity: v.oculto ? 0.6 : 1 }}>
-                  <button onClick={() => abrirDoHistorico(v)} className="w-full text-left flex gap-2.5 p-2 min-h-[64px]" aria-label={`Assistir ${v.titulo}`}>
-                    <AmMiniatura url={v.url} t={t} tam={46} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold line-clamp-2" style={{ color: t.ink }}>{v.titulo}</span>
-                      <span className="block text-[11px] mt-0.5" style={{ color: t.dim }}>{[v.quem, amHa(v.ultimo || v.em)].filter(Boolean).join(" · ")}{v.oculto ? " · oculto" : ""}</span>
-                    </span>
-                  </button>
-                  {lider && (
-                    <div className="flex items-center justify-end gap-1 px-2 pb-2">
-                      <button aria-label="Editar" title="Editar título e história" onClick={() => { setAtual({ id: v.id }); setEdit({ id: v.id, titulo: v.titulo, historia: v.historia || "" }); }} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={14} /></button>
-                      <button aria-label={v.oculto ? "Mostrar" : "Ocultar"} title={v.oculto ? "Mostrar para todos" : "Ocultar dos músicos"} onClick={() => ocultar(v)} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: t.card2, color: t.ink }}>{v.oculto ? <Eye size={14} /> : <EyeOff size={14} />}</button>
-                      <button aria-label="Excluir" title="Excluir do histórico" onClick={() => excluir(v)} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={14} /></button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </AmCard>
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Cursos e vídeo-aulas ---------- */
-const AM_CURSO_CORES = [["#4B1D72", "#7B3FB0"], ["#0F5C6E", "#2B8FA5"], ["#8A4B0F", "#C9822B"], ["#1F5E3B", "#3E9462"], ["#7A1F3D", "#B5446A"], ["#2B3A8C", "#5468D4"]];
-function AmCursos({ t, dados, salvar, lider, musico, userKey }) {
-  const cursos = dados.cursos || [];
-  const base = AM_UNIDADE_ID || "principal";
-  const chaveProg = `am-curso-prog-${base}-${userKey || "visitante"}`;
-  const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(chaveProg) || "{}") || {}; } catch (e) { return {}; } });
-  const [cid, setCid] = useState(null);
-  const [aid, setAid] = useState(null);
-  const [formC, setFormC] = useState(null); // { id?, titulo, descricao }
-  const [formA, setFormA] = useState(null); // { id?, titulo, url, descricao }
-  const [aviso, setAviso] = useState("");
-  const [env, setEnv] = useState(null);
-  const marcar = (id, v) => { const n = { ...prog, [id]: v }; if (!v) delete n[id]; setProg(n); try { localStorage.setItem(chaveProg, JSON.stringify(n)); } catch (e) { /* sem storage */ } };
-  const visiveis = cursos.filter((c) => lider || c.publicado !== false);
-  const curso = cid ? cursos.find((c) => c.id === cid) : null;
-  const aulas = curso ? curso.aulas || [] : [];
-  const aula = aulas.find((a) => a.id === aid) || aulas[0] || null;
-  const salvarCursos = (lista, acao) => salvar(amAud({ ...dados, cursos: lista }, acao));
-  const gravarCurso = () => {
-    if (!formC.titulo.trim()) return;
-    if (formC.id) salvarCursos(cursos.map((c) => (c.id === formC.id ? { ...c, titulo: formC.titulo.trim(), descricao: formC.descricao } : c)), `Curso alterado: ${formC.titulo.trim()}`);
-    else { const n = { id: uid(), titulo: formC.titulo.trim(), descricao: formC.descricao || "", publicado: true, aulas: [], criadoEm: new Date().toISOString() }; salvarCursos([...cursos, n], `Curso criado: ${n.titulo}`); setCid(n.id); }
-    setFormC(null);
-  };
-  const mudarCurso = (patch, acao) => salvarCursos(cursos.map((c) => (c.id === curso.id ? { ...c, ...patch } : c)), acao);
-  const excluirCurso = (c) => { if (!window.confirm(`Excluir o curso "${c.titulo}" e todas as aulas?`)) return; salvarCursos(cursos.filter((x) => x.id !== c.id), `Curso excluído: ${c.titulo}`); setCid(null); };
-  const gravarAula = () => {
-    if (!formA.titulo.trim()) { setAviso("Dê um título para a aula."); return; }
-    const info = amMidiaInfo(formA.url);
-    if (formA.url.trim() && (!info.tipo || info.tipo === "link")) { setAviso("Não reconheci o link. Use YouTube, Instagram, Google Drive ou um link direto de vídeo/áudio."); return; }
-    const reg = { titulo: formA.titulo.trim(), url: amNormalizarUrl(formA.url), descricao: formA.descricao || "" };
-    if (formA.id) mudarCurso({ aulas: aulas.map((a) => (a.id === formA.id ? { ...a, ...reg } : a)) }, `Aula alterada: ${reg.titulo}`);
-    else { const n = { id: uid(), ...reg }; mudarCurso({ aulas: [...aulas, n] }, `Aula criada: ${reg.titulo}`); setAid(n.id); }
-    setFormA(null); setAviso("");
-  };
-  const arquivoAula = async (e) => {
-    const f = e.target.files && e.target.files[0]; e.target.value = "";
-    if (!f) return;
-    if (!amEhVideoArq(f) && !amEhAudioArq(f)) { setAviso("Escolha um arquivo de vídeo ou áudio."); return; }
-    try { setAviso(""); setEnv(0); const u = await amEnviarMidia(f, amCaminhoNovo("cursos", f), setEnv); setFormA((x) => ({ ...x, url: u, titulo: x.titulo || f.name.replace(/\.[^.]+$/, "") })); setAviso("Arquivo enviado. Toque em Salvar aula."); }
-    catch (err) { setAviso(String((err && err.message) || err)); } finally { setEnv(null); }
-  };
-  const moverAula = (k, d) => { const n = [...aulas]; const j = k + d; if (j < 0 || j >= n.length) return; [n[k], n[j]] = [n[j], n[k]]; mudarCurso({ aulas: n }, `Aulas reordenadas: ${curso.titulo}`); };
-  const excluirAula = (a) => { if (!window.confirm(`Excluir a aula "${a.titulo}"?`)) return; mudarCurso({ aulas: aulas.filter((x) => x.id !== a.id) }, `Aula excluída: ${a.titulo}`); };
-  const feitas = (c) => (c.aulas || []).filter((a) => prog[a.id]).length;
-
-  if (!curso) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-display text-xl font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><GraduationCap size={22} style={{ color: t.accent }} /> Cursos e aulas</p>
-            <p className="text-xs mt-0.5" style={{ color: t.dim }}>Vídeo-aulas e cursos do ministério de louvor. Toque num curso para assistir.</p>
-          </div>
-          {lider && <AmBotao t={t} onClick={() => setFormC({ titulo: "", descricao: "" })}><Plus size={16} /> Novo curso</AmBotao>}
-        </div>
-        {formC && (
-          <AmCard t={t}>
-            <p className="font-display font-bold" style={{ color: t.ink }}>{formC.id ? "Editar curso" : "Novo curso"}</p>
-            <div className="mt-2 space-y-2">
-              <AmInput t={t} placeholder="Nome do curso (ex.: Teoria musical para o louvor)" value={formC.titulo} onChange={(e) => setFormC({ ...formC, titulo: e.target.value })} />
-              <textarea rows={3} placeholder="Sobre o curso" value={formC.descricao} onChange={(e) => setFormC({ ...formC, descricao: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
-              <div className="flex gap-2"><AmBotao t={t} onClick={gravarCurso}><Save size={15} /> Salvar curso</AmBotao><AmBotao t={t} tom="suave" onClick={() => setFormC(null)}>Cancelar</AmBotao></div>
-            </div>
-          </AmCard>
-        )}
-        {visiveis.length === 0 && <AmVazio t={t}>{lider ? "Nenhum curso ainda. Toque em Novo curso e depois adicione as aulas." : "Os cursos ainda não foram publicados."}</AmVazio>}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visiveis.map((c, k) => {
-            const [c1, c2] = AM_CURSO_CORES[k % AM_CURSO_CORES.length];
-            const n = (c.aulas || []).length; const f = feitas(c);
-            return (
-              <button key={c.id} onClick={() => { setCid(c.id); setAid(null); setAviso(""); }} className="text-left rounded-2xl overflow-hidden shadow-sm focus:outline-none focus:ring-2" style={{ background: t.card, border: `1px solid ${t.line}`, opacity: c.publicado === false ? 0.7 : 1 }}>
-                <div className="h-24 flex items-end p-3" style={{ background: `linear-gradient(135deg,${c1},${c2})` }}><GraduationCap size={30} color="#fff" /></div>
-                <div className="p-3">
-                  <p className="font-display font-bold leading-tight" style={{ color: t.ink }}>{c.titulo}{c.publicado === false ? " (rascunho)" : ""}</p>
-                  {c.descricao && <p className="text-xs mt-1 line-clamp-2" style={{ color: t.dim }}>{c.descricao}</p>}
-                  <p className="text-[11px] mt-2 font-semibold" style={{ color: t.accent }}>{n} aula{n === 1 ? "" : "s"}{n ? ` · ${Math.round((f / n) * 100)}% concluído` : ""}</p>
-                  {n > 0 && <div className="h-1.5 rounded-full mt-1.5 overflow-hidden" style={{ background: t.card2 }}><div className="h-full" style={{ width: `${(f / n) * 100}%`, background: t.accent }} /></div>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-  const idxAtual = aula ? aulas.findIndex((a) => a.id === aula.id) : -1;
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button onClick={() => { setCid(null); setFormA(null); setFormC(null); }} className="min-h-[44px] px-3 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: t.card2, color: t.ink }}><ArrowLeft size={16} /> Cursos</button>
-        {lider && (
-          <div className="flex flex-wrap gap-2">
-            <AmBotao t={t} tom="suave" onClick={() => setFormC({ id: curso.id, titulo: curso.titulo, descricao: curso.descricao || "" })}><Pencil size={14} /> Editar curso</AmBotao>
-            <AmBotao t={t} tom="suave" onClick={() => mudarCurso({ publicado: curso.publicado === false }, `${curso.publicado === false ? "Curso publicado" : "Curso ocultado"}: ${curso.titulo}`)}>{curso.publicado === false ? <><Eye size={14} /> Publicar</> : <><EyeOff size={14} /> Ocultar</>}</AmBotao>
-            <AmBotao t={t} tom="perigo" onClick={() => excluirCurso(curso)}><Trash2 size={14} /> Excluir</AmBotao>
-          </div>
-        )}
-      </div>
-      <div>
-        <h2 className="font-display text-2xl font-bold leading-tight" style={{ color: t.ink }}>{curso.titulo}</h2>
-        {curso.descricao && <p className="text-sm mt-1" style={{ color: t.dim }}>{curso.descricao}</p>}
-      </div>
-      {formC && formC.id === curso.id && (
-        <AmCard t={t}>
-          <div className="space-y-2">
-            <AmInput t={t} placeholder="Nome do curso" value={formC.titulo} onChange={(e) => setFormC({ ...formC, titulo: e.target.value })} />
-            <textarea rows={3} placeholder="Sobre o curso" value={formC.descricao} onChange={(e) => setFormC({ ...formC, descricao: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
-            <div className="flex gap-2"><AmBotao t={t} onClick={gravarCurso}><Save size={15} /> Salvar</AmBotao><AmBotao t={t} tom="suave" onClick={() => setFormC(null)}>Cancelar</AmBotao></div>
-          </div>
-        </AmCard>
-      )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
-        <div className="space-y-3 min-w-0">
-          {aula && aula.url ? <AmMidiaPlayer key={aula.id + aula.url} item={{ url: aula.url, titulo: aula.titulo }} t={t} aoTerminar={() => marcar(aula.id, true)} /> : (
-            <div className="rounded-2xl flex flex-col items-center justify-center text-center px-6 py-16" style={{ background: t.card2, color: t.dim, aspectRatio: "16 / 9" }}>
-              <GraduationCap size={34} style={{ color: t.accent }} />
-              <p className="text-sm mt-2">{aulas.length ? "Esta aula ainda não tem vídeo." : lider ? "Este curso ainda não tem aulas. Adicione a primeira ao lado." : "Este curso ainda não tem aulas."}</p>
-            </div>
-          )}
-          {aula && (
-            <AmCard t={t}>
-              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.accent }}>Aula {idxAtual + 1} de {aulas.length}</p>
-              <p className="font-display text-lg font-bold mt-0.5" style={{ color: t.ink }}>{aula.titulo}</p>
-              {aula.descricao && <p className="text-sm mt-1 whitespace-pre-line" style={{ color: t.dim }}>{aula.descricao}</p>}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <AmBotao t={t} tom={prog[aula.id] ? "suave" : "cheio"} onClick={() => marcar(aula.id, !prog[aula.id])}><CheckCircle2 size={16} /> {prog[aula.id] ? "Concluída (desmarcar)" : "Marcar como concluída"}</AmBotao>
-                {idxAtual > 0 && <AmBotao t={t} tom="suave" onClick={() => setAid(aulas[idxAtual - 1].id)}><ChevronLeft size={16} /> Anterior</AmBotao>}
-                {idxAtual >= 0 && idxAtual < aulas.length - 1 && <AmBotao t={t} tom="suave" onClick={() => { marcar(aula.id, true); setAid(aulas[idxAtual + 1].id); }}>Próxima aula <ChevronRight size={16} /></AmBotao>}
-              </div>
-            </AmCard>
-          )}
-        </div>
-        <aside className="lg:sticky lg:top-20 space-y-3" aria-label="Aulas do curso">
-          <AmCard t={t}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-display font-bold" style={{ color: t.ink }}>Aulas ({aulas.length})</p>
-              {lider && <AmBotao t={t} tom="suave" onClick={() => { setFormA({ titulo: "", url: "", descricao: "" }); setAviso(""); }}><Plus size={14} /> Aula</AmBotao>}
-            </div>
-            <ol className="mt-2 space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
-              {aulas.map((a, k) => (
-                <li key={a.id} className="rounded-xl" style={{ background: aula && a.id === aula.id ? t.card2 : "transparent", border: `1px solid ${aula && a.id === aula.id ? t.accent : t.line}` }}>
-                  <button onClick={() => setAid(a.id)} className="w-full text-left flex items-center gap-2.5 p-2 min-h-[52px]">
-                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: prog[a.id] ? "#2E9E5B" : t.card2, color: prog[a.id] ? "#fff" : t.accent }}>{prog[a.id] ? "✓" : k + 1}</span>
-                    <span className="text-sm font-semibold line-clamp-2" style={{ color: t.ink }}>{a.titulo}</span>
-                  </button>
-                  {lider && (
-                    <div className="flex items-center justify-end gap-1 px-2 pb-2">
-                      <button aria-label="Subir aula" onClick={() => moverAula(k, -1)} disabled={k === 0} className="w-9 h-9 rounded-lg flex items-center justify-center disabled:opacity-30" style={{ background: t.card2, color: t.ink }}><ArrowUp size={14} /></button>
-                      <button aria-label="Descer aula" onClick={() => moverAula(k, 1)} disabled={k === aulas.length - 1} className="w-9 h-9 rounded-lg flex items-center justify-center disabled:opacity-30" style={{ background: t.card2, color: t.ink }}><ArrowDown size={14} /></button>
-                      <button aria-label="Editar aula" onClick={() => { setFormA({ id: a.id, titulo: a.titulo, url: a.url || "", descricao: a.descricao || "" }); setAviso(""); }} className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={14} /></button>
-                      <button aria-label="Excluir aula" onClick={() => excluirAula(a)} className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={14} /></button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </AmCard>
-          {lider && formA && (
-            <AmCard t={t}>
-              <p className="font-display font-bold" style={{ color: t.ink }}>{formA.id ? "Editar aula" : "Nova aula"}</p>
-              <div className="mt-2 space-y-2">
-                <AmInput t={t} placeholder="Título da aula" value={formA.titulo} onChange={(e) => setFormA({ ...formA, titulo: e.target.value })} />
-                <AmInput t={t} placeholder="Link do vídeo (YouTube, Instagram, Drive…)" value={formA.url} onChange={(e) => setFormA({ ...formA, url: e.target.value })} />
-                <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>…ou enviar arquivo do aparelho<input type="file" accept="video/*,audio/*,.mp4,.webm,.mov,.m4v,.mp3,.m4a" className="hidden" onChange={arquivoAula} /></label>
-                {env !== null && <p className="text-xs" style={{ color: t.accent }}>Enviando… {env}%</p>}
-                <textarea rows={3} placeholder="Descrição / o que se aprende nesta aula" value={formA.descricao} onChange={(e) => setFormA({ ...formA, descricao: e.target.value })} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
-                {aviso && <p className="text-xs" style={{ color: t.accent }}>{aviso}</p>}
-                <div className="flex gap-2"><AmBotao t={t} onClick={gravarAula}><Save size={15} /> Salvar aula</AmBotao><AmBotao t={t} tom="suave" onClick={() => { setFormA(null); setAviso(""); }}>Cancelar</AmBotao></div>
-              </div>
-            </AmCard>
-          )}
-        </aside>
-      </div>
     </div>
   );
 }
@@ -14104,9 +13087,6 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     { k: "agenda", r: "Agenda e escalas", rc: "Agenda", i: Calendar },
     { k: "repertorio", r: "Louvores", i: ListMusic },
     { k: "harpa", r: "Harpa Cristã", rc: "Harpa", i: AmHarpaIcon },
-    { k: "projecao", r: "Projeção", i: Tv },
-    { k: "videos", r: "Vídeos", i: Video },
-    { k: "cursos", r: "Cursos e aulas", rc: "Cursos", i: GraduationCap },
     { k: "membros", r: "Membros", i: Users },
     { k: "ensaios", r: "Ensaios", i: Clock },
     ...(lider ? [{ k: "equipamentos", r: "Equipamentos", i: Package }] : []),
@@ -14171,16 +13151,13 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           <p className="text-[11px] px-3 mt-auto pt-4" style={{ color: t.dim }}>{lider ? "Você pode inserir, editar e remover." : "Você está vendo em modo leitura. Só a liderança autorizada altera."}</p>
         </aside>
 
-        <main className={`flex-1 min-w-0 px-4 sm:px-6 pt-6 pb-28 lg:pb-12 mx-auto ${["harpa", "repertorio", "videos", "cursos", "projecao"].includes(tela) ? "max-w-7xl" : "max-w-5xl"}`}>
+        <main className="flex-1 min-w-0 px-4 sm:px-6 pt-6 pb-28 lg:pb-12 mx-auto max-w-5xl">
           {tela === "entrar" && (musico || lider ? <AmVazio t={t}>Você já está identificado.</AmVazio> : <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} carregarFresco={carregarFresco} />)}
           {tela === "inicio" && <AmInicio t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} abrirCulto={abrirCulto} plId={plId} setPlId={setPlId} />}
           {tela === "agenda" && (lider ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
           {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
           {tela === "harpa" && <AmHarpa t={t} lider={lider} musico={musico} hinos={hinos || []} saveHinos={saveHinos} dados={dados} salvar={saveMusicApp} userKey={userKey} escuro={escuro} />}
           {tela === "separador" && <AmSeparador t={t} />}
-          {tela === "projecao" && <AmProjetorTela t={t} dados={dados} hinos={hinos || []} lider={lider} musico={musico} userKey={userKey} irPara={irPara} />}
-          {tela === "videos" && <AmVideos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
-          {tela === "cursos" && <AmCursos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} userKey={userKey} />}
           {tela === "membros" && <AmMembros t={t} musicos={musicos} saveMusicos={saveMusicos} dados={dados} salvar={saveMusicApp} lider={lider} acao={acao} limparAcao={limparAcao} />}
           {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
           {tela === "equipamentos" && lider && <AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} />}
