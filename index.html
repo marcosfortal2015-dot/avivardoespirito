@@ -37,16 +37,37 @@
         "description": "Ministério Avivar do Espírito — uma igreja cristã interdenominacional com forte viés pentecostal."
       }
     </script>
-    <!-- Avivar Music como aplicativo próprio: só age quando o link tem ?app=music -->
+    <!-- Louvor Avivar do Espírito como aplicativo próprio: só age quando o link tem ?app=music (e ?u=<unidade> para outras igrejas) -->
     <script>
       (function () {
         try {
-          if (new URLSearchParams(location.search).get("app") !== "music") return;
+          var q = new URLSearchParams(location.search);
+          if (q.get("app") !== "music") return;
+          var u = q.get("u");
+          if (u === null) { try { u = localStorage.getItem("am-unidade") || ""; } catch (e) { u = ""; } }
+          if (u === "principal") u = "";
           var l = document.createElement("link");
           l.rel = "manifest";
-          l.href = "/manifest-music.json";
+          if (u) {
+            // cada unidade (igreja) instala o seu próprio ícone, que reabre direto na unidade certa
+            var o = location.origin;
+            var m = {
+              id: "/?app=music&u=" + u, name: "Louvor Avivar do Espírito", short_name: "Louvor Avivar",
+              description: "Escalas, repertório e cifras do ministério de louvor.", lang: "pt-BR",
+              start_url: "/?app=music&u=" + encodeURIComponent(u), scope: "/", display: "standalone",
+              orientation: "portrait-primary", background_color: "#351052", theme_color: "#351052",
+              icons: [
+                { src: o + "/avivar-music-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+                { src: o + "/avivar-music-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+                { src: o + "/avivar-music-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+              ]
+            };
+            l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(m));
+          } else {
+            l.href = "/manifest-music.json";
+          }
           document.head.appendChild(l);
-          document.title = "Avivar Music";
+          document.title = "Louvor Avivar do Espírito";
           var tc = document.querySelector('meta[name="theme-color"]');
           if (tc) tc.setAttribute("content", "#351052");
           var ai = document.querySelector('link[rel="apple-touch-icon"]');

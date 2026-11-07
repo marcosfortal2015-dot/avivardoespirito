@@ -1,4 +1,4 @@
-// Service worker do Avivar Music (só é registrado quando o site abre com ?app=music).
+// Service worker do Louvor Avivar do Espírito (só é registrado quando o site abre com ?app=music).
 // Rede primeiro; sem internet, entrega o que já foi aberto antes. Não mexe em /api nem em outros domínios.
 const CACHE = "avivar-music-v1";
 

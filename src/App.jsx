@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import {
   Flame, Menu, X, ChevronLeft, ChevronRight, Lock, Unlock, Plus, Trash2,
@@ -103,6 +103,24 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 // Modo "app só do Avivar Music": o link avivardoespirito.com.br/?app=music (e o ícone instalado no celular)
 // abre direto no Avivar Music, sem passar pelo site.
 const MODO_APP_MUSIC = (() => { try { return new URLSearchParams(window.location.search).get("app") === "music"; } catch (e) { return false; } })();
+// Nome oficial do aplicativo dos músicos e unidade (igreja/grupo) aberta. Cada unidade é independente:
+// tem o próprio registro de dados e a própria liderança. Sem "u" no link = Ministério Avivar do Espírito.
+const AM_NOME_APP = "Louvor Avivar do Espírito";
+const AM_UNIDADE_ID = (() => {
+  try {
+    if (!MODO_APP_MUSIC) return "";
+    const p = new URLSearchParams(window.location.search).get("u");
+    if (p !== null) {
+      const v = p === "principal" ? "" : p.trim();
+      try { if (v) localStorage.setItem("am-unidade", v); else localStorage.removeItem("am-unidade"); } catch (e) { /* sem storage */ }
+      return v;
+    }
+    try { return localStorage.getItem("am-unidade") || ""; } catch (e) { return ""; }
+  } catch (e) { return ""; }
+})();
+const amLinkApp = (u) => { let o = ""; try { o = window.location.origin; } catch (e) { /* ok */ } return `${o}/?app=music${u ? "&u=" + encodeURIComponent(u) : ""}`; };
+const AmCtx = createContext({ unidade: null, sub: "Ministério Avivar do Espírito", linkApp: "" });
+const AM_VAZIO = [];
 // Compara nomes ignorando acento e maiúscula/minúscula — usado pra achar o
 // Pastor Marcos e a Pastora Wládia entre os colaboradores sem depender de
 // como o nome foi digitado.
@@ -704,7 +722,7 @@ const SUBMENU = [
   { key: "biblioteca", label: "Biblioteca", icon: Library },
   { key: "oracoes", label: "Oração nos Lares", icon: MapPin },
   { key: "membros", label: "Membros", icon: UserPlus },
-  { key: "avivarmusic", label: "Avivar Music", icon: Music },
+  { key: "avivarmusic", label: "Louvor Avivar do Espírito", icon: Music },
   { key: "visitantes", label: "Visitantes", icon: HandHeart },
 ];
 const ADMIN_MENU = [
@@ -1107,7 +1125,7 @@ function RestrictedNotice({ onUnlock, compact = false }) {
 const SETORES_OPERADOR = [
   { key: "todos", label: "Todos os setores" },
   { key: "oracoes", label: "Oração nos Lares" },
-  { key: "avivarmusic", label: "Avivar Music (liderança do louvor)" },
+  { key: "avivarmusic", label: "Louvor Avivar do Espírito (liderança do louvor)" },
   { key: "visitantes", label: "Visitantes" },
   { key: "membros", label: "Membros" },
   { key: "escala", label: "Escala de Obreiros" },
@@ -1232,7 +1250,7 @@ function OperadoresAdmin({ codes, save, adminMode }) {
       <Eyebrow>Área administrativa</Eyebrow>
       <SectionTitle>Pessoas autorizadas</SectionTitle>
       <p className="text-sm mb-4" style={{ color: C.stone }}>
-        Cada código dá acesso apenas às funções marcadas no cadastro (ex: só Oração nos Lares, ou só Avivar Music), com poderes completos dentro delas, sem liberar o resto da administração (Caixa, Bens, edição do site). Deixe "funções" em branco pra liberar tudo. Entregue um código diferente pra cada pessoa. Esta tabela só aparece para o admin.
+        Cada código dá acesso apenas às funções marcadas no cadastro (ex: só Oração nos Lares, ou só Louvor Avivar do Espírito), com poderes completos dentro delas, sem liberar o resto da administração (Caixa, Bens, edição do site). Deixe "funções" em branco pra liberar tudo. Entregue um código diferente pra cada pessoa. Esta tabela só aparece para o admin.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -9391,7 +9409,7 @@ function AvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns,
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Sparkles size={12} className="inline mr-1" />Grupo de louvor</Eyebrow>
-      <SectionTitle>Avivar Music</SectionTitle>
+      <SectionTitle>Louvor Avivar do Espírito</SectionTitle>
 
       <div className="flex gap-2 mt-6 mb-6">
         {(abas || ["musicos", "albuns", "repertorio"]).map((t) => (
@@ -9634,6 +9652,21 @@ const amNotif = (dados, para, tipo, texto) => ({ ...dados, notificacoes: [{ id: 
 const amNotifVarios = (dados, lista, tipo, texto) => lista.reduce((acc, para) => amNotif(acc, para, tipo, texto), dados);
 const amAud = (dados, acao) => ({ ...dados, auditoria: [{ id: uid(), em: new Date().toISOString(), quem: "Liderança", acao }, ...(dados.auditoria || [])].slice(0, 300) });
 
+// Senha gerada pelo app (8 caracteres sem letras parecidas) — enviada ao músico pelo WhatsApp.
+const AM_SENHA_ALFA = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const amGerarSenha = () => {
+  const a = new Uint8Array(8);
+  try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < 8; i++) a[i] = Math.floor(Math.random() * 256); }
+  let r = ""; for (let i = 0; i < 8; i++) r += AM_SENHA_ALFA[a[i] % AM_SENHA_ALFA.length];
+  return r;
+};
+const amNumeroWhats = (v) => { let d = String(v || "").replace(/\D/g, ""); if (d.length === 10 || d.length === 11) d = "55" + d; return d; };
+const amLinkWhats = (numero, texto) => `https://wa.me/${amNumeroWhats(numero)}?text=${encodeURIComponent(texto)}`;
+const AM_INSTRUMENTOS = ["Voz / vocal", "Violão", "Guitarra", "Baixo", "Teclado", "Bateria", "Percussão", "Sopro / metais", "Cordas", "Outro"];
+const amPrimeiroNome = (n) => String(n || "").trim().split(/\s+/)[0] || "irmão(ã)";
+const amMsgAcesso = (nome, codigo, senha, link, unidadeNome) =>
+  `Paz do Senhor, ${amPrimeiroNome(nome)}! Seu cadastro no ${AM_NOME_APP}${unidadeNome ? " (" + unidadeNome + ")" : ""} foi autorizado.\n\nAbra: ${link}\nSeu código: ${codigo}\nSua senha: ${senha}\n\nToque em "Entrar > Já tenho senha" e digite o código e a senha. Depois você pode trocar a senha em "Minha área". Para instalar no celular: menu do navegador > Instalar app.`;
+
 // Equipe: monta os acessos a partir dos músicos do Grupo, sem duplicar nome e sem os ignorados.
 const amNomeIgnorado = (nome) => semAcento(nome).split(/\s+/).some((p) => AM_IGNORAR_EQUIPE.includes(p));
 function amImportarEquipe(dados, musicosGrupo) {
@@ -9683,8 +9716,96 @@ function AmVazio({ t, children }) {
   return <AmCard t={t}><p className="text-sm text-center py-3" style={{ color: t.dim }}>{children}</p></AmCard>;
 }
 
-function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
-  const [modo, setModo] = useState("entrar"); // entrar | primeiro | lider
+function AmCadastro({ t, dados, salvar, onEntrar, carregarFresco }) {
+  const [f, setF] = useState({ nome: "", endereco: "", whatsapp: "", email: "", igreja: "", obs: "", codigo: "" });
+  const [instr, setInstr] = useState([]);
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [feito, setFeito] = useState(null);
+  const [copiada, setCopiada] = useState(false);
+  const campo = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const alternar = (x) => setInstr((l) => (l.includes(x) ? l.filter((y) => y !== x) : [...l, x]));
+  const enviar = async () => {
+    setErro("");
+    const nome = f.nome.trim();
+    if (nome.length < 3) { setErro("Informe seu nome completo."); return; }
+    if (f.endereco.trim().length < 5) { setErro("Informe seu endereço (rua, bairro e cidade)."); return; }
+    if (f.whatsapp.replace(/\D/g, "").length < 10) { setErro("Informe seu WhatsApp com DDD."); return; }
+    if (instr.length === 0) { setErro("Marque pelo menos um instrumento (ou voz)."); return; }
+    setOcupado(true);
+    try {
+      const fresco = (await carregarFresco()) || dados;
+      const base = { ...DEFAULT_MUSICAPP, ...fresco };
+      const codigo = f.codigo.trim().toUpperCase();
+      if (codigo) {
+        const a = (base.acessos || []).find((x) => x.ativo !== false && String(x.codigo).toUpperCase() === codigo);
+        if (!a) { setErro("Código de autorização não encontrado ou desativado. Confira com a liderança."); return; }
+        if (a.senhaHash) { setErro("Este código já foi usado. Toque em \"Já tenho senha\"."); return; }
+        const senha = amGerarSenha();
+        const senhaHash = await amHashSenha(a.codigo, senha);
+        const novo = { ...a, senhaHash, whatsapp: f.whatsapp.trim(), endereco: f.endereco.trim(), email: a.email || f.email.trim(), igreja: f.igreja.trim(), instrumentos: instr, instrumento: a.instrumento || instr.join(", "), obs: f.obs.trim(), cadastroEm: new Date().toISOString() };
+        salvar(amAud(amNotif({ ...base, acessos: base.acessos.map((x) => (x.id === a.id ? novo : x)) }, "lider", "cadastro", `${novo.nome} concluiu o cadastro com o código ${novo.codigo}.`), `Cadastro concluído com código: ${novo.nome}`));
+        setFeito({ tipo: "pronto", id: a.id, senha, codigo: a.codigo });
+        return;
+      }
+      const zap = amNumeroWhats(f.whatsapp);
+      if ((base.solicitacoes || []).some((s) => s.status === "pendente" && amNumeroWhats(s.whatsapp) === zap)) { setErro("Já existe um cadastro pendente com este WhatsApp. Aguarde a autorização da liderança."); return; }
+      if ((base.acessos || []).some((a) => a.whatsapp && amNumeroWhats(a.whatsapp) === zap)) { setErro("Este WhatsApp já tem acesso. Toque em \"Já tenho senha\" (ou peça nova senha à liderança)."); return; }
+      const sol = { id: uid(), nome, endereco: f.endereco.trim(), whatsapp: f.whatsapp.trim(), email: f.email.trim(), igreja: f.igreja.trim(), instrumentos: instr, obs: f.obs.trim(), status: "pendente", criadoEm: new Date().toISOString() };
+      salvar(amNotif({ ...base, solicitacoes: [...(base.solicitacoes || []), sol] }, "lider", "cadastro", `Novo cadastro aguardando autorização: ${nome}.`));
+      setFeito({ tipo: "pendente" });
+    } finally { setOcupado(false); }
+  };
+  if (feito && feito.tipo === "pendente") {
+    return (
+      <div className="mt-4 text-center py-3">
+        <CheckCircle2 size={34} style={{ color: "#2E7D4F" }} className="mx-auto" />
+        <p className="font-display font-bold text-lg mt-2" style={{ color: t.ink }}>Cadastro enviado!</p>
+        <p className="text-sm mt-1" style={{ color: t.dim }}>Ele ficou <b>pendente</b>. Quando a liderança autorizar, você recebe o código e a senha pelo WhatsApp que informou.</p>
+      </div>
+    );
+  }
+  if (feito && feito.tipo === "pronto") {
+    return (
+      <div className="mt-4 text-center py-2">
+        <CheckCircle2 size={34} style={{ color: "#2E7D4F" }} className="mx-auto" />
+        <p className="font-display font-bold text-lg mt-2" style={{ color: t.ink }}>Cadastro concluído!</p>
+        <p className="text-xs mt-1" style={{ color: t.dim }}>Esta é a sua senha. Anote agora: ela não aparece de novo (você pode trocá-la depois em “Minha área”).</p>
+        <p className="font-mono text-2xl font-bold mt-3 select-all" style={{ color: t.accent }}>{feito.senha}</p>
+        <p className="text-xs" style={{ color: t.dim }}>Código: {feito.codigo}</p>
+        <div className="flex flex-col gap-2 mt-4">
+          <AmBotao t={t} tom="suave" onClick={() => { try { navigator.clipboard.writeText(feito.senha); } catch (e) { /* sem área de transferência */ } setCopiada(true); }}><Copy size={15} /> {copiada ? "Senha copiada!" : "Copiar senha"}</AmBotao>
+          <AmBotao t={t} onClick={() => onEntrar(feito.id)}><Unlock size={16} /> Entrar agora</AmBotao>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
+      <p className="text-xs" style={{ color: t.dim }}>Preencha seus dados. Sem código, o cadastro fica <b>pendente</b> até a liderança autorizar. Com o código de autorização, a senha é gerada na hora.</p>
+      <AmInput t={t} placeholder="Nome completo *" value={f.nome} onChange={campo("nome")} autoComplete="name" />
+      <AmInput t={t} placeholder="Endereço (rua, bairro e cidade) *" value={f.endereco} onChange={campo("endereco")} autoComplete="street-address" />
+      <AmInput t={t} type="tel" inputMode="tel" placeholder="WhatsApp com DDD *" value={f.whatsapp} onChange={campo("whatsapp")} autoComplete="tel" />
+      <AmInput t={t} type="email" placeholder="E-mail (opcional)" value={f.email} onChange={campo("email")} autoComplete="email" />
+      <div>
+        <p className="text-xs font-semibold mb-1.5" style={{ color: t.ink }}>Instrumentos que toca / louva *</p>
+        <div className="flex flex-wrap gap-1.5">
+          {AM_INSTRUMENTOS.map((x) => (
+            <button key={x} type="button" onClick={() => alternar(x)} aria-pressed={instr.includes(x)} className="min-h-[40px] px-3 rounded-full text-xs font-semibold" style={{ background: instr.includes(x) ? t.accent : t.card2, color: instr.includes(x) ? t.onAccent : t.ink }}>{x}</button>
+          ))}
+        </div>
+      </div>
+      <AmInput t={t} placeholder="Igreja onde congrega (opcional)" value={f.igreja} onChange={campo("igreja")} />
+      <AmInput t={t} placeholder="Observações (opcional)" value={f.obs} onChange={campo("obs")} />
+      <AmInput t={t} placeholder="Código de autorização (se já recebeu um)" value={f.codigo} onChange={campo("codigo")} autoCapitalize="characters" />
+      {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+      <AmBotao t={t} type="submit" className="w-full" disabled={ocupado}><UserPlus size={16} /> {ocupado ? "Enviando..." : f.codigo.trim() ? "Concluir cadastro e gerar minha senha" : "Enviar cadastro para autorização"}</AmBotao>
+    </form>
+  );
+}
+
+function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider, carregarFresco }) {
+  const [modo, setModo] = useState("entrar"); // entrar | primeiro | cadastro | lider
   const [ident, setIdent] = useState("");
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
@@ -9697,8 +9818,8 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
     setErro("");
     if (modo === "lider") {
       const r = tentarCodigoLider(ident.trim());
-      if (r === "semsetor") setErro("Seu código está ativo, mas sem o setor Avivar Music liberado. Peça ao administrador para incluir \"avivarmusic\" no seu código de operador.");
-      else if (!r) setErro("Código de liderança inválido. Use o código de operador que o administrador te passou — ou, se você é músico líder, entre em \"Já tenho senha\" com o seu código AM-.");
+      if (r === "semsetor") setErro("Seu código está ativo, mas sem o setor Louvor Avivar do Espírito liberado. Peça ao administrador para incluir \"avivarmusic\" no seu código de operador.");
+      else if (!r) setErro("Código de liderança inválido. Use o código que o administrador te passou — ou, se você é músico líder, entre em \"Já tenho senha\" com o seu código.");
       return;
     }
     const a = achar(ident);
@@ -9712,7 +9833,7 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
       onEntrar(a.id);
       return;
     }
-    if (!a.senhaHash) { setErro("Este código ainda não tem senha. Use \"Primeiro acesso\"."); return; }
+    if (!a.senhaHash) { setErro("Este código ainda não tem senha. Use \"Primeiro acesso\" ou \"Cadastrar-se\"."); return; }
     if ((await amHashSenha(a.codigo, senha)) !== a.senhaHash) { setErro("Senha incorreta."); return; }
     onEntrar(a.id);
   };
@@ -9720,23 +9841,58 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider }) {
     <div className="mx-auto max-w-sm px-4 pt-10 pb-16">
       <AmCard t={t}>
         <div className="flex items-center gap-2" style={{ color: t.accent }}><Lock size={18} /><p className="font-display font-bold text-lg" style={{ color: t.ink }}>Acesso dos músicos</p></div>
-        <p className="text-xs mt-1" style={{ color: t.dim }}>O acesso é fechado: o líder do louvor gera um código para cada músico.</p>
-        <div className="grid grid-cols-3 gap-1.5 mt-4">
-          {[["entrar", "Já tenho senha"], ["primeiro", "Primeiro acesso"], ["lider", "Sou líder"]].map(([k, r]) => (
+        <p className="text-xs mt-1" style={{ color: t.dim }}>O acesso é fechado: peça seu cadastro e a liderança autoriza, ou use o código que recebeu.</p>
+        <div className="grid grid-cols-2 gap-1.5 mt-4">
+          {[["entrar", "Já tenho senha"], ["cadastro", "Cadastrar-se"], ["primeiro", "Primeiro acesso"], ["lider", "Sou líder"]].map(([k, r]) => (
             <button key={k} type="button" onClick={() => { setModo(k); setErro(""); }} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: modo === k ? t.accent : t.card2, color: modo === k ? t.onAccent : t.ink }}>{r}</button>
           ))}
         </div>
-        <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); entrar(); }}>
-          {modo === "lider"
-            ? <AmSenha t={t} placeholder="Código de liderança" value={ident} onChange={(e) => setIdent(e.target.value)} />
-            : <AmInput t={t} placeholder={modo === "primeiro" ? "Código de acesso (ex: AM-7K42QX)" : "Código de acesso ou e-mail"} value={ident} onChange={(e) => setIdent(e.target.value)} autoCapitalize="characters" />}
-          {modo !== "lider" && <AmSenha t={t} placeholder={modo === "primeiro" ? "Crie sua senha pessoal" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} />}
-          {modo === "primeiro" && <AmSenha t={t} placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
-          {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
-          <AmBotao t={t} type="submit" className="w-full"><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
-        </form>
+        {modo === "cadastro" ? (
+          <AmCadastro t={t} dados={dados} salvar={salvar} onEntrar={onEntrar} carregarFresco={carregarFresco || (async () => dados)} />
+        ) : (
+          <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); entrar(); }}>
+            {modo === "lider"
+              ? <AmSenha t={t} placeholder="Código de liderança" value={ident} onChange={(e) => setIdent(e.target.value)} />
+              : <AmInput t={t} placeholder={modo === "primeiro" ? "Código de acesso (ex: AM-7K42QX)" : "Código de acesso ou e-mail"} value={ident} onChange={(e) => setIdent(e.target.value)} autoCapitalize="characters" />}
+            {modo !== "lider" && <AmSenha t={t} placeholder={modo === "primeiro" ? "Crie sua senha pessoal" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} />}
+            {modo === "primeiro" && <AmSenha t={t} placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
+            {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+            <AmBotao t={t} type="submit" className="w-full"><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
+          </form>
+        )}
       </AmCard>
     </div>
+  );
+}
+
+/* ---------- Trocar a própria senha (Minha área) ---------- */
+function AmTrocarSenha({ t, dados, salvar, musico }) {
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [rep, setRep] = useState("");
+  const [erro, setErro] = useState("");
+  const [ok, setOk] = useState(false);
+  const trocar = async () => {
+    setErro(""); setOk(false);
+    if ((await amHashSenha(musico.codigo, atual)) !== musico.senhaHash) { setErro("A senha atual não confere."); return; }
+    if (nova.length < 6) { setErro("A nova senha precisa ter pelo menos 6 caracteres."); return; }
+    if (nova !== rep) { setErro("As duas senhas novas não são iguais."); return; }
+    const senhaHash = await amHashSenha(musico.codigo, nova);
+    salvar(amAud({ ...dados, acessos: (dados.acessos || []).map((x) => (x.id === musico.id ? { ...x, senhaHash } : x)) }, `Senha trocada: ${musico.nome}`));
+    setAtual(""); setNova(""); setRep(""); setOk(true);
+  };
+  return (
+    <AmCard t={t}>
+      <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><KeyRound size={16} style={{ color: t.accent }} /> Trocar minha senha</p>
+      <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); trocar(); }}>
+        <AmSenha t={t} placeholder="Senha atual" value={atual} onChange={(e) => setAtual(e.target.value)} />
+        <AmSenha t={t} placeholder="Nova senha (mínimo 6)" value={nova} onChange={(e) => setNova(e.target.value)} />
+        <AmSenha t={t} placeholder="Repita a nova senha" value={rep} onChange={(e) => setRep(e.target.value)} />
+        {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+        {ok && <p className="text-xs" style={{ color: "#2E7D4F" }}>Senha trocada com sucesso.</p>}
+        <AmBotao t={t} type="submit" tom="suave">Salvar nova senha</AmBotao>
+      </form>
+    </AmCard>
   );
 }
 
@@ -10437,7 +10593,9 @@ function AmEscalas({ t, dados, salvar }) {
 
 /* ---------- Equipe: o líder gera o código de acesso de cada músico ---------- */
 function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
-  const [f, setF] = useState({ nome: "", instrumento: "", email: "" });
+  const ctx = useContext(AmCtx);
+  const [envio, setEnvio] = useState(null);
+  const [f, setF] = useState({ nome: "", instrumento: "", email: "", whatsapp: "" });
   const [copiado, setCopiado] = useState("");
   const [msg, setMsg] = useState("");
   const acessos = dados.acessos || [];
@@ -10445,22 +10603,43 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
     if (!f.nome.trim()) return;
     let codigo = amGerarCodigo();
     while (acessos.some((a) => a.codigo === codigo)) codigo = amGerarCodigo();
-    salvar(amAud({ ...dados, acessos: [...acessos, { id: uid(), nome: f.nome.trim(), instrumento: f.instrumento.trim(), email: f.email.trim(), codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString() }] }, `Músico cadastrado: ${f.nome.trim()}`));
-    setF({ nome: "", instrumento: "", email: "" });
+    salvar(amAud({ ...dados, acessos: [...acessos, { id: uid(), nome: f.nome.trim(), instrumento: f.instrumento.trim(), email: f.email.trim(), whatsapp: f.whatsapp.trim(), codigo, senhaHash: "", ativo: true, criadoEm: new Date().toISOString() }] }, `Músico cadastrado: ${f.nome.trim()}`));
+    setF({ nome: "", instrumento: "", email: "", whatsapp: "" });
   };
   const upd = (id, patch, acao) => salvar(amAud({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) }, acao));
   const [editId, setEditId] = useState(null);
-  const [ef, setEf] = useState({ nome: "", instrumento: "", email: "" });
-  const abrirEdicao = (a) => { setEditId(a.id); setEf({ nome: a.nome || "", instrumento: a.instrumento || "", email: a.email || "" }); };
+  const [ef, setEf] = useState({ nome: "", instrumento: "", email: "", whatsapp: "" });
+  const abrirEdicao = (a) => { setEditId(a.id); setEf({ nome: a.nome || "", instrumento: a.instrumento || "", email: a.email || "", whatsapp: a.whatsapp || "" }); };
   const salvarEdicao = (a) => {
     if (!ef.nome.trim()) return;
-    upd(a.id, { nome: ef.nome.trim(), instrumento: ef.instrumento.trim(), email: ef.email.trim() }, `Músico corrigido: ${ef.nome.trim()}`);
+    upd(a.id, { nome: ef.nome.trim(), instrumento: ef.instrumento.trim(), email: ef.email.trim(), whatsapp: ef.whatsapp.trim() }, `Músico corrigido: ${ef.nome.trim()}`);
     setEditId(null);
   };
   const excluir = (a) => { if (!window.confirm(`Excluir ${a.nome} da equipe? Isso também remove as escalas e a disponibilidade dessa pessoa.`)) return; excluirSemPerguntar(a); };
   const excluirSemPerguntar = (a) => salvar(amAud({ ...dados, acessos: acessos.filter((x) => x.id !== a.id), eventos: (dados.eventos || []).map((e) => ({ ...e, escalados: (e.escalados || []).filter((x) => x.musicoId !== a.id) })), disponibilidade: (dados.disponibilidade || []).filter((d) => d.musicoId !== a.id), favoritos: (dados.favoritos || []).filter((x) => x.musicoId !== a.id), preparacao: (dados.preparacao || []).filter((x) => x.musicoId !== a.id) }, `Músico excluído: ${a.nome}`));
   const copiar = (c) => { try { navigator.clipboard.writeText(c); } catch (e) { /* sem área de transferência */ } setCopiado(c); };
-  const convite = (a) => `Paz do Senhor, ${a.nome.split(" ")[0]}! Seu acesso ao Avivar Music: abra avivardoespirito.com.br, entre em Avivar Music > "Primeiro acesso" e use o código ${a.codigo} para criar sua senha.`;
+  const nomeUn = ctx.unidade ? ctx.unidade.nome : "Ministério Avivar do Espírito";
+  const convite = (a) => `Paz do Senhor, ${amPrimeiroNome(a.nome)}! Seu acesso ao ${AM_NOME_APP} (${nomeUn}): abra ${ctx.linkApp}, toque em Entrar > Cadastrar-se, preencha seus dados e informe o código de autorização ${a.codigo}. O aplicativo gera a sua senha na hora.`;
+  const pendentes = (dados.solicitacoes || []).filter((x) => x.status === "pendente");
+  const autorizar = async (sol) => {
+    let codigo = amGerarCodigo(); while (acessos.some((a) => a.codigo === codigo)) codigo = amGerarCodigo();
+    const senha = amGerarSenha();
+    const senhaHash = await amHashSenha(codigo, senha);
+    const novo = { id: uid(), nome: sol.nome, instrumento: (sol.instrumentos || []).join(", "), instrumentos: sol.instrumentos || [], email: sol.email || "", whatsapp: sol.whatsapp, endereco: sol.endereco, igreja: sol.igreja || "", obs: sol.obs || "", codigo, senhaHash, ativo: true, criadoEm: nowISO(), origemCadastro: sol.id };
+    salvar(amAud({ ...dados, acessos: [...acessos, novo], solicitacoes: (dados.solicitacoes || []).map((x) => (x.id === sol.id ? { ...x, status: "aprovado", acessoId: novo.id, decididoEm: nowISO() } : x)) }, `Cadastro autorizado: ${sol.nome}`));
+    setEnvio({ nome: novo.nome, whatsapp: novo.whatsapp, codigo, senha });
+  };
+  const recusar = (sol) => {
+    if (!window.confirm(`Recusar o cadastro de ${sol.nome}?`)) return;
+    salvar(amAud({ ...dados, solicitacoes: (dados.solicitacoes || []).map((x) => (x.id === sol.id ? { ...x, status: "recusado", decididoEm: nowISO() } : x)) }, `Cadastro recusado: ${sol.nome}`));
+  };
+  const novaSenha = async (a) => {
+    const senha = amGerarSenha();
+    const senhaHash = await amHashSenha(a.codigo, senha);
+    upd(a.id, { senhaHash }, `Nova senha gerada: ${a.nome}`);
+    setEnvio({ nome: a.nome, whatsapp: a.whatsapp || "", codigo: a.codigo, senha });
+  };
+  const msgEnvio = envio ? amMsgAcesso(envio.nome, envio.codigo, envio.senha, ctx.linkApp, ctx.unidade ? ctx.unidade.nome : "") : "";
   const importar = () => {
     const { novos, ignorados } = amImportarEquipe(dados, musicosGrupo);
     if (novos.length === 0) { setMsg(`Ninguém novo para importar.${ignorados.length ? ` Fora da equipe: ${ignorados.join(", ")}.` : ""}`); return; }
@@ -10470,18 +10649,54 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
   return (
     <div className="space-y-4">
       <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Equipe e códigos de acesso</p>
-      <AmCard t={t}>
+      {envio && (
+        <AmCard t={t}>
+          <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><CheckCircle2 size={18} style={{ color: "#2E7D4F" }} /> Acesso liberado para {envio.nome}</p>
+          <p className="font-mono text-sm mt-2" style={{ color: t.ink }}>Código: <b>{envio.codigo}</b></p>
+          <p className="font-mono text-lg font-bold select-all" style={{ color: t.accent }}>Senha: {envio.senha}</p>
+          <p className="text-xs mt-1" style={{ color: t.dim }}>A senha só aparece agora. Envie pelo WhatsApp; se perder, gere outra no cartão do músico.</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <a href={envio.whatsapp ? amLinkWhats(envio.whatsapp, msgEnvio) : `https://wa.me/?text=${encodeURIComponent(msgEnvio)}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.accent, color: t.onAccent }}><MessageCircle size={15} /> Enviar senha pelo WhatsApp</a>
+            <AmBotao t={t} tom="suave" onClick={() => copiar(msgEnvio)}><Copy size={15} /> {copiado === msgEnvio ? "Copiado!" : "Copiar mensagem"}</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => setEnvio(null)}>Fechar</AmBotao>
+          </div>
+        </AmCard>
+      )}
+      {pendentes.length > 0 && (
+        <AmCard t={t}>
+          <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Bell size={16} style={{ color: t.accent }} /> Cadastros aguardando autorização ({pendentes.length})</p>
+          <div className="mt-3 space-y-3">
+            {pendentes.map((sol) => (
+              <div key={sol.id} className="rounded-xl p-3" style={{ background: t.card2 }}>
+                <p className="font-semibold" style={{ color: t.ink }}>{sol.nome}</p>
+                <p className="text-xs" style={{ color: t.dim }}>{(sol.instrumentos || []).join(", ")}</p>
+                <p className="text-xs mt-1" style={{ color: t.ink }}>WhatsApp: {sol.whatsapp}{sol.email ? ` · ${sol.email}` : ""}</p>
+                <p className="text-xs" style={{ color: t.ink }}>Endereço: {sol.endereco}</p>
+                {sol.igreja && <p className="text-xs" style={{ color: t.ink }}>Igreja: {sol.igreja}</p>}
+                {sol.obs && <p className="text-xs" style={{ color: t.dim }}>Obs.: {sol.obs}</p>}
+                <p className="text-[10px] mt-1" style={{ color: t.dim }}>Enviado em {fmtDateTime(sol.criadoEm)}</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <AmBotao t={t} onClick={() => autorizar(sol)}><Check size={15} /> Autorizar e gerar senha</AmBotao>
+                  <AmBotao t={t} tom="perigo" onClick={() => recusar(sol)}><X size={15} /> Recusar</AmBotao>
+                </div>
+              </div>
+            ))}
+          </div>
+        </AmCard>
+      )}
+      {!ctx.unidade && <AmCard t={t}>
         <p className="font-display font-bold" style={{ color: t.ink }}>Montar equipe a partir do Grupo</p>
         <p className="text-xs mt-0.5" style={{ color: t.dim }}>Traz os músicos já cadastrados na aba Grupo e gera um código para cada um. Wládia e Marcos ficam de fora.</p>
         <AmBotao t={t} tom="suave" className="mt-3" onClick={importar}><Users size={16} /> Importar músicos do Grupo</AmBotao>
         {msg && <p className="text-xs mt-2" style={{ color: t.accent }}>{msg}</p>}
-      </AmCard>
+      </AmCard>}
       <AmCard t={t}>
         <p className="font-display font-bold" style={{ color: t.ink }}>Novo músico</p>
-        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Ao salvar, o sistema gera um código único. Entregue o código ao músico: no primeiro acesso ele cria a própria senha.</p>
-        <div className="grid sm:grid-cols-3 gap-2 mt-3">
+        <p className="text-xs mt-0.5" style={{ color: t.dim }}>Ao salvar, o sistema gera um código único. Envie o convite: o músico toca em Cadastrar-se, informa o código e o app gera a senha dele. Você também pode gerar a senha e enviá-la pelo WhatsApp.</p>
+        <div className="grid sm:grid-cols-2 gap-2 mt-3">
           <AmInput t={t} placeholder="Nome" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
           <AmInput t={t} placeholder="Instrumento principal" value={f.instrumento} onChange={(e) => setF({ ...f, instrumento: e.target.value })} />
+          <AmInput t={t} type="tel" inputMode="tel" placeholder="WhatsApp (para enviar o convite)" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} />
           <AmInput t={t} type="email" placeholder="E-mail (opcional)" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
         </div>
         <AmBotao t={t} className="mt-3" onClick={criar}><KeyRound size={16} /> Gerar código de acesso</AmBotao>
@@ -10492,7 +10707,7 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="font-semibold" style={{ color: t.ink }}>{a.nome}</p>
-              <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{a.email ? ` · ${a.email}` : ""}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{a.whatsapp ? ` · ${a.whatsapp}` : ""}{a.email ? ` · ${a.email}` : ""}</p>
               <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
               <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
               {a.lider && <p className="text-xs font-bold mt-0.5" style={{ color: t.gold }}>★ Líder do louvor — pode editar tudo</p>}
@@ -10504,9 +10719,10 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
           </div>
           {editId === a.id && (
             <div className="mt-3">
-              <div className="grid sm:grid-cols-3 gap-2">
+              <div className="grid sm:grid-cols-2 gap-2">
                 <AmInput t={t} placeholder="Nome" value={ef.nome} onChange={(e) => setEf({ ...ef, nome: e.target.value })} />
                 <AmInput t={t} placeholder="Instrumento principal" value={ef.instrumento} onChange={(e) => setEf({ ...ef, instrumento: e.target.value })} />
+                <AmInput t={t} type="tel" inputMode="tel" placeholder="WhatsApp" value={ef.whatsapp} onChange={(e) => setEf({ ...ef, whatsapp: e.target.value })} />
                 <AmInput t={t} type="email" placeholder="E-mail (opcional)" value={ef.email} onChange={(e) => setEf({ ...ef, email: e.target.value })} />
               </div>
               <div className="flex gap-2 mt-2">
@@ -10517,8 +10733,9 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
           )}
           <div className="flex flex-wrap gap-2 mt-3">
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
-            <a href={`https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
+            <a href={a.whatsapp ? amLinkWhats(a.whatsapp, convite(a)) : `https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
             {podeIndicar && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: !a.lider }, `${a.lider ? "Permissão de líder retirada" : "Indicado como líder do louvor"}: ${a.nome}`)}><ShieldCheck size={15} /> {a.lider ? "Tirar permissão de líder" : "Tornar líder (pode editar)"}</AmBotao>}
+            <AmBotao t={t} tom="suave" onClick={() => novaSenha(a)}><KeyRound size={15} /> Gerar nova senha e enviar</AmBotao>
             {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" }, `Senha zerada: ${a.nome}`)}>Zerar senha</AmBotao>}
             <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false }, `${a.ativo === false ? "Código reativado" : "Código desativado"}: ${a.nome}`)}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
           </div>
@@ -11008,6 +11225,7 @@ const amComunicadosAtivos = (dados, lider) => {
 
 /* ---------- Início ---------- */
 function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, setPlId }) {
+  const amSub = useContext(AmCtx).sub;
   const futuros = amEventosFuturos(dados.eventos);
   const proxCulto = futuros.find((e) => e.tipo === "Culto") || futuros[0] || null;
   const proxEnsaio = futuros.find((e) => e.tipo === "Ensaio") || null;
@@ -11027,7 +11245,7 @@ function AmInicio({ t, dados, salvar, lider, musico, irPara, abrirCulto, plId, s
   return (
     <div className="space-y-4">
       <div className="relative rounded-2xl overflow-hidden px-5 py-8 sm:py-12 text-white shadow-md" style={{ background: "linear-gradient(90deg,rgba(42,12,69,.85) 0%,rgba(42,12,69,.45) 38%,rgba(42,12,69,0) 70%), url(/34-avivar-music-capa-v2.jpg) 70% center / cover, linear-gradient(135deg,#5B2394,#3A1260)", border: "1px solid #D6B46A88" }}>
-        <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>Avivar Music · Ministério Avivar do Espírito</p>
+        <p className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: "#D6B46A" }}>{AM_NOME_APP} · {amSub}</p>
         <p className="font-display text-2xl sm:text-3xl font-bold mt-1">{saudacao}</p>
         <p className="text-sm mt-1 text-white/85 max-w-md">{lider ? "Você pode editar tudo aqui." : musico ? "Veja sua escala e confirme sua presença." : "Acompanhe os cultos, o repertório e a equipe do louvor."}</p>
       </div>
@@ -11651,14 +11869,14 @@ function AvivarMusicHomeCard({ onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      aria-label="Abrir Avivar Music"
+      aria-label="Abrir Louvor Avivar do Espírito"
       className="am-card-pulso relative block w-full h-full min-h-[190px] rounded-2xl overflow-hidden text-left focus:outline-none focus:ring-4 focus:ring-yellow-300/70"
       style={{ background: "linear-gradient(180deg,rgba(42,12,69,.35) 0%,rgba(42,12,69,0) 30%,rgba(42,12,69,0) 70%,rgba(42,12,69,.35) 100%), url(/37-avivar-music-quadro.jpg) center / cover, linear-gradient(160deg,#5B2394 0%,#3A1260 70%)", border: "2px solid #D6B46A" }}
     >
       <style>{`@keyframes amCardPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(214,180,106,.6), 0 4px 18px rgba(53,16,82,.35); filter: brightness(1); } 50% { box-shadow: 0 0 0 11px rgba(214,180,106,0), 0 6px 28px rgba(214,180,106,.5); filter: brightness(1.14); } } .am-card-pulso { animation: amCardPulso 2.4s ease-in-out infinite; transition: transform .2s; } .am-card-pulso:hover { transform: scale(1.015); animation-play-state: paused; box-shadow: 0 0 0 4px rgba(214,180,106,.7), 0 6px 28px rgba(214,180,106,.55); filter: brightness(1.12); } @media (prefers-reduced-motion: reduce) { .am-card-pulso { animation: none; } }`}</style>
-      <span className="absolute left-1/2 -translate-x-1/2 bottom-3 inline-flex items-center gap-2 rounded-full pl-1.5 pr-4 py-1.5 whitespace-nowrap" style={{ background: "linear-gradient(180deg,#F0443A 0%,#C8201A 100%)", border: "2px solid #FFFFFF", boxShadow: "0 3px 12px rgba(200,32,26,.6)" }}>
+      <span className="absolute left-1/2 -translate-x-1/2 bottom-3 inline-flex items-center gap-2 rounded-full pl-1.5 pr-4 py-1.5 max-w-[94%]" style={{ background: "linear-gradient(180deg,#F0443A 0%,#C8201A 100%)", border: "2px solid #FFFFFF", boxShadow: "0 3px 12px rgba(200,32,26,.6)" }}>
         <img src="/28-avivar-music-icone.png" alt="" width={22} height={22} className="rounded-md" style={{ width: 22, height: 22 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-        <span className="font-display font-bold text-sm text-white leading-none">Avivar Music</span>
+        <span className="font-display font-bold text-[13px] text-white leading-tight text-center">Louvor Avivar do Espírito</span>
       </span>
     </button>
   );
@@ -11666,7 +11884,7 @@ function AvivarMusicHomeCard({ onOpen }) {
 
 /* ---------- Carrossel gospel (notícias da música gospel, ao vivo do Google Notícias) ---------- */
 const AM_GOSPEL_FALLBACK = [
-  { titulo: "Avivar Music — louvor que aviva o coração", link: "" },
+  { titulo: "Louvor Avivar do Espírito — louvor que aviva o coração", link: "" },
   { titulo: "Cantai ao Senhor um cântico novo — Salmo 96", link: "" },
   { titulo: "Tudo quanto respira louve ao Senhor — Salmo 150", link: "" },
 ];
@@ -12041,6 +12259,101 @@ function amParseHinos(txt, formato = "auto") {
   return [];
 }
 
+/* ---------- Harpa Cristã: importar direto do PDF (o arquivo é lido no próprio aparelho) ---------- */
+const HARPA_PDFJS_FONTES = [
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/",
+  "https://unpkg.com/pdfjs-dist@6.2.108/build/",
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/",
+];
+let harpaPdfJsCache = null;
+async function harpaCarregarPdfJs() {
+  if (harpaPdfJsCache) return harpaPdfJsCache;
+  let ultimoErro = null;
+  for (const base of HARPA_PDFJS_FONTES) {
+    try {
+      const url = base + "pdf.min.mjs";
+      const lib = await import(/* @vite-ignore */ url);
+      lib.GlobalWorkerOptions.workerSrc = base + "pdf.worker.min.mjs";
+      harpaPdfJsCache = lib;
+      return lib;
+    } catch (e) { ultimoErro = e; }
+  }
+  throw new Error("Não consegui carregar o leitor de PDF. Confira a internet e tente de novo." + (ultimoErro ? "" : ""));
+}
+// Junta os pedaços de texto de uma página em linhas (pela altura) e devolve as linhas já limpas.
+function harpaLinhasDaPagina(itens) {
+  const ps = itens.filter((it) => it && typeof it.str === "string" && it.transform).map((it) => ({ x: it.transform[4], y: it.transform[5], w: it.width || 0, h: it.height || 8, s: it.str }));
+  ps.sort((a, b) => b.y - a.y || a.x - b.x);
+  const grupos = [];
+  for (const p of ps) {
+    const g = grupos[grupos.length - 1];
+    if (g && Math.abs(g.y - p.y) <= Math.max(2.5, p.h * 0.4)) g.itens.push(p);
+    else grupos.push({ y: p.y, itens: [p] });
+  }
+  return grupos.map((g) => {
+    g.itens.sort((a, b) => a.x - b.x);
+    let txt = ""; let prev = null;
+    for (const it of g.itens) {
+      if (prev && it.x - (prev.x + prev.w) > 1 && !txt.endsWith(" ") && !it.s.startsWith(" ")) txt += " ";
+      txt += it.s; prev = it;
+    }
+    return txt.replace(/\s+$/g, "").replace(/^\s+/g, "");
+  });
+}
+async function harpaLerPdf(arquivo, aoProgresso) {
+  const pdfjs = await harpaCarregarPdfJs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) }).promise;
+  const paginas = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const pg = await doc.getPage(i);
+    const c = await pg.getTextContent();
+    paginas.push(harpaLinhasDaPagina(c.items));
+    if (aoProgresso) aoProgresso(i, doc.numPages);
+  }
+  return paginas;
+}
+const harpaMaiuscula = (s) => {
+  const l = String(s).replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (l.length < 3) return false;
+  let up = 0; for (const c of l) if (c === c.toUpperCase() && c !== c.toLowerCase()) up++;
+  return up / l.length >= 0.7;
+};
+// Letras que o PDF leu errado em palavras todas maiúsculas (ex.: "CRElO", "MA!S", "OUEM").
+const harpaCorrigirOcr = (s) => s.replace(/([A-ZÀ-Ú])[!l]([A-ZÀ-Ú])/g, "$1I$2").replace(/\bOU([EAI][A-ZÀ-Ú]*)\b/g, "QU$1");
+const HARPA_MIUDAS = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "as", "os", "em", "no", "na", "nos", "nas", "ao", "aos", "à", "com", "por", "para", "um", "uma", "que", "ou", "p'ra", "pra", "se"]);
+function harpaTitulo(bruto) {
+  const t = harpaCorrigirOcr(bruto.trim().replace(/\s+/g, " "));
+  return t.toLowerCase().split(" ").map((p, i) => {
+    if (i > 0 && HARPA_MIUDAS.has(p)) return p;
+    return p.replace(/(^|[-'’(])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase());
+  }).join(" ");
+}
+// Recebe as páginas (cada uma = lista de linhas) e devolve [{ numero, titulo, letra }].
+function harpaParsePaginas(paginas) {
+  const indice = []; paginas.forEach((p, i) => { if (p.filter((l) => /\.{5,}/.test(l)).length > 10) indice.push(i); });
+  const ini = indice.length ? indice[indice.length - 1] + 1 : 0;
+  const linhas = [];
+  paginas.slice(ini).forEach((p) => p.forEach((l) => linhas.push(l.replace(/\s+$/g, "").replace(/^\s+/g, ""))));
+  const pos = []; let esperado = 1;
+  linhas.forEach((l, k) => {
+    const m = l.match(/^(\d{1,3})\s*[.\-–]?\s+(\S.*)$/);
+    if (m && Number(m[1]) === esperado && harpaMaiuscula(m[2])) { pos.push({ n: esperado, k, titulo: m[2] }); esperado++; }
+  });
+  if (pos.length < 3) return [];
+  return pos.map((h, i) => {
+    const fim = i + 1 < pos.length ? pos[i + 1].k : linhas.length;
+    const corpo = [];
+    for (let k = h.k + 1; k < fim; k++) {
+      let l = linhas[k];
+      if (harpaMaiuscula(l)) l = harpaCorrigirOcr(l);
+      if (l === "" && (corpo.length === 0 || corpo[corpo.length - 1] === "")) continue;
+      corpo.push(l);
+    }
+    while (corpo.length && corpo[corpo.length - 1] === "") corpo.pop();
+    return { numero: h.n, titulo: harpaTitulo(h.titulo), letra: corpo.join("\n") };
+  }).filter((h) => h.letra);
+}
+
 function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, escuro }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos"); // todos | ensaio
@@ -12050,6 +12363,8 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
   const [lote, setLote] = useState("");
   const [formato, setFormato] = useState("auto");
   const [aviso, setAviso] = useState("");
+  const [pdfHinos, setPdfHinos] = useState(null);
+  const [pdfEstado, setPdfEstado] = useState("");
   const podeLer = !!(musico || lider);
   const sel = dados.ensaioSelecao || [];
   const ehSel = (n) => sel.some((s) => s.musicoId === userKey && s.tipo === "harpa" && s.refId === n);
@@ -12057,7 +12372,21 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
   const q = semAcento(busca).trim();
   let lista = [...hinos].sort((a, b) => a.numero - b.numero).filter((h) => !q || String(h.numero).startsWith(q) || semAcento(h.titulo).includes(q));
   if (filtro === "ensaio") lista = lista.filter((h) => ehSel(h.numero));
-  const previa = useMemo(() => (lote.trim() ? amParseHinos(lote, formato) : []), [lote, formato]);
+  const previa = useMemo(() => pdfHinos || (lote.trim() ? amParseHinos(lote, formato) : []), [lote, formato, pdfHinos]);
+  const lerPdf = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setPdfHinos(null); setLote("");
+    try {
+      setPdfEstado("Lendo o PDF…");
+      const paginas = await harpaLerPdf(f, (i, n) => setPdfEstado(`Lendo página ${i} de ${n}…`));
+      const lista = harpaParsePaginas(paginas);
+      if (!lista.length) { setPdfEstado("Não reconheci hinos nesse PDF. Ele precisa ter cada hino numerado (1., 2., 3.…) com o título em letras maiúsculas."); return; }
+      setPdfHinos(lista);
+      setPdfEstado("");
+    } catch (err) { setPdfEstado(String((err && err.message) || err)); }
+  };
 
   const salvarUm = () => {
     const numero = Number(form.numero);
@@ -12071,9 +12400,9 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
     const nums = new Set(previa.map((h) => h.numero));
     const antigos = Object.fromEntries(hinos.map((h) => [h.numero, h]));
     saveHinos([...hinos.filter((h) => !nums.has(h.numero)), ...previa.map((h) => ({ ...(antigos[h.numero] || {}), ...h }))]);
-    setLote(""); setAviso(`${previa.length} hino(s) importado(s).`);
+    setLote(""); setPdfHinos(null); setPdfEstado(""); setAviso(`${previa.length} hino(s) importado(s).`);
   };
-  const lerArquivo = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => setLote(String(r.result || "")); r.readAsText(f, "utf-8"); e.target.value = ""; };
+  const lerArquivo = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setPdfHinos(null); setLote(String(r.result || "")); }; r.readAsText(f, "utf-8"); e.target.value = ""; };
   const excluir = (h) => { if (window.confirm(`Excluir o hino ${h.numero}?`)) { saveHinos(hinos.filter((x) => x.numero !== h.numero)); setAberto(null); } };
   const levarAoAcervo = (h) => {
     const jaTem = (dados.acervo || []).some((m) => m.origemHarpa === h.numero);
@@ -12122,14 +12451,20 @@ function AmHarpa({ t, lider, musico, hinos, saveHinos, dados, salvar, userKey, e
           ) : (
             <div className="mt-3"><AmBotao t={t} onClick={() => setForm({ numero: "", titulo: "", letra: "" })}><Plus size={16} /> Cadastrar um hino</AmBotao></div>
           )}
-          <p className="text-sm font-semibold mt-5" style={{ color: t.ink }}>Importar vários de uma vez</p>
+          <p className="text-sm font-semibold mt-5" style={{ color: t.ink }}>Importar a Harpa Cristã do PDF</p>
+          <p className="text-[11px] mt-1 mb-2 leading-snug" style={{ color: t.dim }}>Escolha o PDF da Harpa Cristã (com índice e hinos numerados). O arquivo é lido no seu aparelho; confira a contagem e toque em Importar. Precisa de internet só para abrir o leitor de PDF.</p>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.accent, color: t.onAccent }}><FileText size={16} /> Escolher PDF da Harpa<input type="file" accept=".pdf,application/pdf" className="hidden" onChange={lerPdf} /></label>
+            {pdfEstado && <span className="text-xs" style={{ color: t.accent }}>{pdfEstado}</span>}
+          </div>
+          <p className="text-sm font-semibold mt-5" style={{ color: t.ink }}>Importar vários de uma vez (texto)</p>
           <p className="text-[11px] mt-1 mb-2 leading-snug" style={{ color: t.dim }}>Escolha um arquivo .txt ou cole o texto. Hinos com o mesmo número são substituídos. Se as estrofes também forem numeradas (1., 2., 3.), use “###” ou “Número sozinho na linha”. Confira o resumo antes de importar.</p>
           <div className="flex flex-wrap gap-2 mb-2">
             <label className="min-h-[44px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer" style={{ background: t.card2, color: t.ink }}>Escolher arquivo .txt<input type="file" accept=".txt,.text,text/plain" className="hidden" onChange={lerArquivo} /></label>
             <div className="min-w-[200px] flex-1"><AmSelect t={t} value={formato} onChange={(e) => setFormato(e.target.value)}>{AM_FORMATOS_LOTE.map(([k, r]) => <option key={k} value={k}>{r}</option>)}</AmSelect></div>
           </div>
-          <textarea rows={5} value={lote} onChange={(e) => setLote(e.target.value)} placeholder={"### 1 - Título do hino\nTexto do hino...\n\n### 2 - Outro título\nTexto..."} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
-          {lote.trim() && <p className="text-xs mt-2" style={{ color: previa.length ? "#2E9E5B" : "#D0473A" }}>{previa.length ? `Encontrei ${previa.length} hino(s): do nº ${previa[0].numero} (${previa[0].titulo}) ao nº ${previa[previa.length - 1].numero} (${previa[previa.length - 1].titulo}).` : "Não encontrei hinos nesse formato. Troque o formato."}</p>}
+          <textarea rows={5} value={lote} onChange={(e) => { setPdfHinos(null); setLote(e.target.value); }} placeholder={"### 1 - Título do hino\nTexto do hino...\n\n### 2 - Outro título\nTexto..."} className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2" style={{ background: t.card2, color: t.ink, border: `1px solid ${t.line}` }} />
+          {(lote.trim() || pdfHinos) && <p className="text-xs mt-2" style={{ color: previa.length ? "#2E9E5B" : "#D0473A" }}>{previa.length ? `Encontrei ${previa.length} hino(s): do nº ${previa[0].numero} (${previa[0].titulo}) ao nº ${previa[previa.length - 1].numero} (${previa[previa.length - 1].titulo}).` : "Não encontrei hinos nesse formato. Troque o formato."}</p>}
           <div className="mt-2"><AmBotao t={t} onClick={importar} disabled={!previa.length} className="disabled:opacity-40">Importar {previa.length ? `${previa.length} hinos` : "hinos"}</AmBotao></div>
         </AmCard>
       )}
@@ -12505,7 +12840,7 @@ function AmPainelMusicos({ t, dados, salvar, lider, musico, musicos, irPara }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-display font-bold" style={{ color: t.ink }}>{musico.nome}</p>
-              <p className="text-xs" style={{ color: t.dim }}>{[musico.instrumento, ...(meuCadastro ? amFuncoesDe(meuCadastro) : [])].filter(Boolean).join(" · ") || "Músico do Avivar Music"}</p>
+              <p className="text-xs" style={{ color: t.dim }}>{[musico.instrumento, ...(meuCadastro ? amFuncoesDe(meuCadastro) : [])].filter(Boolean).join(" · ") || "Músico do Louvor Avivar do Espírito"}</p>
               {proxEscala ? (
                 <p className="text-xs mt-1.5" style={{ color: t.ink }}>Próxima escala: <b>{proxEscala.titulo || proxEscala.tipo}</b> · {amDataHora(proxEscala)} · <span style={{ color: AM_COR[meuStatus] }}>{AM_ROTULO[meuStatus]}</span></p>
               ) : <p className="text-xs mt-1.5" style={{ color: t.dim }}>Você ainda não está em nenhuma escala futura.</p>}
@@ -12559,8 +12894,169 @@ function AmPainelMusicos({ t, dados, salvar, lider, musico, musicos, irPara }) {
   );
 }
 
-function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider, hinos, saveHinos }) {
+/* ---------- Unidades: outras igrejas/grupos usando o app, cada uma independente ---------- */
+function AmUnidades({ t, dados, salvar }) {
+  const lista = dados.unidades || [];
+  const [f, setF] = useState({ nome: "", cidade: "", liderNome: "", liderWhatsapp: "" });
+  const [envio, setEnvio] = useState(null);
+  const [erro, setErro] = useState("");
+  const [copiado, setCopiado] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const chave = (id) => `avivar:musicapp:u:${id}`;
+  const novoCodigo = () => { let s = ""; for (let i = 0; i < 6; i++) s += AM_ALFABETO[Math.floor(Math.random() * AM_ALFABETO.length)]; return "LOUVOR-" + s; };
+  const mensagem = (u, codigo) => `Paz do Senhor, ${amPrimeiroNome(u.liderNome)}! O Ministério Avivar do Espírito liberou o aplicativo ${AM_NOME_APP} para ${u.nome}${u.cidade ? " (" + u.cidade + ")" : ""}. Este espaço é só de vocês: músicos, escalas, repertório e hinos próprios, separados dos demais.\n\n1) Abra: ${amLinkApp(u.id)}\n2) Toque em Entrar > Sou líder e digite o código de liderança: ${codigo}\n3) Para instalar no celular: menu do navegador > Instalar app.\n\nDepois é só cadastrar a sua equipe de músicos.`;
+  const copiar = (txt, k) => { try { navigator.clipboard.writeText(txt); } catch (e) { /* sem área de transferência */ } setCopiado(k); };
+  const criar = async () => {
+    setErro("");
+    if (f.nome.trim().length < 3) { setErro("Informe o nome da igreja ou do grupo."); return; }
+    if (f.liderNome.trim().length < 3) { setErro("Informe o nome do responsável pelo louvor."); return; }
+    setOcupado(true);
+    try {
+      const slug = semAcento(f.nome).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "unidade";
+      const id = `${slug}-${uid().slice(0, 4)}`;
+      const codigo = novoCodigo();
+      const u = { id, nome: f.nome.trim(), cidade: f.cidade.trim(), liderNome: f.liderNome.trim(), liderWhatsapp: f.liderWhatsapp.trim(), ativo: true, criadoEm: new Date().toISOString() };
+      await saveKey(chave(id), { ...DEFAULT_MUSICAPP, equipeImportada: true, unidade: true, nome: u.nome, cidade: u.cidade, liderNome: u.liderNome, liderCodigo: codigo, ativo: true, criadoEm: u.criadoEm, grupo: [], repertorio: [], albuns: [], hinos: [] });
+      salvar(amAud({ ...dados, unidades: [...lista, u] }, `Unidade criada: ${u.nome}`));
+      setF({ nome: "", cidade: "", liderNome: "", liderWhatsapp: "" });
+      setEnvio({ u, codigo });
+    } finally { setOcupado(false); }
+  };
+  const verConvite = async (u) => {
+    setErro("");
+    const rec = await loadKey(chave(u.id), null);
+    if (!rec) { setErro("Não encontrei os dados desta unidade."); return; }
+    setEnvio({ u, codigo: rec.liderCodigo });
+  };
+  const gerarNovoCodigo = async (u) => {
+    if (!window.confirm(`Gerar um novo código de liderança para ${u.nome}? O código antigo deixa de valer.`)) return;
+    const rec = await loadKey(chave(u.id), null);
+    if (!rec) { setErro("Não encontrei os dados desta unidade."); return; }
+    const codigo = novoCodigo();
+    await saveKey(chave(u.id), { ...rec, liderCodigo: codigo });
+    salvar(amAud(dados, `Novo código de liderança: ${u.nome}`));
+    setEnvio({ u, codigo });
+  };
+  const alternarAtiva = async (u) => {
+    const rec = await loadKey(chave(u.id), null);
+    const ativa = u.ativo === false;
+    if (rec) await saveKey(chave(u.id), { ...rec, ativo: ativa });
+    salvar(amAud({ ...dados, unidades: lista.map((x) => (x.id === u.id ? { ...x, ativo: ativa } : x)) }, `${ativa ? "Unidade reativada" : "Unidade desativada"}: ${u.nome}`));
+  };
+  return (
+    <div className="space-y-4">
+      <p className="font-display text-xl font-bold" style={{ color: t.ink }}>Unidades (outras igrejas)</p>
+      <AmCard t={t}>
+        <p className="text-sm" style={{ color: t.ink }}>Cada unidade é <b>independente</b>: tem seus próprios músicos, escalas, louvores, hinos e liderança. A unidade não vê nada do Ministério Avivar do Espírito, e vice-versa.</p>
+      </AmCard>
+      <AmCard t={t}>
+        <p className="font-display font-bold" style={{ color: t.ink }}>Enviar o aplicativo para outra igreja</p>
+        <div className="grid sm:grid-cols-2 gap-2 mt-3">
+          <AmInput t={t} placeholder="Nome da igreja ou grupo *" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+          <AmInput t={t} placeholder="Cidade" value={f.cidade} onChange={(e) => setF({ ...f, cidade: e.target.value })} />
+          <AmInput t={t} placeholder="Responsável pelo louvor *" value={f.liderNome} onChange={(e) => setF({ ...f, liderNome: e.target.value })} />
+          <AmInput t={t} type="tel" inputMode="tel" placeholder="WhatsApp do responsável" value={f.liderWhatsapp} onChange={(e) => setF({ ...f, liderWhatsapp: e.target.value })} />
+        </div>
+        {erro && <p className="text-xs mt-2" style={{ color: "#D0473A" }}>{erro}</p>}
+        <AmBotao t={t} className="mt-3" onClick={criar} disabled={ocupado}><Send size={16} /> {ocupado ? "Criando..." : "Criar unidade e gerar link"}</AmBotao>
+      </AmCard>
+      {envio && (
+        <AmCard t={t}>
+          <p className="font-display font-bold" style={{ color: t.ink }}>Convite para {envio.u.nome}</p>
+          <p className="text-xs mt-1" style={{ color: t.dim }}>Link: {amLinkApp(envio.u.id)}</p>
+          <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{envio.codigo}</p>
+          <p className="text-xs" style={{ color: t.dim }}>Código de liderança da unidade. Quem o tiver administra a unidade.</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <a href={envio.u.liderWhatsapp ? amLinkWhats(envio.u.liderWhatsapp, mensagem(envio.u, envio.codigo)) : `https://wa.me/?text=${encodeURIComponent(mensagem(envio.u, envio.codigo))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.accent, color: t.onAccent }}><MessageCircle size={15} /> Enviar pelo WhatsApp</a>
+            <AmBotao t={t} tom="suave" onClick={() => copiar(mensagem(envio.u, envio.codigo), "msg")}><Copy size={15} /> {copiado === "msg" ? "Mensagem copiada!" : "Copiar mensagem"}</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => setEnvio(null)}>Fechar</AmBotao>
+          </div>
+        </AmCard>
+      )}
+      {lista.length === 0 && <AmVazio t={t}>Nenhuma unidade criada ainda.</AmVazio>}
+      {lista.map((u) => (
+        <AmCard t={t} key={u.id}>
+          <p className="font-semibold" style={{ color: t.ink }}>{u.nome}{u.cidade ? ` · ${u.cidade}` : ""}</p>
+          <p className="text-xs" style={{ color: t.dim }}>Responsável: {u.liderNome}{u.liderWhatsapp ? ` · ${u.liderWhatsapp}` : ""} · {u.ativo === false ? "Desativada" : "Ativa"}</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <a href={amLinkApp(u.id)} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><ExternalLink size={15} /> Abrir</a>
+            <AmBotao t={t} tom="suave" onClick={() => copiar(amLinkApp(u.id), u.id)}><Copy size={15} /> {copiado === u.id ? "Link copiado!" : "Copiar link"}</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => verConvite(u)}><MessageCircle size={15} /> Reenviar convite</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => gerarNovoCodigo(u)}><KeyRound size={15} /> Novo código de liderança</AmBotao>
+            <AmBotao t={t} tom="suave" onClick={() => alternarAtiva(u)}>{u.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
+          </div>
+        </AmCard>
+      ))}
+    </div>
+  );
+}
+
+/* Abre uma unidade (outra igreja): carrega o registro próprio dela e entrega ao app como se fosse o único. */
+function AmUnidade({ unidadeId, ...props }) {
+  const chave = `avivar:musicapp:u:${unidadeId}`;
+  const [rec, setRec] = useState(undefined); // undefined = carregando, null = não existe
+  const ref = useRef(null);
+  const [liderUn, setLiderUn] = useState(() => { try { return sessionStorage.getItem("am-lider-" + unidadeId) === "1"; } catch (e) { return false; } });
+  useEffect(() => {
+    let vivo = true;
+    (async () => { const r = await loadKey(chave, null); if (vivo) { ref.current = r; setRec(r); } })();
+    return () => { vivo = false; };
+  }, [chave]);
+  const gravar = (v) => { ref.current = v; setRec(v); saveKey(chave, v); };
+  const lista = (k) => (v) => gravar({ ...ref.current, [k]: v });
+  const saveMusicApp = (v) => gravar({ ...v, grupo: ref.current.grupo, repertorio: ref.current.repertorio, albuns: ref.current.albuns, hinos: ref.current.hinos, liderCodigo: ref.current.liderCodigo, nome: ref.current.nome, cidade: ref.current.cidade, ativo: ref.current.ativo });
+  const tentar = (codigo) => {
+    const c = String(codigo || "").trim();
+    if (!c || !rec) return false;
+    if (c.toLowerCase() === String(rec.liderCodigo || "").toLowerCase() || c === MASTER_ADMIN_PASSWORD) {
+      setLiderUn(true);
+      try { sessionStorage.setItem("am-lider-" + unidadeId, "1"); } catch (e) { /* sem storage */ }
+      return true;
+    }
+    return false;
+  };
+  const sairLider = () => { setLiderUn(false); try { sessionStorage.removeItem("am-lider-" + unidadeId); } catch (e) { /* sem storage */ } };
+  const tela = (titulo, texto) => (
+    <div className="min-h-screen flex items-center justify-center px-6 text-center" style={{ background: "#351052", color: "#F7F5F2" }}>
+      <div><p className="font-display text-xl font-bold">{titulo}</p><p className="text-sm mt-2 opacity-80">{texto}</p>
+        <a href="/?app=music&u=principal" className="inline-block mt-5 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "#D6B46A", color: "#351052" }}>Abrir o {AM_NOME_APP} do Ministério Avivar</a></div>
+    </div>
+  );
+  if (rec === undefined) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#351052", color: "#F7F5F2" }}><p className="text-sm">Carregando {AM_NOME_APP}…</p></div>;
+  if (rec === null) return tela("Unidade não encontrada", "Confira o link recebido ou fale com quem enviou o convite.");
+  if (rec.ativo === false) return tela("Unidade desativada", "O acesso desta unidade foi suspenso pela administração.");
+  return (
+    <AmCtx.Provider value={{ unidade: rec, sub: rec.nome + (rec.cidade ? " · " + rec.cidade : ""), linkApp: amLinkApp(unidadeId) }}>
+      <PaginaAvivarMusic
+        {...props}
+        musicKey={chave} unidade={rec}
+        musicApp={rec} saveMusicApp={saveMusicApp}
+        musicos={rec.grupo || AM_VAZIO} saveMusicos={lista("grupo")}
+        repertorio={rec.repertorio || AM_VAZIO} saveRepertorio={lista("repertorio")}
+        albuns={rec.albuns || AM_VAZIO} saveAlbuns={lista("albuns")}
+        hinos={rec.hinos || AM_VAZIO} saveHinos={lista("hinos")}
+        operatorMode={liderUn} tentarCodigoLider={tentar} onRequestOperator={() => {}}
+        onSairLider={liderUn ? sairLider : null}
+      />
+    </AmCtx.Provider>
+  );
+}
+
+/* Ponto de entrada: Ministério Avivar (padrão) ou uma unidade (?u=...). */
+function AmRaiz(props) {
+  if (AM_UNIDADE_ID) return <AmUnidade {...props} unidadeId={AM_UNIDADE_ID} />;
+  return (
+    <AmCtx.Provider value={{ unidade: null, sub: "Ministério Avivar do Espírito", linkApp: amLinkApp("") }}>
+      <PaginaAvivarMusic {...props} musicKey="avivar:musicapp" />
+    </AmCtx.Provider>
+  );
+}
+
+function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, albuns, saveAlbuns, adminMode, operatorMode, onRequestOperator, onVoltar, musicApp, saveMusicApp, tentarCodigoLider, hinos, saveHinos, musicKey, unidade, onSairLider }) {
   const dados = { ...DEFAULT_MUSICAPP, ...(musicApp || {}) };
+  const ctx = useContext(AmCtx);
+  const carregarFresco = () => loadKey(musicKey || "avivar:musicapp", null);
+  const pendentesCad = (dados.solicitacoes || []).filter((x) => x.status === "pendente").length;
   // Qualquer pessoa vê; só o admin ou quem ele indicou (setor "avivarmusic") altera.
   const [escuro, setEscuro] = useState(() => { try { return localStorage.getItem("am-tema") === "escuro"; } catch (e) { return false; } });
   const alternarTema = () => setEscuro((v) => { const n = !v; try { localStorage.setItem("am-tema", n ? "escuro" : "claro"); } catch (e) { /* sem storage */ } return n; });
@@ -12600,7 +13096,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   ];
   const extras = [
     ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
-    ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: "Acessos da equipe", i: KeyRound }] : []),
+    ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: pendentesCad ? `Acessos da equipe (${pendentesCad} pendente${pendentesCad > 1 ? "s" : ""})` : "Acessos da equipe", i: KeyRound }] : []),
+    ...(adminMode && !unidade ? [{ k: "unidades", r: "Unidades (outras igrejas)", i: Church }] : []),
     { k: "separador", r: "Separador de instrumentos", i: Layers },
     { k: "estudio", r: "Estúdio", i: Settings2 },
     ...(lider || musico ? [{ k: "historico", r: "Histórico", i: History }] : []),
@@ -12628,14 +13125,15 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           <div className="flex items-center gap-2.5 min-w-0">
             <AmLogoImg tam={38} />
             <div className="leading-tight min-w-0">
-              <p className="font-display text-sm sm:text-base font-bold text-white truncate">Avivar Music</p>
-              <p className="text-[10px] sm:text-[11px] truncate" style={{ color: "#E8D9B0" }}>Ministério Avivar do Espírito</p>
+              <p className="font-display text-[13px] sm:text-base font-bold text-white leading-tight">Louvor Avivar do Espírito</p>
+              <p className="text-[10px] sm:text-[11px] truncate" style={{ color: "#E8D9B0" }}>{ctx.sub}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: lider ? "#D6B46A" : "#ffffff22", color: lider ? "#351052" : "#fff" }}>{lider ? "Modo edição" : musico ? "Músico" : "Visualização"}</span>
             <a href={BIBLIA_URL} target="_blank" rel="noopener noreferrer" aria-label="Abrir a Bíblia Avivar" title="Bíblia Avivar" className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><BookOpen size={16} /><span className="hidden sm:inline">Bíblia</span></a>
             <button onClick={alternarTema} aria-label={escuro ? "Tema claro" : "Tema escuro"} className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-white bg-white/15">{escuro ? "Claro" : "Escuro"}</button>
+            {!musico && onSairLider && <button aria-label="Sair da liderança" onClick={onSairLider} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
             {musico && <button aria-label="Sair" onClick={sair} className="w-11 h-11 rounded-xl flex items-center justify-center text-white bg-white/15"><LogOut size={16} /></button>}
             {!musico && !lider && <button onClick={() => irPara("entrar")} className="min-h-[44px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5" style={{ background: "#D6B46A", color: "#351052" }}><Lock size={14} /> Entrar</button>}
           </div>
@@ -12645,7 +13143,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
       <AmGospelCarrossel />
 
       <div className="flex relative" style={{ zIndex: 10 }}>
-        <aside className="hidden lg:flex flex-col gap-1 w-64 shrink-0 p-4 sticky top-16 self-start h-[calc(100vh-4rem)] overflow-y-auto" style={{ background: t.card, borderRight: `1px solid ${t.line}` }} aria-label="Menu do Avivar Music">
+        <aside className="hidden lg:flex flex-col gap-1 w-64 shrink-0 p-4 sticky top-16 self-start h-[calc(100vh-4rem)] overflow-y-auto" style={{ background: t.card, borderRight: `1px solid ${t.line}` }} aria-label="Menu do Louvor Avivar do Espírito">
           {principais.map((it) => <BotaoMenu key={it.k} it={it} />)}
           <p className="text-[10px] font-mono uppercase tracking-wider mt-4 mb-1 px-3" style={{ color: t.dim }}>Mais</p>
           {extras.map((it) => <BotaoMenu key={it.k} it={it} />)}
@@ -12654,7 +13152,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
         </aside>
 
         <main className="flex-1 min-w-0 px-4 sm:px-6 pt-6 pb-28 lg:pb-12 mx-auto max-w-5xl">
-          {tela === "entrar" && (musico || lider ? <AmVazio t={t}>Você já está identificado.</AmVazio> : <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} />)}
+          {tela === "entrar" && (musico || lider ? <AmVazio t={t}>Você já está identificado.</AmVazio> : <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarCodigoLider} carregarFresco={carregarFresco} />)}
           {tela === "inicio" && <AmInicio t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} abrirCulto={abrirCulto} plId={plId} setPlId={setPlId} />}
           {tela === "agenda" && (lider ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
           {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
@@ -12666,7 +13164,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           {tela === "comunicados" && <AmComunicados t={t} dados={dados} salvar={saveMusicApp} lider={lider} />}
           {tela === "mural" && <AmPainelMusicos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} musicos={musicos} irPara={irPara} />}
           {tela === "forum" && <AmForum t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} />}
-          {tela === "minha" && musico && <AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} />}
+          {tela === "minha" && musico && <div className="space-y-4"><AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} /><AmTrocarSenha t={t} dados={dados} salvar={saveMusicApp} musico={musico} /></div>}
+          {tela === "unidades" && adminMode && !unidade && <AmUnidades t={t} dados={dados} salvar={saveMusicApp} />}
           {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
           {tela === "acessos" && lider && <AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || operatorMode)} />}
           {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
@@ -12676,6 +13175,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
               <AvivarMusic abas={["albuns", "repertorio"]} repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
             </div>
           )}
+          {unidade && MODO_APP_MUSIC && <p className="mt-6 text-center text-[11px]" style={{ color: t.dim }}>Unidade: {unidade.nome} · <a href="/?app=music&u=principal" className="underline">Abrir o do Ministério Avivar</a></p>}
           {!lider && (
             <div className="mt-8 rounded-2xl p-4 text-sm flex flex-wrap items-center gap-3" style={{ background: t.card2, color: t.ink }}>
               <Lock size={16} style={{ color: t.accent }} />
@@ -12937,7 +13437,7 @@ export default function App() {
       if (n.imageUrl) photos.push({ url: n.imageUrl, label: n.titulo || "Avivar News", target: "aovivo" });
     });
     (albuns || []).forEach((a) => {
-      if (a.capaUrl) photos.push({ url: a.capaUrl, label: a.titulo || "Avivar Music", target: "avivarmusic" });
+      if (a.capaUrl) photos.push({ url: a.capaUrl, label: a.titulo || "Louvor Avivar do Espírito", target: "avivarmusic" });
     });
     (biblioteca || []).forEach((b) => {
       if (b.capaUrl) photos.push({ url: b.capaUrl, label: b.titulo || "Biblioteca Avivar", target: "biblioteca" });
@@ -14645,7 +15145,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
   // Avivar Music — mesmo padrão de página cheia sem rolagem.
   if (paginaAvivarMusicOpen) {
     return (
-      <PaginaAvivarMusic
+      <AmRaiz
         repertorio={repertorio} saveRepertorio={persist.repertorio}
         musicos={musicos} saveMusicos={persist.musicos}
         albuns={albuns} saveAlbuns={persist.albuns}
@@ -14662,7 +15162,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           const setores = parseSetoresOperador(m.setores);
           if (!setores.includes("todos") && !setores.includes("avivarmusic")) return "semsetor";
           setOperatorAuth({ id: m.id, nome: m.nome, setores });
-          registrarAcessoOperador(m.id, "Acesso ao Avivar Music");
+          registrarAcessoOperador(m.id, "Acesso ao Louvor Avivar do Espírito");
           return true;
         }}
       />
