@@ -96,7 +96,7 @@ const CODIGOS_ARTIGO_DOM_DISCERNIMENTO = "/74-codigos-artigo-dom-discernimento.j
 const CODIGOS_ARTIGO_BOM_SAMARITANO = "/75-codigos-artigo-bom-samaritano.jpg";
 const CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES = "/76-codigos-artigo-refidim-maos-moises.jpg";
 
-const MASTER_ADMIN_PASSWORD = "avivar-mestre-2026"; // demo only — trocar por auth real em produção
+const MASTER_ADMIN_PASSWORD = "Avivar2026@@"; // senha única do administrador (church, Louvor e Bíblia)
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
