@@ -7,7 +7,7 @@ import {
   KeyRound, LogOut, Send, HandHeart, ChevronDown, Sparkles, ShoppingBag,
   Music, Wallet, Package, UserPlus, Copy, Gift, CreditCard, PlayCircle, ClipboardList, Library, FileText,
   Truck, Pencil, Save, ArrowLeft, GraduationCap, Tv, Feather, Gem, Crown, CheckCircle2,
-  Play, Pause, Maximize, Minus, Settings2, Layers, History,
+  Play, Pause, Maximize, Minus, Settings2, Layers, History, Award,
   Eye, EyeOff, Bell, Star, Check, Download, Mic, Headphones, Music2, Music3, Music4, ArrowUp, ArrowDown, ExternalLink, Search, Megaphone, ListMusic, SkipForward, GripVertical, Volume2, VolumeX,
 } from "lucide-react";
 import { storageGet, storageSet, privateLogin, privateLogout, sessaoPrivada } from "./lib/storage.js";
@@ -703,31 +703,34 @@ function Carousel({ slides, onSlideClick, dark = true, height = "h-[62vh]" }) {
 /* ---------------------------------------------------------------- */
 /* Nav                                                                */
 /* ---------------------------------------------------------------- */
+// Menu principal (uma linha só). Tudo o que não está aqui fica no submenu "MAIS".
 const NAV = [
   { key: "home", label: "Início", icon: HomeIcon },
-  { key: "codigos", label: "Códigos Avivar", icon: KeyRound, red: true },
-  { key: "loja", label: "Loja Avivar", icon: ShoppingBag, red: true },
-  { key: "eventos", label: "Eventos/Galeria", icon: Calendar },
-  { key: "aovivo", label: "Avivar News TV", icon: Tv, red: true },
   { key: "igrejas", label: "Igrejas Avivar", icon: Church },
-  { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen, red: true },
-  // Era "Contato" — como já existe o botão de WhatsApp pra isso, virou atalho
-  // direto pra seção das Células Avivar (dentro da Home), a pedido do Marcos.
-  { key: "celulas", label: "Células Avivar", icon: Layers },
-];
-// "Escala" primeiro (pra alinhar embaixo de "Início", o 1º botão da barra de
-// cima — ver o espaçador invisível na NavBar); "Biblioteca" (nome encurtado) e
-// "Oração nos Lares" (novo) ficam juntos, no meio.
-const SUBMENU = [
-  { key: "escala", label: "Escala", icon: ClipboardList },
-  { key: "colaboradores", label: "Colaboradores", icon: Users },
+  { key: "eventos", label: "Eventos e Galeria", icon: Calendar },
   { key: "estudos", label: "Estudos Bíblicos", icon: BookOpen },
   { key: "biblioteca", label: "Biblioteca", icon: Library },
   { key: "oracoes", label: "Oração nos Lares", icon: MapPin },
-  { key: "membros", label: "Membros", icon: UserPlus },
-  { key: "avivarmusic", label: "Louvor Avivar do Espírito", icon: Music },
-  { key: "visitantes", label: "Visitantes", icon: HandHeart },
+  { key: "celulas", label: "Células", icon: Layers },
 ];
+// Submenu "MAIS" — itens agrupados (o grupo "Administração" só aparece para o admin).
+const SUBMENU_GRUPOS = [
+  { titulo: "Ministério", itens: [
+    { key: "certificados", label: "Certificados", icon: Award, destaque: true },
+    { key: "colaboradores", label: "Colaboradores", icon: Users },
+    { key: "escala", label: "Escala de Obreiros", icon: ClipboardList },
+    { key: "membros", label: "Membros", icon: UserPlus },
+    { key: "visitantes", label: "Visitantes", icon: HandHeart },
+  ] },
+  { titulo: "Aplicativos e mídia", itens: [
+    { key: "codigos", label: "Códigos Avivar", icon: KeyRound },
+    { key: "loja", label: "Loja Avivar", icon: ShoppingBag },
+    { key: "aovivo", label: "Avivar News TV", icon: Tv },
+    { key: "avivarmusic", label: "Louvor Avivar do Espírito", icon: Music },
+    { key: "biblia", label: "Bíblia Sagrada", icon: BookOpen },
+  ] },
+];
+const SUBMENU = SUBMENU_GRUPOS.flatMap((g) => g.itens);
 const ADMIN_MENU = [
   { key: "caixa", label: "Caixa", icon: Wallet },
   { key: "bens", label: "Bens", icon: Package },
@@ -864,8 +867,24 @@ function NoticiasCarousel() {
 }
 
 function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);           // menu do celular/tablet
+  const [maisAberto, setMaisAberto] = useState(false); // submenu "MAIS" (telas grandes)
+  const maisRef = useRef(null);
+  useEffect(() => {
+    if (!maisAberto) return;
+    const fora = (e) => { if (maisRef.current && !maisRef.current.contains(e.target)) setMaisAberto(false); };
+    const esc = (e) => { if (e.key === "Escape") setMaisAberto(false); };
+    document.addEventListener("mousedown", fora);
+    document.addEventListener("touchstart", fora);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fora);
+      document.removeEventListener("touchstart", fora);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [maisAberto]);
   const go = (k) => {
+    setMaisAberto(false);
     if (k === "biblia") {
       window.open(BIBLIA_URL, "_blank", "noopener,noreferrer");
       setOpen(false);
@@ -874,9 +893,10 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     setPage(k);
     setOpen(false);
   };
-  // Pills sem preenchimento próprio — fundo transparente (a cor vem da barra roxa
-  // por trás), filete branco fino e texto branco; o item ativo só destaca a borda.
-  // Botões dos menus: cor CREME, letra preta, largura só do texto (a pedido do Marcos).
+  const grupos = adminMode ? [...SUBMENU_GRUPOS, { titulo: "Administração", itens: ADMIN_MENU }] : SUBMENU_GRUPOS;
+  const chavesMais = grupos.flatMap((g) => g.itens.map((i) => i.key));
+  const maisAtivo = chavesMais.includes(page);
+  // Botões do menu: cor CREME, letra preta, largura só do texto (a pedido do Marcos).
   const CREME = "#F6E8C8";
   const pillStyle = (active) => ({
     background: CREME,
@@ -884,112 +904,119 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     border: `1px solid ${active ? C.goldBright : "#00000026"}`,
     boxShadow: active ? `0 0 0 2px ${C.goldBright}` : undefined,
   });
-  // Botões do menu no celular — fundo branco, letra preta, a pedido do Marcos
-  // (diferente do estilo "pill" roxo/transparente usado no menu de telas grandes).
-  const mobilePillStyle = (active) => ({
-    background: CREME,
-    color: "#000",
-    border: `1px solid ${active ? C.gold : "#00000022"}`,
-    boxShadow: active ? `0 0 0 2px ${C.goldBright}` : undefined,
-  });
   return (
-    <header className="relative sticky top-0 z-40 border-b" style={{ background: C.black, borderColor: C.gold + "55" }}>
-      {/* Toggle mobile — fora do fluxo do grupo alinhado de pills, para não empurrar o
-          último pill do NAV para longe da borda direita. O acesso admin, antes um
-          ícone pequeno aqui, virou o botão vermelho "RESTRITO" logo abaixo da logo. */}
-      <div className="absolute top-2 right-2 sm:right-3 flex items-center gap-2 z-10">
-        <button className="lg:hidden p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }}>
-          {open ? <X /> : <Menu />}
-        </button>
-      </div>
-      {/* Linha 1 (fundo preto): logo + ícone da loja e, NA MESMA LINHA do ícone, os
-          pills do NAV (começando pertinho do ícone). Linha 2 (roxa): RESTRITO e, NA
-          MESMA LINHA dele, os pills do submenu. O bloco da esquerda das duas linhas
-          tem a mesma largura fixa (NAV_LEFT_W), então "Início" cai exatamente em
-          cima de "Escala"; e como os dois grupos de pills vão até a mesma borda
-          direita, "Células Avivar" cai em cima de "Visitantes". */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-end gap-3 pt-3 pb-1.5" style={{ background: C.violetDeep }}>
-        <div className="flex items-end gap-3 shrink-0 lg:w-[208px]">
-          <button onClick={() => go("home")} className="flex items-end gap-3 focus:outline-none focus:ring-2 rounded-md p-1">
-            <img src={LOGO_ICON} alt={churchName} className="h-12 w-auto" />
+    <header className="relative sticky top-0 z-40 border-b" style={{ background: C.violetDeep, borderColor: C.gold + "55" }}>
+      {/* UMA linha só: logo + atalho da Loja | menu principal | RESTRITO | MAIS ▾ (submenu).
+          Abaixo de 1280px de largura o menu vira o botão de 3 risquinhos, com tudo agrupado. */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-3 py-2">
+        <div className="flex items-center gap-3 shrink-0">
+          <button onClick={() => go("home")} className="flex items-end gap-2 focus:outline-none focus:ring-2 rounded-md p-1">
+            <img src={LOGO_ICON} alt={churchName} className="h-11 w-auto" />
             <span className="leading-none" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontSize: "10px", color: C.goldBright }}>
               <span className="block">Avivar</span>
               <span className="block">do</span>
               <span className="block">Espírito</span>
             </span>
           </button>
-          {/* Acesso rápido à Loja perto da logo — ícone maior, branco, com glow */}
+          {/* Acesso rápido à Loja perto da logo — ícone branco com glow */}
           <button
             onClick={() => go("loja")}
             className="p-1 rounded-full focus:outline-none focus:ring-2"
             title="Ir para a Loja Avivar"
             style={{ color: "#fff", filter: "drop-shadow(0 0 8px rgba(255,255,255,0.85))" }}
           >
-            <ShoppingBag size={28} />
+            <ShoppingBag size={26} />
           </button>
         </div>
-        <nav className="hidden lg:flex flex-1 items-center justify-between gap-1 pb-1">
+
+        <nav className="hidden xl:flex flex-1 items-center justify-center gap-1.5">
           {NAV.map((n) => (
             <button
               key={n.key}
               onClick={() => go(n.key)}
-              className="nav-pulse inline-flex items-center justify-center text-center px-1.5 py-0.5 text-[11px] font-semibold rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2"
+              className="inline-flex items-center justify-center text-center px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide rounded-md whitespace-nowrap transition focus:outline-none focus:ring-2 hover:brightness-95"
               style={pillStyle(page === n.key)}
             >
               {n.label}
             </button>
           ))}
         </nav>
-      </div>
 
-      <div className="hidden lg:flex items-center gap-3 max-w-6xl mx-auto px-4 sm:px-6 py-1.5" style={{ background: C.violetDeep }}>
-        <div className="shrink-0 w-[208px]">
+        <div className="hidden xl:flex items-center gap-2 shrink-0">
+          <div className="relative" ref={maisRef}>
+            <button
+              onClick={() => setMaisAberto((v) => !v)}
+              aria-expanded={maisAberto}
+              aria-haspopup="true"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide rounded-md whitespace-nowrap focus:outline-none focus:ring-2"
+              style={{ ...pillStyle(maisAtivo || maisAberto), background: maisAberto ? C.goldBright : CREME }}
+            >
+              Mais <ChevronDown size={13} style={{ transform: maisAberto ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {maisAberto && (
+              <div className="absolute right-0 top-full mt-2 w-[min(92vw,540px)] rounded-xl border-2 shadow-2xl p-3 z-50" style={{ background: C.cream, borderColor: C.gold }} role="menu">
+                <div className={`grid gap-4 ${grupos.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}>
+                  {grupos.map((g) => (
+                    <div key={g.titulo}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider mb-1 pb-1 border-b" style={{ color: C.stone, borderColor: C.line }}>{g.titulo}</p>
+                      <div className="flex flex-col gap-0.5">
+                        {g.itens.map((n) => (
+                          <button
+                            key={n.key}
+                            role="menuitem"
+                            onClick={() => go(n.key)}
+                            className="flex items-center gap-2 text-left px-2 py-1.5 rounded-md text-[13px] font-medium hover:brightness-95 focus:outline-none focus:ring-2"
+                            style={{ background: page === n.key ? C.parchmentDeep : "transparent", color: C.ink }}
+                          >
+                            <n.icon size={14} style={{ color: C.violet }} className="shrink-0" />
+                            <span>{n.label}</span>
+                            {n.destaque && <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: C.gold, color: "#241C00" }}>NOVO</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={onAdminClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold tracking-wide whitespace-nowrap focus:outline-none focus:ring-2"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold tracking-wide whitespace-nowrap focus:outline-none focus:ring-2"
             style={{ background: adminMode ? "#2E7D4F" : C.liveRed, color: "#fff" }}
           >
             {adminMode ? <ShieldCheck size={13} color="#fff" /> : <Lock size={13} color="#fff" />}
             {adminMode ? "SAIR DO ADMIN" : "RESTRITO"}
           </button>
         </div>
-        <div className="flex-1 flex items-center justify-between">
-        {SUBMENU.map((n) => {
-          const isLoja = n.key === "loja";
-          return (
-            <button key={n.key} onClick={() => go(n.key)} className="nav-pulse justify-center text-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex items-center gap-1 whitespace-nowrap focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
-              {isLoja ? (
-                <span className="relative flex items-center justify-center w-5 h-5 rounded-full shrink-0" style={{ background: C.liveRed }}>
-                  <n.icon size={12} color="#fff" />
-                </span>
-              ) : (
-                <n.icon size={11} />
-              )}
-              {n.label}
-            </button>
-          );
-        })}
-        {adminMode && ADMIN_MENU.map((n) => (
-          <button key={n.key} onClick={() => go(n.key)} className="nav-pulse px-2 py-0.5 text-[11px] font-semibold rounded-full flex items-center gap-1 whitespace-nowrap focus:outline-none focus:ring-2" style={pillStyle(page === n.key)}>
-            <n.icon size={11} /> {n.label}
-          </button>
-        ))}
-        </div>
+
+        <button className="xl:hidden ml-auto p-2" onClick={() => setOpen((v) => !v)} style={{ color: C.gold }} aria-label="Menu">
+          {open ? <X /> : <Menu />}
+        </button>
       </div>
 
       {open && (
-        <div className="lg:hidden border-t px-3 py-3" style={{ borderColor: C.gold + "33", background: C.black }}>
-          {/* No celular, botões ainda menores, em 2 colunas, fundo branco e letra
-              preta (a pedido do Marcos) — cabe mais menu na tela sem precisar rolar
-              tanto pra achar o item que se quer. */}
+        <div className="xl:hidden border-t px-3 py-3 max-h-[80vh] overflow-y-auto" style={{ borderColor: C.gold + "33", background: C.black }}>
           <div className="flex flex-wrap gap-1.5">
-            {[...NAV, ...SUBMENU, ...(adminMode ? ADMIN_MENU : [])].map((n) => (
-              <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-1 text-[11px] font-medium rounded-full flex items-center gap-1 whitespace-nowrap" style={mobilePillStyle(page === n.key)}>
-                {n.icon && <n.icon size={11} className="shrink-0" />} <span>{n.label}</span>
+            {NAV.map((n) => (
+              <button key={n.key} onClick={() => go(n.key)} className="text-left px-2.5 py-1 text-[11px] font-semibold uppercase rounded-full flex items-center gap-1 whitespace-nowrap" style={{ background: CREME, color: "#000", border: `1px solid ${page === n.key ? C.gold : "#00000022"}`, boxShadow: page === n.key ? `0 0 0 2px ${C.goldBright}` : undefined }}>
+                <n.icon size={11} className="shrink-0" /> <span>{n.label}</span>
               </button>
             ))}
           </div>
-          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2 mt-2" style={{ color: C.goldBright }}>
+          {grupos.map((g) => (
+            <div key={g.titulo} className="mt-3">
+              <p className="text-[10px] font-mono uppercase tracking-wider mb-1" style={{ color: C.goldBright }}>{g.titulo}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {g.itens.map((n) => (
+                  <button key={n.key} onClick={() => go(n.key)} className="text-left px-2 py-1 text-[11px] font-medium rounded-full flex items-center gap-1 whitespace-nowrap" style={{ background: "#fff", color: "#000", border: `1px solid ${page === n.key ? C.gold : "#00000022"}`, boxShadow: page === n.key ? `0 0 0 2px ${C.goldBright}` : undefined }}>
+                    <n.icon size={11} className="shrink-0" /> <span>{n.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button onClick={onAdminClick} className="text-left px-2 py-2 text-sm rounded-md flex items-center gap-2 mt-3" style={{ color: C.goldBright }}>
             {adminMode ? <ShieldCheck size={15} /> : <Lock size={15} />} {adminMode ? "Sair do modo admin" : "Entrar como admin"}
           </button>
         </div>
@@ -1441,7 +1468,7 @@ function SideCarousel({ photos, setPage }) {
   const visible = Array.from({ length: frameCount }, (_, i) => photos[(offset + i) % total]);
 
   return (
-    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "13.5rem" }}>
+    <div className="hidden lg:flex fixed left-10 bottom-8 z-30 flex-col" style={{ width: "9.5rem", top: "8rem" }}>
       <div className="relative flex-1 rounded-md overflow-hidden shadow-xl" style={{ background: "#000" }}>
         <div className="absolute inset-0 flex flex-col" style={{ left: 14, right: 14 }}>
           {visible.map((photo, i) => (
@@ -2596,8 +2623,8 @@ function comprimirImagem(file, maxLado = 1280, qualidade = 0.72) {
     reader.readAsDataURL(file);
   });
 }
-async function enviarImagemKv(file) {
-  const dataUrl = await comprimirImagem(file);
+async function enviarImagemKv(file, maxLado = 1280, qualidade = 0.72) {
+  const dataUrl = await comprimirImagem(file, maxLado, qualidade);
   const id = uid() + uid();
   await saveKey(`avivar:img:${id}`, { d: dataUrl });
   const conferido = await loadKey(`avivar:img:${id}`, null);
@@ -3973,8 +4000,8 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
   };
 
   const reportagensOrdenadas = [...(avivarNews || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  const reportagensDestaque = reportagensOrdenadas.slice(0, 3);
-  const maisReportagens = reportagensOrdenadas.slice(3, 7);
+  const reportagensDestaque = reportagensOrdenadas.slice(0, 2);
+  const maisReportagens = reportagensOrdenadas.slice(2, 5);
   const abrirNoticia = (id) => (onOpenNews ? onOpenNews(id) : (setPage && setPage("aovivo")));
 
   const MsgParte = ({ className = "", cor = "#ffffffcc" }) => (
@@ -3982,24 +4009,24 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
     <div className="rounded-2xl overflow-hidden" style={{ background: C.violetDeep }}>
       <div className="grid lg:grid-cols-3">
         {/* Coluna 1 — o que são os Códigos Avivar (cada frase = chamada clicável) */}
-        <div className="px-5 py-7">
+        <div className="px-4 py-3">
           <Eyebrow color={C.gold}><Sparkles size={11} className="inline mr-1" />Conheça</Eyebrow>
-          <p className="font-script text-3xl text-white leading-none">Códigos Avivar</p>
-          <p className="text-xs mt-1.5 mb-4" style={{ color: "#D9D2EA" }}>O que são os Códigos Avivar?</p>
-          <div className="space-y-2">
-            {CODIGOS_O_QUE_SAO.map((c, i) => (
+          <p className="font-script text-2xl text-white leading-none">Códigos Avivar</p>
+          <p className="text-[11px] mt-1 mb-2" style={{ color: "#D9D2EA" }}>O que são os Códigos Avivar?</p>
+          <div className="space-y-1.5">
+            {CODIGOS_O_QUE_SAO.slice(0, 3).map((c, i) => (
               <button
                 key={i}
                 onClick={abrirApp}
-                className="block w-full text-left rounded-lg border-l-4 px-3 py-2.5 shadow-sm transition hover:brightness-95 hover:translate-x-0.5 focus:outline-none focus:ring-2"
+                className="block w-full text-left rounded-lg border-l-4 px-2.5 py-1.5 shadow-sm transition hover:brightness-95 hover:translate-x-0.5 focus:outline-none focus:ring-2"
                 style={{ background: c.bg, borderColor: c.borda, color: C.ink }}
               >
-                <span className="text-[13px] leading-snug font-medium">{c.texto}</span>
-                <span className="block text-[11px] font-semibold mt-1" style={{ color: c.borda }}>Abrir o app Códigos Avivar →</span>
+                <span className="text-[12px] leading-snug font-medium">{c.texto}</span>
+                <span className="block text-[10px] font-semibold mt-0.5" style={{ color: c.borda }}>Abrir o app Códigos Avivar →</span>
               </button>
             ))}
           </div>
@@ -4011,18 +4038,18 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
         </div>
 
         {/* Coluna 2 — foto central clicável + reflexões do Avivar News */}
-        <div className="px-5 py-7 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
+        <div className="px-4 py-3 border-t lg:border-t-0 lg:border-l" style={{ background: C.indigo, borderColor: "#ffffff14" }}>
           <button onClick={abrirApp} className="block w-full rounded-xl overflow-hidden border-2 shadow-xl hover:brightness-110 focus:outline-none focus:ring-2" style={{ borderColor: C.gold }} title="Abrir o app Códigos Avivar">
-            <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-contain max-h-[190px]" ph="Banner revista Códigos Avivar" />
+            <ImgOrPlaceholder url={CODIGOS_REVISTA_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-contain max-h-[130px]" ph="Banner revista Códigos Avivar" />
           </button>
           <MsgParte className="text-center mt-1.5" />
-          <h3 className="font-display text-base font-semibold text-white mt-4 mb-2">Reflexões Avivar News</h3>
-          <div className="space-y-2">
+          <h3 className="font-display text-sm font-semibold text-white mt-2.5 mb-1.5">Reflexões Avivar News</h3>
+          <div className="space-y-1.5">
             {reportagensDestaque.length === 0 && <p className="text-xs italic" style={{ color: "#ffffffaa" }}>Nenhuma reportagem publicada ainda.</p>}
             {reportagensDestaque.map((n) => (
-              <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full px-3 py-2.5 rounded-lg transition hover:brightness-125 focus:outline-none focus:ring-2" style={{ background: "#ffffff12" }}>
-                <p className="font-display font-semibold text-white text-[13px] leading-snug">{n.titulo}</p>
-                <p className="text-[11px] mt-1 line-clamp-2" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 90)}</p>
+              <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full px-2.5 py-1.5 rounded-lg transition hover:brightness-125 focus:outline-none focus:ring-2" style={{ background: "#ffffff12" }}>
+                <p className="font-display font-semibold text-white text-[12px] leading-snug">{n.titulo}</p>
+                <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#ffffffaa" }}>{previaReportagem(n, 90)}</p>
                 <MsgParte className="mt-1.5" cor={C.goldBright} />
               </button>
             ))}
@@ -4030,13 +4057,13 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
         </div>
 
         {/* Coluna 3 — série Profetas dos Últimos Dias + curiosidade + mais reportagens */}
-        <div className="px-5 py-7 border-t lg:border-t-0 lg:border-l" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
+        <div className="px-4 py-3 border-t lg:border-t-0 lg:border-l flex flex-col" style={{ background: C.emberDeep, borderColor: "#ffffff14" }}>
           <button onClick={abrirApp} className="block w-full rounded-lg overflow-hidden border shadow-md hover:brightness-110 focus:outline-none focus:ring-2" style={{ borderColor: "#ffffff33" }} title="Abrir o app Códigos Avivar">
-            <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[110px]" ph="Série Profetas dos Últimos Dias" />
+            <ImgOrPlaceholder url={CODIGOS_PROFETAS_ULTIMOS_DIAS_BANNER} alt="Códigos Avivar — Profetas dos Últimos Dias" className="w-full object-cover max-h-[84px]" ph="Série Profetas dos Últimos Dias" />
           </button>
           <MsgParte className="mt-1.5" />
-          <button onClick={abrirApp} className="mt-3 flex w-full items-center gap-3 rounded-lg overflow-hidden border text-left hover:brightness-95 focus:outline-none focus:ring-2" style={{ borderColor: "#ffffff33", background: C.parchment }}>
-            <ImgOrPlaceholder url={CODIGOS_CURIOSIDADE_AGUA_VINHO} alt="Curiosidade: a Transformação da Água em Vinho" className="w-20 h-16 object-cover shrink-0" ph="Curiosidade" />
+          <button onClick={abrirApp} className="mt-2 flex w-full items-center gap-3 rounded-lg overflow-hidden border text-left hover:brightness-95 focus:outline-none focus:ring-2" style={{ borderColor: "#ffffff33", background: C.parchment }}>
+            <ImgOrPlaceholder url={CODIGOS_CURIOSIDADE_AGUA_VINHO} alt="Curiosidade: a Transformação da Água em Vinho" className="w-16 h-12 object-cover shrink-0" ph="Curiosidade" />
             <span className="pr-3 py-1.5">
               <span className="block text-[10px] font-mono" style={{ color: C.stone }}>CURIOSIDADE</span>
               <span className="block text-xs font-semibold leading-snug" style={{ color: C.ink }}>Ciência e o milagre da água em vinho</span>
@@ -4044,11 +4071,11 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
             </span>
           </button>
           {maisReportagens.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-2.5">
               <Eyebrow color={C.goldBright}><Radio size={11} className="inline mr-1" />Mais reportagens</Eyebrow>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {maisReportagens.map((n) => (
-                  <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full text-[13px] underline decoration-dotted text-white/90 hover:text-white leading-snug">
+                  <button key={n.id} onClick={() => abrirNoticia(n.id)} className="block text-left w-full text-[12px] underline decoration-dotted text-white/90 hover:text-white leading-snug">
                     {n.titulo}
                   </button>
                 ))}
@@ -4056,9 +4083,11 @@ function CodigosAvivar({ data, save, adminMode, avivarNews, setPage, onOpenNews 
               <MsgParte className="mt-1.5" />
             </div>
           )}
-          <button onClick={abrirApp} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold hover:brightness-110 focus:outline-none focus:ring-2" style={{ background: C.gold, color: "#241C00" }}>
-            Entrar no app Códigos Avivar →
-          </button>
+          <div className="mt-auto pt-2.5">
+            <button onClick={abrirApp} className="w-full rounded-lg px-4 py-1.5 text-[13px] font-semibold hover:brightness-110 focus:outline-none focus:ring-2" style={{ background: C.gold, color: "#241C00" }}>
+              Entrar no app Códigos Avivar →
+            </button>
+          </div>
         </div>
       </div>
 
@@ -7114,29 +7143,139 @@ function LiderancaDestaque({ data, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 /* Colaboradores                                                       */
 /* ---------------------------------------------------------------- */
-const COLAB_FIELDS = [
+const COLAB_CAMPOS = [
   { key: "nome", label: "Nome completo" },
   { key: "cargo", label: "Cargo eclesiástico (Pastor, Diácono, Obreiro...)" },
   { key: "ministerio", label: "Liderança / ministério" },
-  { key: "atribuicao", label: "Atribuição", type: "textarea" },
   { key: "telefone", label: "Telefone (opcional)", type: "tel" },
-  { key: "fotoUrl", label: "URL da foto", type: "url" },
+  { key: "atribuicao", label: "Atribuição (o que faz no ministério)", type: "textarea" },
+  { key: "historico", label: "Breve histórico (aparece ao clicar na foto)", type: "textarea" },
+];
+const KIDS_CAMPOS = [
+  { key: "nome", label: "Nome" },
+  { key: "historico", label: "Breve histórico (opcional)", type: "textarea" },
 ];
 
-function ColaboradorCard({ c, adminMode, onDel, contido }) {
+// Cartão do colaborador: ao passar o mouse a foto se mexe (balança de leve) e o cartão
+// sobe; ao clicar abre o breve histórico. O admin vê os botões "editar" e "excluir".
+function ColaboradorCard({ c, adminMode, onDel, onEdit, onOpen, contido }) {
   // "contido" (object-contain, com fundo) evita cortar a cabeça de fotos mais
   // verticais/ampliadas — a foto inteira aparece, só um pouco menor dentro do
   // quadro, em vez de preencher o quadro cortando as bordas (object-cover).
-  const imgCls = contido ? "w-full h-44 object-contain bg-[#F1E7D3] p-1.5" : "w-full h-44 object-cover";
+  const imgCls = (contido ? "w-full h-44 object-contain bg-[#F1E7D3] p-1.5" : "w-full h-44 object-cover") + " colab-img";
   return (
-    <div className="rounded-lg border overflow-hidden" style={{ borderColor: C.line, background: C.parchment }}>
-      <ImgOrPlaceholder url={c.fotoUrl} alt={c.nome} className={imgCls} ph={c.nome} />
+    <div
+      className="colab-card rounded-lg border overflow-hidden cursor-pointer focus:outline-none focus:ring-2"
+      style={{ borderColor: C.line, background: C.parchment }}
+      role="button"
+      tabIndex={0}
+      title="Clique para ver o histórico"
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen && onOpen(); } }}
+    >
+      <div className="overflow-hidden">
+        <FotoKv src={c.fotoUrl} alt={c.nome} className={imgCls} ph={c.nome} />
+      </div>
       <div className="p-2" style={{ background: C.parchment }}>
         <p className="font-display font-semibold text-xs leading-snug">{c.nome}</p>
         {c.cargo && <p className="text-[10px]" style={{ color: C.ember }}>{c.cargo}</p>}
         {c.ministerio && <p className="text-[10px] mt-0.5" style={{ color: C.stone }}>{c.ministerio}</p>}
         {c.telefone && <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: C.stone }}><Phone size={10} />{c.telefone}</p>}
-        {adminMode && <button onClick={onDel} className="text-[10px] underline mt-1" style={{ color: "#B03428" }}>excluir</button>}
+        <p className="text-[10px] mt-1 font-semibold" style={{ color: C.violet }}>Ver histórico →</p>
+        {adminMode && (
+          <div className="flex gap-3 mt-1">
+            <button onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} className="text-[10px] underline font-semibold" style={{ color: C.violet }}>editar</button>
+            <button onClick={(e) => { e.stopPropagation(); onDel && onDel(); }} className="text-[10px] underline" style={{ color: "#B03428" }}>excluir</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Janela com o breve histórico do colaborador (foto grande + dados).
+function ColaboradorModal({ c, onClose }) {
+  useEffect(() => {
+    const f = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", f);
+    return () => window.removeEventListener("keydown", f);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000cc" }} onClick={onClose}>
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border-2" style={{ background: C.cream, borderColor: C.gold }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-2 right-2 z-10 p-1.5 rounded-full" style={{ background: "#000000aa" }} aria-label="Fechar"><X size={16} color="#fff" /></button>
+        <div style={{ background: C.parchmentDeep }}>
+          <FotoKv src={c.fotoUrl} alt={c.nome} className="w-full h-64 object-contain" ph={c.nome} />
+        </div>
+        <div className="p-5">
+          <h3 className="font-display text-xl font-semibold" style={{ color: C.ink }}>{c.nome}</h3>
+          {c.cargo && <p className="text-sm font-semibold mt-0.5" style={{ color: C.ember }}>{c.cargo}</p>}
+          {c.ministerio && <p className="text-sm mt-0.5" style={{ color: C.stone }}>{c.ministerio}</p>}
+          {c.atribuicao && <p className="text-sm mt-3 leading-relaxed" style={{ color: C.ink }}><span className="font-semibold">Atribuição: </span>{c.atribuicao}</p>}
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: C.line }}>
+            <p className="text-[10px] font-mono uppercase mb-1" style={{ color: C.stone }}>Breve histórico</p>
+            {c.historico
+              ? <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: C.ink }}>{c.historico}</p>
+              : <p className="text-sm italic" style={{ color: C.stone }}>O histórico será publicado em breve.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Janela do admin para cadastrar/editar: nome, cargo, ministério, histórico e a foto
+// (do aparelho ou por endereço) — também serve para trocar ou remover a foto.
+function ColaboradorEditor({ titulo, campos, valor, onSalvar, onFechar }) {
+  const [v, setV] = useState(() => ({ ...valor }));
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const set = (k, x) => setV((a) => ({ ...a, [k]: x }));
+  const trocarFoto = async (file) => {
+    if (!file) return;
+    setEnviando(true);
+    setAviso("");
+    try { set("fotoUrl", await enviarImagemKv(file)); } catch (e) { setAviso("Não foi possível enviar a foto. Tente de novo."); }
+    setEnviando(false);
+  };
+  const salvar = () => {
+    if (!(v.nome || "").trim()) { setAviso("Informe o nome."); return; }
+    onSalvar({ ...v, nome: v.nome.trim() });
+  };
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000cc" }}>
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl border-2 p-5" style={{ background: C.cream, borderColor: C.gold }}>
+        <button onClick={onFechar} className="absolute top-2 right-2 p-1.5 rounded-full" style={{ background: "#00000022" }} aria-label="Fechar"><X size={16} /></button>
+        <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · {titulo}</p>
+        <div className="flex gap-4 items-start">
+          <div className="w-28 shrink-0">
+            <div className="rounded-lg overflow-hidden border" style={{ borderColor: C.line, background: C.parchmentDeep }}>
+              <FotoKv src={v.fotoUrl} alt={v.nome} className="w-full h-32 object-cover" ph="Sem foto" />
+            </div>
+            <label className="mt-2 block text-center text-[11px] px-2 py-1.5 rounded-md border cursor-pointer font-semibold" style={{ borderColor: C.violet, color: C.violet }}>
+              {enviando ? "Enviando…" : v.fotoUrl ? "Trocar foto" : "Escolher foto"}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => trocarFoto(e.target.files && e.target.files[0])} />
+            </label>
+            {v.fotoUrl && <button onClick={() => set("fotoUrl", "")} className="mt-1 w-full text-[11px] underline" style={{ color: "#B03428" }}>remover foto</button>}
+          </div>
+          <div className="flex-1 space-y-3 min-w-0">
+            {campos.map((f) => (
+              <Field key={f.key} label={f.label}>
+                {f.type === "textarea"
+                  ? <textarea rows={f.key === "historico" ? 5 : 2} className={inputCls} style={{ borderColor: C.line }} value={v[f.key] || ""} onChange={(e) => set(f.key, e.target.value)} />
+                  : <input type={f.type || "text"} className={inputCls} style={{ borderColor: C.line }} value={v[f.key] || ""} onChange={(e) => set(f.key, e.target.value)} />}
+              </Field>
+            ))}
+            <Field label="Ou endereço (URL) da foto">
+              <input type="url" className={inputCls} style={{ borderColor: C.line }} value={(v.fotoUrl || "").startsWith("kv:") ? "" : v.fotoUrl || ""} placeholder="https://…" onChange={(e) => set("fotoUrl", e.target.value)} />
+            </Field>
+          </div>
+        </div>
+        {aviso && <p className="text-xs mt-3 font-semibold" style={{ color: "#B03428" }}>{aviso}</p>}
+        <div className="flex gap-2 mt-4 justify-end">
+          <Btn variant="ghost" color={C.stone} onClick={onFechar}>Cancelar</Btn>
+          <Btn onClick={salvar}><Save size={14} /> Salvar</Btn>
+        </div>
       </div>
     </div>
   );
@@ -7145,14 +7284,11 @@ function ColaboradorCard({ c, adminMode, onDel, contido }) {
 // Avivar Kids — seção própria abaixo de Colaboradores, com fotos das crianças/
 // jovens do ministério infantil. Campos simples (só nome + foto), já que não
 // têm cargo/ministério/telefone como os colaboradores adultos.
-const AVIVAR_KIDS_FIELDS = [
-  { key: "nome", label: "Nome" },
-  { key: "fotoUrl", label: "URL da foto", type: "url" },
-];
-
 function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca, saveLideranca }) {
-  const add = (v) => save([...items, { id: uid(), ...v }]);
-  const del = (id) => save(items.filter((i) => i.id !== id));
+  const [aberto, setAberto] = useState(null);       // colaborador com o histórico aberto
+  const [editor, setEditor] = useState(null);       // { tipo: "colab" | "kid", item }
+  const salvarColab = (v) => save(v.id ? items.map((i) => (i.id === v.id ? { ...i, ...v } : i)) : [...items, { ...v, id: uid() }]);
+  const del = (id) => { if (window.confirm("Excluir este colaborador?")) save(items.filter((i) => i.id !== id)); };
   const porNome = (a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR");
   // Pastor Marcos e Pastora Wládia ficam SÓ no bloco de destaque no topo (Lideranca
   // Destaque) — nunca na lista comum de colaboradores, mesmo que sejam recadastrados
@@ -7179,8 +7315,8 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
     novos = aoLado(novos);
   }
 
-  const addKid = (v) => saveKids([...(kidsItems || []), { id: uid(), ...v }]);
-  const delKid = (id) => saveKids((kidsItems || []).filter((i) => i.id !== id));
+  const salvarKid = (v) => saveKids(v.id ? (kidsItems || []).map((i) => (i.id === v.id ? { ...i, ...v } : i)) : [...(kidsItems || []), { ...v, id: uid() }]);
+  const delKid = (id) => { if (window.confirm("Excluir esta criança do Avivar Kids?")) saveKids((kidsItems || []).filter((i) => i.id !== id)); };
   const kidsOrdenados = [...(kidsItems || [])].sort(porNome);
 
   return (
@@ -7196,14 +7332,14 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
       {(antigos.length > 0 || novos.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
           {[...antigos, ...novos].map((c) => (
-            <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} />
+            <ColaboradorCard key={c.id} c={c} adminMode={adminMode} onDel={() => del(c.id)} onEdit={() => setEditor({ tipo: "colab", item: c })} onOpen={() => setAberto(c)} />
           ))}
         </div>
       )}
       {adminMode && (
         <div className="mt-8">
-          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · novo colaborador</p>
-          <DynamicForm fields={COLAB_FIELDS} onSubmit={add} submitLabel="Cadastrar" />
+          <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · colaboradores (use "editar" no cartão para alterar nome, cargo, histórico ou trocar a foto)</p>
+          <Btn onClick={() => setEditor({ tipo: "colab", item: {} })}><Plus size={16} /> Novo colaborador</Btn>
         </div>
       )}
 
@@ -7216,17 +7352,210 @@ function Colaboradores({ items, save, adminMode, kidsItems, saveKids, lideranca,
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
             {kidsOrdenados.map((k) => (
-              <ColaboradorCard key={k.id} c={k} adminMode={adminMode} onDel={() => delKid(k.id)} />
+              <ColaboradorCard key={k.id} c={k} adminMode={adminMode} onDel={() => delKid(k.id)} onEdit={() => setEditor({ tipo: "kid", item: k })} onOpen={() => setAberto(k)} />
             ))}
           </div>
         )}
         {adminMode && (
           <div className="mt-8">
-            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · nova criança em Avivar Kids</p>
-            <DynamicForm fields={AVIVAR_KIDS_FIELDS} onSubmit={addKid} submitLabel="Cadastrar" />
+            <p className="text-xs font-mono mb-2" style={{ color: C.stone }}>ADMIN · Avivar Kids</p>
+            <Btn onClick={() => setEditor({ tipo: "kid", item: {} })}><Plus size={16} /> Nova criança</Btn>
           </div>
         )}
       </div>
+      {aberto && <ColaboradorModal c={aberto} onClose={() => setAberto(null)} />}
+      {adminMode && editor && (
+        <ColaboradorEditor
+          titulo={editor.tipo === "kid" ? (editor.item.id ? "editar criança (Avivar Kids)" : "nova criança (Avivar Kids)") : (editor.item.id ? "editar colaborador" : "novo colaborador")}
+          campos={editor.tipo === "kid" ? KIDS_CAMPOS : COLAB_CAMPOS}
+          valor={editor.item}
+          onFechar={() => setEditor(null)}
+          onSalvar={(v) => { (editor.tipo === "kid" ? salvarKid : salvarColab)(v); setEditor(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+/* Certificados (batismo, consagração, apresentação de criança...)       */
+/* ---------------------------------------------------------------- */
+const CERT_TIPOS = ["Batismo", "Consagração pastoral", "Consagração de obreiro", "Apresentação de criança", "Outro"];
+const MESES_EXTENSO_CERT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const dataExtensoCert = (str) => {
+  if (!str) return "";
+  const [y, m, d] = String(str).split("-");
+  if (!y || !m || !d) return str;
+  return `${d} de ${MESES_EXTENSO_CERT[parseInt(m, 10) - 1] || m} de ${y}`;
+};
+// Breve histórico padrão de cada certificado (o admin pode reescrever à vontade).
+function historicoCertificado(c) {
+  const nome = (c.nome || "").trim() || "O(a) irmão(ã)";
+  const f = c.genero === "F";
+  const o = f ? "a" : "o";
+  const quando = c.data ? ` no dia ${dataExtensoCert(c.data)}` : "";
+  switch (c.tipo) {
+    case "Batismo":
+      return `${nome} aceitou a Jesus Cristo e reconheceu publicamente a fé em Jesus como seu único e suficiente Senhor e Salvador, sendo batizad${o} nas águas, em nome do Pai, do Filho e do Espírito Santo${c.data ? `, no dia ${dataExtensoCert(c.data)}` : ""}.`;
+    case "Consagração pastoral":
+      return `${nome} foi consagrad${o} ao ministério pastoral${quando}, para servir à igreja de Cristo e cuidar do rebanho de Deus. “Pastoreai o rebanho de Deus que há entre vós.” (1 Pedro 5:2)`;
+    case "Consagração de obreiro":
+      return `${nome} foi consagrad${o} obreiro${f ? "a" : ""} do Ministério Avivar do Espírito${quando}, para servir ao Senhor e à Sua igreja com fidelidade.`;
+    case "Apresentação de criança":
+      return `${nome} foi apresentad${o} ao Senhor${quando}, colocad${o} em Suas mãos pelos pais para que cresça na graça, no conhecimento e no temor de Deus. “Deixem vir a mim as crianças, pois o Reino de Deus pertence aos que são semelhantes a elas.” (Marcos 10:14)`;
+    default:
+      return `${nome} — ${c.tipo || "certificado"}${quando}.`;
+  }
+}
+
+function CertificadoEditor({ valor, onSalvar, onFechar }) {
+  const [v, setV] = useState(() => ({ tipo: "Batismo", genero: "M", exibirImagem: true, ...valor }));
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const set = (k, x) => setV((a) => ({ ...a, [k]: x }));
+  const trocarImagem = async (file) => {
+    if (!file) return;
+    setEnviando(true);
+    setAviso("");
+    try { set("imagem", await enviarImagemKv(file, 1800, 0.86)); } catch (e) { setAviso("Não foi possível enviar a imagem. Use uma foto/imagem (JPG ou PNG) e tente de novo."); }
+    setEnviando(false);
+  };
+  const salvar = () => {
+    if (!(v.nome || "").trim()) { setAviso("Informe o nome."); return; }
+    const final = { ...v, nome: v.nome.trim() };
+    if (!(final.historico || "").trim()) final.historico = historicoCertificado(final);
+    onSalvar(final);
+  };
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "#000000cc" }}>
+      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl border-2 p-5" style={{ background: C.cream, borderColor: C.gold }}>
+        <button onClick={onFechar} className="absolute top-2 right-2 p-1.5 rounded-full" style={{ background: "#00000022" }} aria-label="Fechar"><X size={16} /></button>
+        <p className="text-xs font-mono mb-3" style={{ color: C.stone }}>ADMIN · {valor && valor.id ? "editar certificado" : "novo certificado"}</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Tipo">
+            <select className={inputCls} style={{ borderColor: C.line }} value={v.tipo} onChange={(e) => set("tipo", e.target.value)}>
+              {CERT_TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="Nome completo"><input className={inputCls} style={{ borderColor: C.line }} value={v.nome || ""} onChange={(e) => set("nome", e.target.value)} /></Field>
+          <Field label="Data (batismo, consagração, apresentação...)"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={v.data || ""} onChange={(e) => set("data", e.target.value)} /></Field>
+          <Field label="Gênero (só para o texto automático)">
+            <select className={inputCls} style={{ borderColor: C.line }} value={v.genero} onChange={(e) => set("genero", e.target.value)}>
+              <option value="M">Masculino (batizado, consagrado…)</option>
+              <option value="F">Feminino (batizada, consagrada…)</option>
+            </select>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Breve histórico (aparece abaixo do certificado)">
+              <textarea rows={4} className={inputCls} style={{ borderColor: C.line }} value={v.historico || ""} onChange={(e) => set("historico", e.target.value)} />
+            </Field>
+            <button onClick={() => set("historico", historicoCertificado(v))} className="mt-1 text-xs underline font-semibold" style={{ color: C.violet }}>gerar o texto automático com os dados acima</button>
+          </div>
+          <div className="sm:col-span-2 flex gap-4 items-start">
+            <div className="w-40 shrink-0 rounded-lg overflow-hidden border" style={{ borderColor: C.line, background: C.parchmentDeep }}>
+              <FotoKv src={v.imagem} alt={v.nome} className="w-full h-28 object-contain" ph="Sem imagem" />
+            </div>
+            <div className="flex-1 space-y-2 min-w-0">
+              <label className="inline-block text-xs px-3 py-1.5 rounded-md border cursor-pointer font-semibold" style={{ borderColor: C.violet, color: C.violet }}>
+                {enviando ? "Enviando…" : v.imagem ? "Trocar imagem do certificado" : "Inserir imagem do certificado"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => trocarImagem(e.target.files && e.target.files[0])} />
+              </label>
+              {v.imagem && <button onClick={() => set("imagem", "")} className="block text-xs underline" style={{ color: "#B03428" }}>remover imagem</button>}
+              <Field label="Ou endereço (URL) da imagem">
+                <input type="url" className={inputCls} style={{ borderColor: C.line }} value={(v.imagem || "").startsWith("kv:") ? "" : v.imagem || ""} placeholder="https://…" onChange={(e) => set("imagem", e.target.value)} />
+              </Field>
+              <label className="flex items-start gap-2 text-xs" style={{ color: C.ink }}>
+                <input type="checkbox" className="mt-0.5" checked={v.exibirImagem !== false} onChange={(e) => set("exibirImagem", e.target.checked)} />
+                <span>Mostrar a imagem do certificado ao público (desmarque para mostrar só o nome, a data e o histórico — o certificado traz data de nascimento e nome dos pais).</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        {aviso && <p className="text-xs mt-3 font-semibold" style={{ color: "#B03428" }}>{aviso}</p>}
+        <div className="flex gap-2 mt-4 justify-end">
+          <Btn variant="ghost" color={C.stone} onClick={onFechar}>Cancelar</Btn>
+          <Btn onClick={salvar}><Save size={14} /> Salvar</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Certificados({ items, save, adminMode }) {
+  const lista = Array.isArray(items) ? items : [];
+  const [filtro, setFiltro] = useState("Todos");
+  const [editor, setEditor] = useState(null);
+  const [ampliada, setAmpliada] = useState(null);
+  const tiposPresentes = CERT_TIPOS.filter((t) => lista.some((c) => c.tipo === t));
+  const visiveis = lista
+    .filter((c) => filtro === "Todos" || c.tipo === filtro)
+    .sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")) || (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
+  const salvarItem = (v) => save(v.id ? lista.map((c) => (c.id === v.id ? { ...c, ...v } : c)) : [...lista, { ...v, id: uid() }]);
+  const remover = (c) => { if (window.confirm(`Remover o certificado de ${c.nome}?`)) save(lista.filter((x) => x.id !== c.id)); };
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow><Award size={12} className="inline mr-1" />Testemunho público de fé</Eyebrow>
+      <SectionTitle>Certificados</SectionTitle>
+      <p className="text-sm max-w-2xl" style={{ color: C.ink }}>
+        Batismos, consagrações e apresentações de crianças ao Senhor no Ministério Avivar do Espírito — cada certificado com o seu breve histórico.
+      </p>
+
+      {tiposPresentes.length > 1 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {["Todos", ...tiposPresentes].map((t) => (
+            <button key={t} onClick={() => setFiltro(t)} className="px-3 py-1 rounded-full text-xs font-semibold border focus:outline-none focus:ring-2" style={{ background: filtro === t ? C.violet : "#fff", color: filtro === t ? "#fff" : C.ink, borderColor: filtro === t ? C.violet : C.line }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {adminMode && (
+        <div className="mt-4">
+          <Btn onClick={() => setEditor({})}><Plus size={16} /> Novo certificado</Btn>
+        </div>
+      )}
+
+      {visiveis.length === 0 ? (
+        <div className="mt-6"><Empty text="Nenhum certificado publicado ainda." /></div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {visiveis.map((c) => {
+            const mostra = c.imagem && c.exibirImagem !== false;
+            const podeVer = mostra || (adminMode && c.imagem);
+            return (
+              <div key={c.id} className="rounded-xl border overflow-hidden flex flex-col" style={{ borderColor: C.gold, background: C.cream }}>
+                <button
+                  onClick={() => podeVer && setAmpliada(c.imagem)}
+                  className="block w-full text-left focus:outline-none focus:ring-2"
+                  style={{ background: C.parchmentDeep, cursor: podeVer ? "zoom-in" : "default" }}
+                  title={podeVer ? "Ampliar o certificado" : ""}
+                >
+                  {mostra || (adminMode && c.imagem)
+                    ? <FotoKv src={c.imagem} alt={`Certificado de ${c.nome}`} className="w-full aspect-[1.414/1] object-contain" ph="Certificado" />
+                    : <div className="w-full aspect-[1.414/1] flex flex-col items-center justify-center gap-2" style={{ color: C.goldDeep }}><Award size={44} /><span className="text-xs font-mono">{c.tipo}</span></div>}
+                </button>
+                <div className="p-4 flex-1 flex flex-col">
+                  <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.ember }}>{c.tipo}{c.data ? ` · ${fmtDate(c.data)}` : ""}</p>
+                  <h3 className="font-display font-semibold text-base leading-snug mt-0.5" style={{ color: C.ink }}>{c.nome}</h3>
+                  <p className="text-sm leading-relaxed mt-2" style={{ color: C.ink }}>{c.historico || historicoCertificado(c)}</p>
+                  {adminMode && (
+                    <div className="flex gap-4 mt-3 pt-2 border-t" style={{ borderColor: C.line }}>
+                      <button onClick={() => setEditor(c)} className="text-xs underline font-semibold" style={{ color: C.violet }}>editar</button>
+                      <button onClick={() => remover(c)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
+                      {c.imagem && c.exibirImagem === false && <span className="text-[10px] font-mono ml-auto" style={{ color: C.stone }}>imagem oculta ao público</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {adminMode && editor && (
+        <CertificadoEditor valor={editor} onFechar={() => setEditor(null)} onSalvar={(v) => { salvarItem(v); setEditor(null); }} />
+      )}
+      {ampliada && <FotoAmpliadaKv src={ampliada} onClose={() => setAmpliada(null)} />}
     </div>
   );
 }
@@ -7796,6 +8125,49 @@ function ConfirmarEscalaDia({ escala, dataStr, onMarcar, recarregar, onVoltar })
 // disponíveis; ao clicar, o obreiro "sai" da caixa e passa a aparecer escalado
 // naquele posto. Só depois de escalado surgem os botões Disponível/Indisponível,
 // com horário da confirmação e a opção de "Mudei de ideia" (com motivo).
+// Organograma das funções dos obreiros — hierarquia em "escada", a partir do Pregador.
+// Os nomes na tela são os do organograma; por baixo continuam os mesmos postos da escala.
+const ORGANOGRAMA_NIVEIS = [
+  [{ posto: "Pregação", label: "Pregador" }],
+  [{ posto: "Abertura e Semeadura", label: "Palavra Inicial e Semeadura" }],
+  [{ posto: "Anjos de Luz", label: "Anjos de Luz" }],
+  [{ posto: "Louvor", label: "Ministério de Louvor" }],
+  [{ posto: "Slides", label: "Slide" }, { posto: "Mídia", label: "Mídia" }],
+  [{ posto: "Ofertas", label: "Oferta" }, { posto: "Kids", label: "Kids" }, { posto: "Recepção", label: "Recepção" }],
+];
+function OrganogramaPostos({ postos, escalados, postoAberto, setPostoAberto }) {
+  const conhecidos = ORGANOGRAMA_NIVEIS.flat().map((x) => x.posto);
+  const niveis = ORGANOGRAMA_NIVEIS.map((n) => n.filter((x) => postos.includes(x.posto))).filter((n) => n.length > 0);
+  const extras = postos.filter((p) => !conhecidos.includes(p)); // funções criadas pelo admin ficam no último degrau
+  if (extras.length > 0) niveis.push(extras.map((p) => ({ posto: p, label: p })));
+  return (
+    <div className="flex flex-col gap-2" style={{ "--degrau": "clamp(8px, 3.2vw, 34px)" }}>
+      {niveis.map((nivel, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-2" style={{ paddingLeft: `calc(${i} * var(--degrau))` }}>
+          {i > 0 && <span className="text-base leading-none select-none" style={{ color: C.goldDeep }} aria-hidden="true">↳</span>}
+          {nivel.map(({ posto, label }) => {
+            const qtd = escalados.filter((e) => e.posto === posto).length;
+            const aberto = postoAberto === posto;
+            const cor = CORES_CLARAS_POSTOS[Math.max(0, postos.indexOf(posto)) % CORES_CLARAS_POSTOS.length];
+            const topo = i === 0;
+            return (
+              <button
+                key={posto}
+                onClick={() => setPostoAberto(aberto ? null : posto)}
+                className={`rounded-lg border font-semibold flex items-center gap-1.5 transition hover:brightness-95 focus:outline-none focus:ring-2 ${topo ? "px-4 py-2 text-sm" : "px-3 py-1.5 text-xs"}`}
+                style={{ background: topo ? C.violet : cor, color: topo ? "#fff" : C.ink, borderColor: aberto ? C.ink : "#00000022", boxShadow: aberto ? "0 0 0 2px " + C.gold : "none" }}
+              >
+                {label}
+                <span className="text-[10px] font-mono px-1.5 rounded-full" style={{ background: "#ffffffcc", color: C.ink }}>{qtd}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequestOperator, embutido = false, igrejaId = null }) {
   // Código do setor "escala" = poderes completos de admin dentro da Escala.
   const adminMode = adminReal || operatorMode;
@@ -8225,24 +8597,7 @@ function EscalaObreiros({ data, save, adminMode: adminReal, operatorMode, onRequ
           com os nomes dos obreiros escalados naquele posto (no dia escolhido). */}
       <div className="mt-4">
         <p className="text-[10px] font-mono uppercase mb-1.5" style={{ color: C.stone }}>Clique no posto para ver os obreiros</p>
-        <div className="flex flex-wrap gap-2">
-          {safeData.postos.map((posto, i) => {
-            const qtd = escalados.filter((e) => e.posto === posto).length;
-            const aberto = postoAberto === posto;
-            const cor = CORES_CLARAS_POSTOS[i % CORES_CLARAS_POSTOS.length];
-            return (
-              <button
-                key={posto}
-                onClick={() => setPostoAberto(aberto ? null : posto)}
-                className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition hover:brightness-95 focus:outline-none focus:ring-2"
-                style={{ background: cor, color: C.ink, borderColor: aberto ? C.ink : "#00000022", boxShadow: aberto ? "0 0 0 2px " + C.gold : "none" }}
-              >
-                {posto}
-                <span className="text-[10px] font-mono px-1.5 rounded-full" style={{ background: "#ffffffcc" }}>{qtd}</span>
-              </button>
-            );
-          })}
-        </div>
+        <OrganogramaPostos postos={safeData.postos} escalados={escalados} postoAberto={postoAberto} setPostoAberto={setPostoAberto} />
 
         {postoAberto && safeData.postos.includes(postoAberto) && (() => {
           const doPosto = escalados.filter((e) => e.posto === postoAberto);
@@ -17223,6 +17578,7 @@ export default function App() {
   const [historia, setHistoria] = useState(DEFAULT_HISTORIA);
   const [paginaHistoriaOpen, setPaginaHistoriaOpen] = useState(false);
   const [seeds, setSeeds] = useState({});
+  const [certificados, setCertificados] = useState([]);
 
   const sideCarouselPhotos = useMemo(() => {
     const photos = [];
@@ -17233,10 +17589,10 @@ export default function App() {
       });
     });
     (colaboradores || []).forEach((c) => {
-      if (c.fotoUrl) photos.push({ url: c.fotoUrl, label: c.nome, target: "colaboradores" });
+      if (c.fotoUrl && !String(c.fotoUrl).startsWith("kv:")) photos.push({ url: c.fotoUrl, label: c.nome, target: "colaboradores" });
     });
     (avivarKids || []).forEach((k) => {
-      if (k.fotoUrl) photos.push({ url: k.fotoUrl, label: k.nome, target: "colaboradores" });
+      if (k.fotoUrl && !String(k.fotoUrl).startsWith("kv:")) photos.push({ url: k.fotoUrl, label: k.nome, target: "colaboradores" });
     });
     (oracaoEncontros || []).forEach((e) => {
       (e.fotos || []).forEach((url) => {
@@ -17297,6 +17653,7 @@ export default function App() {
       setIntercessao(await loadKey("avivar:intercessao", []));
       setCelulas(await loadKey("avivar:celulas", DEFAULT_CELULAS));
       setHistoria(await loadKey("avivar:historia", DEFAULT_HISTORIA));
+      { const cs = await loadKey("avivar:certificados", []); setCertificados(Array.isArray(cs) ? cs : []); }
       setSeeds(await loadKey("avivar:seeds", {}));
       setLoading(false);
     })();
@@ -18722,6 +19079,43 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       }
       todo.celulaCoordPr1 = true;
     }
+    // --- Certificados (batismo 07/11/2026, diploma pastoral, apresentações) + fotos novas na galeria ---
+    if (!seeds.certificadosFotos1) {
+      let certificadosW = Array.isArray(certificados) ? certificados : [];
+      const certSeeds = [
+        { seedId: "cert-batismo-antonio-renato", tipo: "Batismo", nome: "Antonio Renato Lima dos Santos", data: "2026-11-07", genero: "M", imagem: "/116-certificado-batismo-antonio-renato.jpg", exibirImagem: true },
+        { seedId: "cert-batismo-brena", tipo: "Batismo", nome: "Brena Keze Lima de Moura", data: "2026-11-07", genero: "F", imagem: "/116-certificado-batismo-brena.jpg", exibirImagem: true },
+        { seedId: "cert-batismo-francisco-kauan", tipo: "Batismo", nome: "Francisco Kauan dos Santos Noronha", data: "2026-11-07", genero: "M", imagem: "/116-certificado-batismo-francisco-kauan.jpg", exibirImagem: true },
+        { seedId: "cert-batismo-lucia", tipo: "Batismo", nome: "Lúcia de Fátima Martins Lima", data: "2026-11-07", genero: "F", imagem: "/116-certificado-batismo-lucia.jpg", exibirImagem: true },
+        { seedId: "cert-pastoral-gilvan", tipo: "Consagração pastoral", nome: "Pr. Gilvan de Sousa Medeiros", data: "2026-11-07", genero: "M", imagem: "/117-diploma-pastoral-gilvan.jpg", exibirImagem: true },
+        // Apresentações de crianças: sem imagem e com a imagem oculta de propósito (o certificado traz data de nascimento e nome dos pais) — o admin envia a imagem e libera pelo editor, se quiser.
+        { seedId: "cert-apresentacao-maya", tipo: "Apresentação de criança", nome: "Maya Sophia de Jesus de Alcântara", data: "2026-09-27", genero: "F", imagem: "", exibirImagem: false },
+        { seedId: "cert-apresentacao-aaron", tipo: "Apresentação de criança", nome: "Aaron Luigi de Oliveira Matos", data: "", genero: "M", imagem: "", exibirImagem: false },
+      ];
+      const faltamCert = certSeeds.filter((c) => !certificadosW.some((x) => x.seedId === c.seedId)).map((c) => ({ id: uid(), ...c, historico: historicoCertificado(c) }));
+      if (faltamCert.length > 0) {
+        certificadosW = [...certificadosW, ...faltamCert];
+        setCertificados(certificadosW);
+        saveKey("avivar:certificados", certificadosW);
+      }
+      // Galeria: acrescenta as fotos à sessão que já existir (mesmo dia/tema) ou cria a sessão.
+      const fotosCriancas = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `/114-culto-criancas-${i}.jpg`);
+      const fotosBatismo = [1, 2, 3, 4, 5].map((i) => `/115-batismo-2026-${i}.jpg`);
+      const juntarSessao = (achar, nova, fotos) => {
+        const ex = galeriaW.find(achar);
+        if (ex) {
+          const novas = fotos.filter((f) => !(ex.fotos || []).includes(f));
+          if (novas.length > 0) galeriaW = galeriaW.map((g) => (g === ex ? { ...g, fotos: [...(g.fotos || []), ...novas] } : g));
+        } else {
+          galeriaW = [...galeriaW, { id: uid(), ...nova, videos: [], fotos }];
+        }
+      };
+      juntarSessao((g) => semAcento(g.titulo).includes("crianca") && String(g.data || "") === "2026-10-10", { seedId: "galeria-culto-criancas-1", titulo: "Culto das Crianças ao Senhor Jesus", data: "2026-10-10" }, fotosCriancas);
+      juntarSessao((g) => semAcento(g.titulo).includes("batismo") && String(g.data || "").startsWith("2026-11"), { seedId: "galeria-batismo-2026", titulo: "Batismo 2026", data: "2026-11-07" }, fotosBatismo);
+      setGaleria(galeriaW);
+      saveKey("avivar:galeria", galeriaW);
+      todo.certificadosFotos1 = true;
+    }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
       setSeeds(merged);
@@ -18743,6 +19137,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     loja: (v) => { setLoja(v); saveKey("avivar:loja", v); },
     igrejas: (v) => { setIgrejas(v); saveKey("avivar:igrejas", v); },
     colaboradores: (v) => { setColaboradores(v); saveKey("avivar:colaboradores", v); },
+    certificados: (v) => { setCertificados(v); saveKey("avivar:certificados", v); },
     avivarKids: (v) => { setAvivarKids(v); saveKey("avivar:avivarkids", v); },
     lideranca: (v) => { setLideranca(v); saveKey("avivar:lideranca", v); },
     visitantesDoDia: (v) => { setVisitantesDoDia(v); saveKey("avivar:visitantesdodia", v); },
@@ -19040,6 +19435,13 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         @keyframes marquee { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
         .marquee-track { animation: marquee 14s linear infinite; }
         @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+        /* ---- Colaboradores: ao passar o mouse a foto se mexe; ao clicar abre o histórico ---- */
+        .colab-card { transition: transform .25s ease, box-shadow .25s ease; }
+        .colab-card:hover, .colab-card:focus-visible { transform: translateY(-4px); box-shadow: 0 10px 20px #00000030; }
+        .colab-card .colab-img { transition: transform .35s ease; transform-origin: center; }
+        .colab-card:hover .colab-img, .colab-card:focus-visible .colab-img { animation: colabMove 1.8s ease-in-out infinite; }
+        @keyframes colabMove { 0%, 100% { transform: scale(1.07) rotate(0deg) translateY(0); } 25% { transform: scale(1.12) rotate(-1.4deg) translateY(-2px); } 75% { transform: scale(1.12) rotate(1.4deg) translateY(-2px); } }
+        @media (prefers-reduced-motion: reduce) { .colab-card, .colab-card .colab-img { transition: none; animation: none !important; } .colab-card:hover { transform: none; } }
         @keyframes noticiasMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .noticias-marquee { animation: noticiasMarquee 200s linear infinite; width: max-content; }
         .noticias-marquee:hover { animation-play-state: paused; }
@@ -19052,6 +19454,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
 
       <main className={SIDE_CAROUSEL_ATIVO ? "lg:ml-[200px]" : ""}>
         <section id="home"><Home site={site} setPage={scrollToSection} visitantes={visitantes} saveSite={persist.site} adminMode={adminMode} aoVivo={aoVivo} transmissoesPassadas={transmissoesPassadas} oracaoEncontros={oracaoEncontros} avivarNews={avivarNews} doacoes={doacoes} saveDoacoes={persist.doacoes} manchete={manchete} saveManchete={persist.manchete} onOpenNews={abrirReportagem} oracaoLocalDia={oracaoLocalDia} escala={escala} onOpenCursos={() => setPaginaCursosOpen(true)} celulas={celulas} onOpenCelula={setPaginaCelulaKey} onOpenHistoria={() => setPaginaHistoriaOpen(true)} visitantesDoDia={visitantesDoDia} saveVisitantesDoDia={persist.visitantesDoDia} podeVisitantesDia={podeSetor("visitantes")} podeRelatorioCelulas={adminMode || (!!celulaAuth && celulaAuth.papel === "coordenador")} onRelatorioCelulas={() => setRelatorioCelulasOpen(true)} musicApp={musicApp} /><PrestacaoPublica area="home" items={caixa} extra={caixaExtra} /></section>
+        <section id="certificados" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Certificados items={certificados} save={persist.certificados} adminMode={adminMode} /></section>
         <section id="codigos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><CodigosAvivar data={codigos} save={persist.codigos} adminMode={adminMode} avivarNews={avivarNews} setPage={scrollToSection} onOpenNews={abrirReportagem} /></section>
         <section id="loja" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="loja" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Loja items={loja} save={persist.loja} adminMode={adminMode} operatorMode={podeSetor("loja")} onRequestOperator={() => setOperatorGateOpen(true)} doacoes={doacoes} pedidosFisicos={pedidosFisicos} savePedidosFisicos={persist.pedidosFisicos} /></section>
         <section id="eventos" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><EventosGaleria eventos={eventos} saveEventos={persist.eventos} galeria={galeria} saveGaleria={persist.galeria} adminMode={adminMode} setManchete={persist.manchete} /></section>

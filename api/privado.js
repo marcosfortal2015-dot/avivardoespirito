@@ -25,6 +25,7 @@ const TABELA_PUBLICA = "site_data";
 const PUBLICAS = [
   { teste: (k) => /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k), setores: [] },                       // site da Bíblia Avivar
   { teste: (k) => ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds"].includes(k), setores: [] }, // chave Pix, textos do site, conteúdo inicial
+  { teste: (k) => ["avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados"].includes(k), setores: [] }, // equipe e certificados (só o administrador edita)
   { teste: (k) => k === "avivar:loja", setores: ["loja"] },                                      // preços e links de pagamento
 ];
 const regraPublicaDe = (key) => PUBLICAS.find((r) => r.teste(key));

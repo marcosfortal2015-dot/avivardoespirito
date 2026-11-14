@@ -21,7 +21,8 @@ const PREFIXOS_PRIVADOS = ["avivar:escalapins:"];
 const ANONIMO_ACRESCENTA = ["avivar:pedidosOracao", "avivar:pedidosfisicos"];
 
 // Conteúdo público que só administrador/operador grava, e só pelo servidor (api/privado.js). Leitura segue direta.
-const CHAVES_PUBLICAS_SERVIDOR = ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds", "avivar:loja"];
+const CHAVES_PUBLICAS_SERVIDOR = ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds", "avivar:loja",
+  "avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados"];
 export function ehChavePublicaServidor(key) { return CHAVES_PUBLICAS_SERVIDOR.includes(key); }
 
 // Avisa a tela quando uma gravação NÃO foi aceita (sessão vencida ou sem permissão), para a pessoa não achar que salvou.
