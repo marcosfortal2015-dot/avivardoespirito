@@ -10,7 +10,7 @@ import {
   Play, Pause, Maximize, Minus, Settings2, Layers, History, Award,
   Eye, EyeOff, Bell, Star, Check, Download, Mic, Headphones, Music2, Music3, Music4, ArrowUp, ArrowDown, ExternalLink, Search, Megaphone, ListMusic, SkipForward, GripVertical, Volume2, VolumeX,
 } from "lucide-react";
-import { storageGet, storageSet, privateLogin, privateLogout, sessaoPrivada } from "./lib/storage.js";
+import { storageGet, storageSet, privateLogin, privateLogout, sessaoPrivada, restaurarSessaoLembrada, limparSessaoLembrada, musicaLogin, musicaPrimeiro, musicaConcluir, musicaCadastro, musicaTrocarSenha, musicaLider, musicaMigrar } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ---------------------------------------------------------------- */
@@ -10125,25 +10125,36 @@ function AmCadastro({ t, dados, salvar, onEntrar, carregarFresco }) {
     if (instr.length === 0) { setErro("Marque pelo menos um instrumento (ou voz)."); return; }
     setOcupado(true);
     try {
-      const fresco = (await carregarFresco()) || dados;
-      const base = { ...DEFAULT_MUSICAPP, ...fresco };
+      const escopo = amDevBase();
       const codigo = f.codigo.trim().toUpperCase();
+      const pessoais = { whatsapp: f.whatsapp.trim(), endereco: f.endereco.trim(), email: f.email.trim(), igreja: f.igreja.trim(), obs: f.obs.trim() };
+      // Dados pessoais, código e senha vão direto ao cofre do servidor; no registro público ficam só nome, instrumentos e avisos.
+      const fresco = async () => ({ ...DEFAULT_MUSICAPP, ...((await carregarFresco()) || dados) });
       if (codigo) {
-        const a = (base.acessos || []).find((x) => x.ativo !== false && String(x.codigo).toUpperCase() === codigo);
-        if (!a) { setErro("Código de autorização não encontrado ou desativado. Confira com a liderança."); return; }
-        if (a.senhaHash) { setErro("Este código já foi usado. Toque em \"Já tenho senha\"."); return; }
         const senha = amGerarSenha();
-        const senhaHash = await amHashSenha(a.codigo, senha);
-        const novo = { ...a, senhaHash, whatsapp: f.whatsapp.trim(), endereco: f.endereco.trim(), email: a.email || f.email.trim(), igreja: f.igreja.trim(), instrumentos: instr, instrumento: a.instrumento || instr.join(", "), obs: f.obs.trim(), cadastroEm: new Date().toISOString() };
-        salvar(amAud(amNotif({ ...base, acessos: base.acessos.map((x) => (x.id === a.id ? novo : x)) }, "lider", "cadastro", `${novo.nome} concluiu o cadastro com o código ${novo.codigo}.`), `Cadastro concluído com código: ${novo.nome}`));
-        setFeito({ tipo: "pronto", id: a.id, senha, codigo: a.codigo });
+        const r = await musicaConcluir({ escopo, codigo, senha, dados: pessoais, lembrar: true });
+        if (!r.ok) {
+          setErro(r.motivo === "codigo_ja_usado" ? "Este código já foi usado. Toque em \"Já tenho senha\"."
+            : r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+            : r.motivo === "sem_conexao" ? "Sem conexão. Tente de novo em instantes."
+            : "Código de autorização não encontrado ou desativado. Confira com a liderança.");
+          return;
+        }
+        const base = await fresco();
+        salvar(amAud(amNotif({ ...base, acessos: (base.acessos || []).map((x) => (x.id === r.id ? { ...x, instrumentos: instr, instrumento: x.instrumento || instr.join(", "), cadastroEm: new Date().toISOString() } : x)) }, "lider", "cadastro", `${r.nome || nome} concluiu o cadastro.`), `Cadastro concluído com código: ${r.nome || nome}`));
+        setFeito({ tipo: "pronto", id: r.id, senha, codigo: r.codigo });
         return;
       }
-      const zap = amNumeroWhats(f.whatsapp);
-      if ((base.solicitacoes || []).some((s) => s.status === "pendente" && amNumeroWhats(s.whatsapp) === zap)) { setErro("Já existe um cadastro pendente com este WhatsApp. Aguarde a autorização da liderança."); return; }
-      if ((base.acessos || []).some((a) => a.whatsapp && amNumeroWhats(a.whatsapp) === zap)) { setErro("Este WhatsApp já tem acesso. Toque em \"Já tenho senha\" (ou peça nova senha à liderança)."); return; }
-      const sol = { id: uid(), nome, endereco: f.endereco.trim(), whatsapp: f.whatsapp.trim(), email: f.email.trim(), igreja: f.igreja.trim(), instrumentos: instr, obs: f.obs.trim(), status: "pendente", criadoEm: new Date().toISOString() };
-      salvar(amNotif({ ...base, solicitacoes: [...(base.solicitacoes || []), sol] }, "lider", "cadastro", `Novo cadastro aguardando autorização: ${nome}.`));
+      const r = await musicaCadastro({ escopo, dados: { nome, ...pessoais, instrumentos: instr } });
+      if (!r.ok) {
+        setErro(r.motivo === "pendente_duplicado" ? "Já existe um cadastro pendente com este WhatsApp. Aguarde a autorização da liderança."
+          : r.motivo === "whatsapp_ja_tem_acesso" ? "Este WhatsApp já tem acesso. Toque em \"Já tenho senha\" (ou peça nova senha à liderança)."
+          : r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+          : r.motivo === "sem_conexao" ? "Sem conexão. Tente de novo em instantes."
+          : "Não foi possível enviar o cadastro. Confira os dados e tente de novo.");
+        return;
+      }
+      salvar(amNotif(await fresco(), "lider", "cadastro", "Novo cadastro aguardando autorização (veja em Acessos da equipe)."));
       setFeito({ tipo: "pendente" });
     } finally { setOcupado(false); }
   };
@@ -10202,10 +10213,8 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider, carregarFresco
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
   const [erro, setErro] = useState("");
-  const achar = (v) => {
-    const x = v.trim().toLowerCase();
-    return (dados.acessos || []).find((a) => a.ativo !== false && (a.codigo.toLowerCase() === x || (a.email && a.email.trim().toLowerCase() === x)));
-  };
+  const MOTIVOS = { nao_encontrado: "Código não encontrado ou desativado. Peça ao líder do louvor.", senha_incorreta: "Senha incorreta.", sem_senha: "Este código ainda não tem senha. Use \"Primeiro acesso\" ou \"Cadastrar-se\".", ja_tem_senha: "Este código já tem senha cadastrada. Use \"Já tenho senha\".", muitas_tentativas: "Muitas tentativas. Aguarde alguns minutos e tente de novo.", sem_conexao: "Sem conexão. Tente de novo em instantes." };
+  const [ocupado, setOcupado] = useState(false);
   const entrar = async () => {
     setErro("");
     if (modo === "lider") {
@@ -10214,20 +10223,19 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider, carregarFresco
       else if (!r) setErro("Código de liderança inválido. Use o código que o administrador te passou — ou, se você é músico líder, entre em \"Já tenho senha\" com o seu código.");
       return;
     }
-    const a = achar(ident);
-    if (!a) { setErro("Código não encontrado ou desativado. Peça ao líder do louvor."); return; }
+    if (!ident.trim()) { setErro("Digite o código de acesso."); return; }
     if (modo === "primeiro") {
-      if (a.senhaHash) { setErro("Este código já tem senha cadastrada. Use \"Já tenho senha\"."); return; }
       if (senha.length < 6) { setErro("A senha precisa ter pelo menos 6 caracteres."); return; }
       if (senha !== senha2) { setErro("As duas senhas não são iguais."); return; }
-      const senhaHash = await amHashSenha(a.codigo, senha);
-      salvar({ ...dados, acessos: dados.acessos.map((x) => (x.id === a.id ? { ...x, senhaHash } : x)) });
-      onEntrar(a.id, manter);
-      return;
     }
-    if (!a.senhaHash) { setErro("Este código ainda não tem senha. Use \"Primeiro acesso\" ou \"Cadastrar-se\"."); return; }
-    if ((await amHashSenha(a.codigo, senha)) !== a.senhaHash) { setErro("Senha incorreta."); return; }
-    onEntrar(a.id, manter);
+    // A senha é conferida no servidor; este aparelho nunca recebe o resumo (hash) da senha de ninguém.
+    setOcupado(true);
+    try {
+      const escopo = amDevBase();
+      const r = modo === "primeiro" ? await musicaPrimeiro({ escopo, ident: ident.trim(), senha, lembrar: manter }) : await musicaLogin({ escopo, ident: ident.trim(), senha, lembrar: manter });
+      if (!r.ok) { setErro(MOTIVOS[r.motivo] || "Não foi possível entrar. Tente de novo."); return; }
+      onEntrar(r.id, manter);
+    } finally { setOcupado(false); }
   };
   return (
     <div className={embutido ? "w-full" : "mx-auto max-w-sm px-4 pt-10 pb-16"}>
@@ -10251,7 +10259,7 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider, carregarFresco
             {modo === "primeiro" && <AmSenha t={t} placeholder="Repita a senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} />}
             <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: t.ink }}><input type="checkbox" checked={manter} onChange={(e) => setManter(e.target.checked)} className="w-5 h-5 mt-0.5 shrink-0" data-testid="login-manter" /><span><b>Manter conectado neste aparelho.</b> Você não precisa digitar a senha de novo, até tocar em “Desabilitar este aparelho” ou “Sair”. Não marque em aparelho de outra pessoa.</span></label>
             {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
-            <AmBotao t={t} type="submit" className="w-full"><Unlock size={16} /> {modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
+            <AmBotao t={t} type="submit" className="w-full" disabled={ocupado}><Unlock size={16} /> {ocupado ? "Entrando..." : modo === "primeiro" ? "Cadastrar senha e entrar" : "Entrar"}</AmBotao>
           </form>
         )}
       </AmCard>
@@ -10268,11 +10276,17 @@ function AmTrocarSenha({ t, dados, salvar, musico }) {
   const [ok, setOk] = useState(false);
   const trocar = async () => {
     setErro(""); setOk(false);
-    if ((await amHashSenha(musico.codigo, atual)) !== musico.senhaHash) { setErro("A senha atual não confere."); return; }
     if (nova.length < 6) { setErro("A nova senha precisa ter pelo menos 6 caracteres."); return; }
     if (nova !== rep) { setErro("As duas senhas novas não são iguais."); return; }
-    const senhaHash = await amHashSenha(musico.codigo, nova);
-    salvar(amAud({ ...dados, acessos: (dados.acessos || []).map((x) => (x.id === musico.id ? { ...x, senhaHash } : x)) }, `Senha trocada: ${musico.nome}`));
+    const r = await musicaTrocarSenha({ escopo: amDevBase(), atual, nova });
+    if (!r.ok) {
+      setErro(r.motivo === "senha_atual_errada" ? "A senha atual não confere."
+        : r.motivo === "sem_sessao" ? "Para trocar a senha, entre de novo com a sua senha (toque em Sair e depois em Entrar)."
+        : r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+        : "Não foi possível trocar a senha agora. Tente de novo.");
+      return;
+    }
+    salvar(amAud(dados, `Senha trocada: ${musico.nome}`));
     setAtual(""); setNova(""); setRep(""); setOk(true);
   };
   return (
@@ -11010,6 +11024,47 @@ function AmEscalas({ t, dados, salvar }) {
         );
       })}
     </div>
+  );
+}
+
+/* ---------- Portão: confirma o acesso de líder para ver e alterar códigos, senhas e contatos ---------- */
+function AmGateSessao({ t, tentarCodigoLider, aoEntrar }) {
+  const [modo, setModo] = useState("lider"); // lider | musico
+  const [cod, setCod] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const enviar = async () => {
+    setErro(""); setOcupado(true);
+    try {
+      if (modo === "lider") {
+        const r = await tentarCodigoLider(cod.trim(), true);
+        if (r === true) { aoEntrar(); return; }
+        setErro(r === "semsetor" ? "Seu código não libera o Louvor Avivar do Espírito." : "Código de liderança inválido.");
+      } else {
+        const r = await musicaLogin({ escopo: amDevBase(), ident: cod.trim(), senha, lembrar: true });
+        if (r.ok) { aoEntrar(); return; }
+        setErro(r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos." : "Código ou senha incorretos.");
+      }
+    } finally { setOcupado(false); }
+  };
+  return (
+    <AmCard t={t}>
+      <p className="font-display font-bold inline-flex items-center gap-2" style={{ color: t.ink }}><Lock size={16} style={{ color: t.accent }} /> Confirme seu acesso de líder</p>
+      <p className="text-xs mt-1" style={{ color: t.dim }}>Códigos, senhas, contatos e pedidos de cadastro dos músicos ficam guardados no servidor. Para ver e alterar, confirme quem você é (isso vale só neste aparelho).</p>
+      <div className="grid grid-cols-2 gap-1.5 mt-3">
+        {[["lider", "Código de liderança"], ["musico", "Meu código e senha"]].map(([k, r]) => (
+          <button key={k} type="button" onClick={() => { setModo(k); setErro(""); }} className="min-h-[44px] rounded-xl text-xs font-semibold px-1" style={{ background: modo === k ? t.accent : t.card2, color: modo === k ? t.onAccent : t.ink }}>{r}</button>
+        ))}
+      </div>
+      <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
+        {modo === "lider"
+          ? <AmSenha t={t} placeholder="Código de liderança" value={cod} onChange={(e) => setCod(e.target.value)} />
+          : <><AmInput t={t} placeholder="Seu código de acesso ou e-mail" value={cod} onChange={(e) => setCod(e.target.value)} autoCapitalize="characters" /><AmSenha t={t} placeholder="Sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} /></>}
+        {erro && <p className="text-xs" style={{ color: "#D0473A" }}>{erro}</p>}
+        <AmBotao t={t} type="submit" disabled={ocupado}><Unlock size={16} /> {ocupado ? "Confirmando..." : "Confirmar"}</AmBotao>
+      </form>
+    </AmCard>
   );
 }
 
@@ -17161,24 +17216,36 @@ function AmUnidade({ unidadeId, ...props }) {
   const [liderUn, setLiderUn] = useState(() => { try { return sessionStorage.getItem("am-lider-" + unidadeId) === "1"; } catch (e) { return false; } });
   useEffect(() => {
     let vivo = true;
-    (async () => { const r = await loadKey(chave, null); if (vivo) { ref.current = r; setRec(r); } })();
-    return () => { vivo = false; };
+    const carregar = async () => { const r = await loadKey(chave, null); if (vivo) { ref.current = r; setRec(r); } };
+    carregar();
+    // Depois que a pessoa entra como líder, recarrega para juntar os dados do cofre (códigos, contatos e pedidos de cadastro).
+    window.addEventListener("avivar:music-recarregar", carregar);
+    return () => { vivo = false; window.removeEventListener("avivar:music-recarregar", carregar); };
   }, [chave]);
   const gravar = (v) => { ref.current = v; setRec(v); saveKey(chave, v); };
   const lista = (k) => (v) => gravar({ ...ref.current, [k]: v });
   const saveMusicApp = (v) => gravar({ ...v, grupo: ref.current.grupo, repertorio: ref.current.repertorio, albuns: ref.current.albuns, hinos: ref.current.hinos, liderCodigo: ref.current.liderCodigo, nome: ref.current.nome, cidade: ref.current.cidade, ativo: ref.current.ativo });
-  const tentar = async (codigo) => {
+  const tentar = async (codigo, manter = false) => {
     const c = String(codigo || "").trim();
     if (!c || !rec) return false;
-    const ehAdmin = c.toLowerCase() !== String(rec.liderCodigo || "").toLowerCase() && (await privateLogin(c, { guardar: false, exigirPapel: "admin" })).ok;
-    if (c.toLowerCase() === String(rec.liderCodigo || "").toLowerCase() || ehAdmin) {
-      setLiderUn(true);
-      try { sessionStorage.setItem("am-lider-" + unidadeId, "1"); } catch (e) { /* sem storage */ }
-      return true;
+    // O código de liderança da unidade é conferido no servidor (ele não vem mais no registro público); a senha do administrador também vale.
+    let r = await musicaLider({ escopo: unidadeId, codigo: c, lembrar: manter });
+    if (!r.ok && r.motivo !== "muitas_tentativas") {
+      const adm = await privateLogin(c, { exigirPapel: "admin", lembrar: manter, base: unidadeId });
+      r = { ok: adm.ok };
     }
-    return false;
+    if (!r.ok) return false;
+    setLiderUn(true);
+    try { sessionStorage.setItem("am-lider-" + unidadeId, "1"); } catch (e) { /* sem storage */ }
+    window.dispatchEvent(new Event("avivar:music-recarregar"));
+    return true;
   };
-  const sairLider = () => { setLiderUn(false); try { sessionStorage.removeItem("am-lider-" + unidadeId); } catch (e) { /* sem storage */ } };
+  const sairLider = () => {
+    setLiderUn(false);
+    try { sessionStorage.removeItem("am-lider-" + unidadeId); } catch (e) { /* sem storage */ }
+    const s0 = sessaoPrivada(); if (s0 && s0.papel !== "musico") privateLogout();
+    limparSessaoLembrada(unidadeId);
+  };
   const tela = (titulo, texto) => (
     <div className="min-h-screen flex items-center justify-center px-6 text-center" style={{ background: "#351052", color: "#F7F5F2" }}>
       <div><p className="font-display text-xl font-bold">{titulo}</p><p className="text-sm mt-2 opacity-80">{texto}</p>
@@ -17244,6 +17311,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     if (d) { amDevDesabilitarId(d.devId, por).catch(() => {}); amDevLimparLocal(); }
     setDevLocal(null); setSessaoId(""); setTela(avisar ? "entrar" : "inicio"); setMaisAberto(false); reabrirAbertura();
     try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ }
+    limparSessaoLembrada(amDevBase()); { const s0 = sessaoPrivada(); if (s0 && s0.papel === "musico") privateLogout(); }
     if (d && d.tipo === "lider") { if (onSairLider) onSairLider(); else if (onSairLiderAparelho) onSairLiderAparelho(); }
     if (avisar) setAvisoDev(avisar);
   };
@@ -17254,24 +17322,47 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     else if (amDevLer()) { amDevDesabilitarId(amDevLer().devId, "novo login sem manter conectado").catch(() => {}); amDevLimparLocal(); setDevLocal(null); }
   };
   const tentarLiderLembrando = async (codigo, manter = true) => {
-    const r = await tentarCodigoLider(codigo);
+    const r = await tentarCodigoLider(codigo, manter);
     if (r === true) { setAvisoDev(""); if (manter) { amDevRegistrar({ tipo: "lider" }).catch(() => {}); setDevLocal({ devId: amIdAparelho(), tipo: "lider", acessoId: "" }); } }
     return r;
   };
-  const sair = () => { if (devLocal) esquecerAparelho("a própria pessoa (Sair)"); else { setSessaoId(""); setTela("inicio"); setMaisAberto(false); reabrirAbertura(); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } } };
+  const sair = () => { if (devLocal) esquecerAparelho("a própria pessoa (Sair)"); else { setSessaoId(""); setTela("inicio"); setMaisAberto(false); reabrirAbertura(); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* sem storage */ } limparSessaoLembrada(amDevBase()); const s0 = sessaoPrivada(); if (s0 && s0.papel === "musico") privateLogout(); } };
   const desabilitarEste = () => {
     if (!window.confirm("Desabilitar este aparelho? Você sai agora e, para entrar de novo aqui, vai precisar digitar a senha.")) return;
     esquecerAparelho("a própria pessoa (Desabilitar este aparelho)", "Este aparelho foi desabilitado. Para entrar de novo, use a senha.");
   };
   // Líder que ficou conectado: reabre a liderança sozinho (sem guardar a senha).
   useEffect(() => { const d = amDevLer(); if (d && d.tipo === "lider" && !operatorMode && restaurarLider) restaurarLider(); }, []);
+  // Aparelho conectado: reativa a sessão guardada (token de 30 dias, nunca a senha) para voltar a ver e gravar códigos e contatos.
+  const [sessaoTick, setSessaoTick] = useState(0);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const d = amDevLer();
+      if (!d || sessaoPrivada()) return;
+      const s0 = await restaurarSessaoLembrada(amDevBase());
+      if (!vivo || !s0) return;
+      if (s0.papel === "musico" && s0.id !== d.acessoId) { privateLogout(); return; }
+      setSessaoTick((n) => n + 1);
+      window.dispatchEvent(new Event("avivar:music-recarregar"));
+    })();
+    return () => { vivo = false; };
+  }, []);
+  // Leva os dados sensíveis dos músicos para o cofre (uma vez; depois não muda nada). Só quem é líder com sessão.
+  useEffect(() => {
+    const s0 = sessaoPrivada();
+    if (!s0 || !["admin", "operador", "liderunidade"].includes(s0.papel) || !(adminMode || operatorMode)) return;
+    let vivo = true;
+    musicaMigrar(amDevBase()).then((r) => { if (vivo && r && r.ok && r.mudou) window.dispatchEvent(new Event("avivar:music-recarregar")); });
+    return () => { vivo = false; };
+  }, [adminMode, operatorMode, sessaoTick]);
   // Confere (ao abrir e a cada 5 minutos) se a liderança desabilitou este aparelho; sem internet, continua como está.
   useEffect(() => {
     let vivo = true;
     const conferir = async () => {
       const d = amDevLer(); if (!d || !vivo) return;
       const r = await amDevConsultar(d.devId); if (!vivo) return;
-      if (r.st === "revogado") { reabrirAbertura(); amDevLimparLocal(); setDevLocal(null); setSessaoId(""); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* ok */ } if (d.tipo === "lider") { if (onSairLider) onSairLider(); else if (onSairLiderAparelho) onSairLiderAparelho(); } setTela("entrar"); setAvisoDev("Este aparelho foi desabilitado pela liderança. Para entrar de novo, use a senha."); }
+      if (r.st === "revogado") { limparSessaoLembrada(amDevBase()); { const s0 = sessaoPrivada(); if (s0 && s0.papel !== "admin") privateLogout(); } reabrirAbertura(); amDevLimparLocal(); setDevLocal(null); setSessaoId(""); try { sessionStorage.removeItem("am-sessao"); } catch (e) { /* ok */ } if (d.tipo === "lider") { if (onSairLider) onSairLider(); else if (onSairLiderAparelho) onSairLiderAparelho(); } setTela("entrar"); setAvisoDev("Este aparelho foi desabilitado pela liderança. Para entrar de novo, use a senha."); }
       else if (r.st === "faltando") amDevRegistrar({ tipo: d.tipo, acessoId: d.acessoId }).catch(() => {});
       else if (r.st === "ok" && Date.now() - (r.rec.ultimo || 0) > 12 * 3600 * 1000) saveKey(amDevChave(d.devId), { ...r.rec, ultimo: Date.now() });
     };
@@ -17316,7 +17407,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
     ...(devLocal ? [{ k: "desabilitar", r: "Desabilitar este aparelho", i: Lock, fn: desabilitarEste }] : []),
     ...(adminMode ? [{ k: "fundo", r: "Música de fundo (admin)", i: Music }] : []),
-    ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: pendentesCad ? `Acessos da equipe (${pendentesCad} pendente${pendentesCad > 1 ? "s" : ""})` : "Acessos da equipe", i: KeyRound }] : []),
+    ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }] : []),
+    ...(lider && perm.musicos ? [{ k: "acessos", r: pendentesCad ? `Acessos da equipe (${pendentesCad} pendente${pendentesCad > 1 ? "s" : ""})` : "Acessos da equipe", i: KeyRound }] : []),
     ...(adminMode && !unidade ? [{ k: "unidades", r: "Unidades (outras igrejas)", i: Church }] : []),
     { k: "separador", r: "Separador de instrumentos", i: Layers },
     { k: "estudio", r: "Estúdio", i: Settings2 },
@@ -17396,7 +17488,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           {tela === "minha" && musico && <div className="space-y-4"><AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} /><AmTrocarSenha t={t} dados={dados} salvar={saveMusicApp} musico={musico} /><AmAparelhos t={t} dados={dados} escopo="meus" acessoId={musico.id} onEsteDesabilitado={desabilitarEste} /></div>}
           {tela === "unidades" && adminMode && !unidade && <AmUnidades t={t} dados={dados} salvar={saveMusicApp} />}
           {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
-          {tela === "acessos" && lider && <div className="space-y-4"><AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || (unidade && operatorMode))} /><AmAparelhos t={t} dados={dados} escopo="todos" onEsteDesabilitado={desabilitarEste} /></div>}
+          {tela === "acessos" && lider && perm.musicos && <div className="space-y-4">{!sessaoPrivada() && <AmGateSessao t={t} tentarCodigoLider={tentarLiderLembrando} aoEntrar={() => { setSessaoTick((n) => n + 1); window.dispatchEvent(new Event("avivar:music-recarregar")); }} />}<AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || (unidade && operatorMode))} /><AmAparelhos t={t} dados={dados} escopo="todos" onEsteDesabilitado={desabilitarEste} /></div>}
           {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
           {tela === "historico" && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
           {tela === "albuns" && (
@@ -17736,7 +17828,9 @@ export default function App() {
       if (agora - ultimo < 15000) return;
       ultimo = agora;
       const m = e && e.detail && e.detail.motivo;
-      window.alert(m === "sem_sessao"
+      window.alert(m === "sem_sessao_musica"
+        ? "Não foi possível salvar: para mexer em códigos, senhas, contatos e pedidos de cadastro dos músicos, entre de novo como líder (menu Entrar › Sou líder, ou com o seu código e senha). Depois refaça a alteração."
+        : m === "sem_sessao"
         ? "Não foi possível salvar: a sua sessão de acesso venceu (ou você não está logado). Entre de novo como administrador/operador e refaça a alteração."
         : "Não foi possível salvar: o seu acesso não tem permissão para esta alteração.");
     };
@@ -17744,9 +17838,17 @@ export default function App() {
     return () => window.removeEventListener("avivar:falha-gravacao", ouvir);
   }, []);
 
+  // Avivar Music: depois de entrar como líder (ou voltar a conectar o aparelho), recarrega o registro juntando os dados do cofre.
+  useEffect(() => {
+    const recarregar = async () => { if (!MODO_APP_MUSIC || !AM_UNIDADE_ID) setMusicApp(await loadKey("avivar:musicapp", DEFAULT_MUSICAPP)); };
+    window.addEventListener("avivar:music-recarregar", recarregar);
+    return () => window.removeEventListener("avivar:music-recarregar", recarregar);
+  }, []);
+
   // Saiu da administração e da área de operador: encerra a sessão do cofre e esvazia os dados sensíveis da tela.
   useEffect(() => {
-    if (adminMode || operatorAuth || !sessaoPrivada()) return;
+    const s0 = sessaoPrivada();
+    if (adminMode || operatorAuth || !s0 || (s0.papel !== "admin" && s0.papel !== "operador")) return;
     privateLogout();
     setOperatorCodes([]); setVisitantes([]); setCaixa([]); setCaixaExtra(CAIXA_EXTRA_VAZIO);
     setBens([]); setMembros([]); setPedidosOracao([]); setPedidosFisicos([]);
@@ -19460,9 +19562,9 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         hinos={harpaHinos} saveHinos={persist.harpaHinos}
         restaurarLider={() => setOperatorAuth({ nome: "Líder do Louvor (aparelho conectado)", setores: ["avivarmusic"] })}
         onSairLiderAparelho={() => setOperatorAuth(null)}
-        tentarCodigoLider={async (codigo) => {
+        tentarCodigoLider={async (codigo, manter) => {
           if (!String(codigo || "").trim()) return false;
-          const r = await privateLogin(codigo);
+          const r = await privateLogin(codigo, { lembrar: !!manter, base: "principal" });
           if (!r.ok) return false;
           if (r.papel === "admin") { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
           if (!r.setores.includes("todos") && !r.setores.includes("avivarmusic")) { privateLogout(); return "semsetor"; }
