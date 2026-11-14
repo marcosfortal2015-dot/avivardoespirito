@@ -27,6 +27,9 @@ const PUBLICAS = [
   { teste: (k) => ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds"].includes(k), setores: [] }, // chave Pix, textos do site, conteúdo inicial
   { teste: (k) => ["avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados"].includes(k), setores: [] }, // equipe e certificados (só o administrador edita)
   { teste: (k) => k === "avivar:loja", setores: ["loja"] },                                      // preços e links de pagamento
+  { teste: (k) => ["avivar:eventos", "avivar:galeria", "avivar:aovivo", "avivar:transmissoespassadas", "avivar:estudos", "avivar:avivarnews", "avivar:biblioteca", "avivar:manchete", "avivar:historia"].includes(k), setores: [] }, // conteúdo do site (só o administrador edita)
+  { teste: (k) => k === "avivar:visitantesdodia", setores: ["visitantes"] },                      // banner de boas-vindas aos visitantes (recepção)
+  { teste: (k) => ["avivar:oracaoencontros", "avivar:oracaolocaldia"].includes(k), setores: ["oracoes"] }, // agenda de Oração nos Lares
 ];
 const regraPublicaDe = (key) => PUBLICAS.find((r) => r.teste(key));
 export function podeGravarPublica(sessao, regra) {
@@ -51,6 +54,8 @@ const REGRAS = [
   { teste: (k) => k.startsWith("avivar:escalapins:"), setores: ["escala"] },
   { teste: (k) => k === "avivar:pedidosOracao", setores: ["oracoes"], anonimoAcrescenta: true },
   { teste: (k) => k === "avivar:pedidosfisicos", setores: ["loja"], anonimoAcrescenta: true },
+  { teste: (k) => k === "avivar:mensagens", setores: [], anonimoAcrescenta: true },                // mensagens do Contato: visitante envia, só o administrador lê
+  { teste: (k) => k === "avivar:oracoes", setores: ["oracoes"], anonimoAcrescenta: true },        // pedidos de visita de oração em casa (nome, telefone, endereço)
 ];
 const regraDe = (key) => REGRAS.find((r) => r.teste(key));
 

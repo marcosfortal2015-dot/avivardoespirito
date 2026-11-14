@@ -11014,6 +11014,20 @@ function AmEscalas({ t, dados, salvar }) {
 }
 
 /* ---------- Equipe: o líder gera o código de acesso de cada músico ---------- */
+// Permissões que o administrador pode dar a um líder do louvor. Só CONTEÚDO: a estrutura do app
+// (música de fundo/configuração, unidades, quem é líder, páginas e menus) é sempre só do administrador.
+const AM_PERMISSOES = [
+  { k: "louvores", c: "Louvores", r: "Inserir, editar e remover louvores (acervo, cifras, tons, áudios)" },
+  { k: "harpa", c: "Harpa Cristã", r: "Inserir e editar os hinos da Harpa Cristã" },
+  { k: "mover", c: "Mover louvores", r: "Mover e ordenar louvores (playlists e ordem do culto)" },
+  { k: "musicos", c: "Músicos", r: "Inserir e editar músicos (Membros / Grupo)" },
+  { k: "conteudo", c: "Restante do conteúdo", r: "Editar o restante do conteúdo: agenda e escalas, ensaios, comunicados, vídeos, cursos, equipamentos, painel e fórum" },
+];
+const AM_PERM_TUDO = { louvores: true, harpa: true, mover: true, musicos: true, conteudo: true };
+const AM_PERM_NENHUMA = { louvores: false, harpa: false, mover: false, musicos: false, conteudo: false };
+// Líder já autorizado antes desta opção (sem "permissoes" gravadas) continua podendo editar todo o conteúdo.
+const amPermissoesDe = (a) => ({ ...AM_PERM_TUDO, ...((a && a.permissoes) || {}) });
+
 function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
   const ctx = useContext(AmCtx);
   const [envio, setEnvio] = useState(null);
@@ -11030,6 +11044,14 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
   };
   const upd = (id, patch, acao) => salvar(amAud({ ...dados, acessos: acessos.map((a) => (a.id === id ? { ...a, ...patch } : a)) }, acao));
   const [editId, setEditId] = useState(null);
+  const [permId, setPermId] = useState(null);
+  const [permForm, setPermForm] = useState(AM_PERM_TUDO);
+  const abrirPerm = (a) => { setPermId(permId === a.id ? null : a.id); setPermForm(amPermissoesDe(a)); };
+  const salvarPerm = (a) => {
+    const lista = AM_PERMISSOES.filter((x) => permForm[x.k]).map((x) => x.c).join(", ") || "nenhuma edição";
+    upd(a.id, { lider: true, permissoes: { ...permForm } }, `Líder autorizado: ${a.nome} (pode: ${lista})`);
+    setPermId(null);
+  };
   const [ef, setEf] = useState({ nome: "", instrumento: "", email: "", whatsapp: "" });
   const abrirEdicao = (a) => { setEditId(a.id); setEf({ nome: a.nome || "", instrumento: a.instrumento || "", email: a.email || "", whatsapp: a.whatsapp || "" }); };
   const salvarEdicao = (a) => {
@@ -11132,7 +11154,7 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
               <p className="text-xs" style={{ color: t.dim }}>{a.instrumento || "Instrumento a definir"}{a.whatsapp ? ` · ${a.whatsapp}` : ""}{a.email ? ` · ${a.email}` : ""}</p>
               <p className="font-mono text-lg font-bold mt-1" style={{ color: t.accent }}>{a.codigo}</p>
               <p className="text-xs" style={{ color: t.dim }}>{a.ativo === false ? "Acesso desativado" : a.senhaHash ? "Senha já cadastrada" : "Aguardando o primeiro acesso"}</p>
-              {a.lider && <p className="text-xs font-bold mt-0.5" style={{ color: t.gold }}>★ Líder do louvor — pode editar tudo</p>}
+              {a.lider && <p className="text-xs font-bold mt-0.5" style={{ color: t.gold }}>★ Líder do louvor — pode: {AM_PERMISSOES.filter((x) => amPermissoesDe(a)[x.k]).map((x) => x.c).join(", ") || "nenhuma edição"}. Não altera a estrutura do app.</p>}
             </div>
             <div className="flex gap-1.5 shrink-0">
               <button aria-label="Corrigir dados do músico" onClick={() => (editId === a.id ? setEditId(null) : abrirEdicao(a))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.accent }}><Pencil size={15} /></button>
@@ -11153,10 +11175,29 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
               </div>
             </div>
           )}
+          {podeIndicar && permId === a.id && (
+            <div className="mt-3 rounded-xl p-3" style={{ background: t.card2 }}>
+              <p className="font-display font-bold text-sm" style={{ color: t.ink }}>O que {amPrimeiroNome(a.nome)} pode fazer como líder</p>
+              <div className="mt-2 space-y-2">
+                {AM_PERMISSOES.map((x) => (
+                  <label key={x.k} className="flex items-start gap-2 text-sm cursor-pointer" style={{ color: t.ink }}>
+                    <input type="checkbox" className="mt-1 w-4 h-4" checked={!!permForm[x.k]} onChange={(e) => setPermForm({ ...permForm, [x.k]: e.target.checked })} />
+                    <span>{x.r}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs mt-3" style={{ color: t.dim }}>Nunca é permitido ao líder alterar a estrutura do app: música de fundo/configuração, unidades (outras igrejas), quem é líder e a organização das telas. Isso é só do administrador.</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <AmBotao t={t} onClick={() => salvarPerm(a)}><Check size={15} /> {a.lider ? "Salvar permissões" : "Autorizar líder"}</AmBotao>
+                <AmBotao t={t} tom="suave" onClick={() => setPermId(null)}>Cancelar</AmBotao>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 mt-3">
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
             <a href={a.whatsapp ? amLinkWhats(a.whatsapp, convite(a)) : `https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
-            {podeIndicar && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: !a.lider }, `${a.lider ? "Permissão de líder retirada" : "Indicado como líder do louvor"}: ${a.nome}`)}><ShieldCheck size={15} /> {a.lider ? "Tirar permissão de líder" : "Tornar líder (pode editar)"}</AmBotao>}
+            {podeIndicar && <AmBotao t={t} tom="suave" onClick={() => abrirPerm(a)}><ShieldCheck size={15} /> {a.lider ? "Permissões do líder" : "Autorizar como líder…"}</AmBotao>}
+            {podeIndicar && a.lider && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: false }, `Autorização de líder retirada: ${a.nome}`)}>Retirar autorização</AmBotao>}}
             <AmBotao t={t} tom="suave" onClick={() => novaSenha(a)}><KeyRound size={15} /> Gerar nova senha e enviar</AmBotao>
             {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" }, `Senha zerada: ${a.nome}`)}>Zerar senha</AmBotao>}
             <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false }, `${a.ativo === false ? "Código reativado" : "Código desativado"}: ${a.nome}`)}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
@@ -11952,7 +11993,7 @@ function AmPlaylists({ t, dados, salvar, lider, nomesEquipe, onTocar }) {
 }
 
 /* ---------- Repertório = músicas + playlists ---------- */
-function AmRepertorio({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFav, nomesEquipe, acao, limparAcao, onTocar }) {
+function AmRepertorio({ t, dados, salvar, lider, liderPlaylists = lider, repertorio, escuro, userKey, podeFav, nomesEquipe, acao, limparAcao, onTocar }) {
   const [sub, setSub] = useState(acao === "playlist" ? "playlists" : "musicas");
   useEffect(() => { if (acao === "playlist") setSub("playlists"); else if (acao === "nova") setSub("musicas"); }, [acao]);
   return (
@@ -11964,7 +12005,7 @@ function AmRepertorio({ t, dados, salvar, lider, repertorio, escuro, userKey, po
       </div>
       {sub === "musicas"
         ? <AmAcervo t={t} dados={dados} salvar={salvar} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={podeFav} acaoInicial={acao} limparAcao={limparAcao} />
-        : <AmPlaylists t={t} dados={dados} salvar={salvar} lider={lider} nomesEquipe={nomesEquipe} onTocar={onTocar} />}
+        : <AmPlaylists t={t} dados={dados} salvar={salvar} lider={liderPlaylists} nomesEquipe={nomesEquipe} onTocar={onTocar} />}
     </div>
   );
 }
@@ -17240,6 +17281,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const musico = (dados.acessos || []).find((a) => a.id === sessaoId && a.ativo !== false) || null;
   // Líder = admin, operador com o setor "avivarmusic" OU músico que o administrador marcou como líder do louvor.
   const lider = !!(adminMode || operatorMode || (musico && musico.lider));
+  // Permissões efetivas de edição: administrador e operador com o setor "avivarmusic" têm todo o conteúdo; o músico-líder só o que o administrador marcou.
+  const perm = (adminMode || operatorMode) ? AM_PERM_TUDO : (musico && musico.lider) ? amPermissoesDe(musico) : AM_PERM_NENHUMA;
   const t = amTema(escuro);
   useEffect(() => { if (lider && tela === "entrar") setTela("inicio"); }, [lider, tela]);
   useEffect(() => { if (abertura && (musico || lider)) fecharAbertura(); }, [abertura, musico, lider]);
@@ -17272,7 +17315,7 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
   const extras = [
     ...(musico ? [{ k: "minha", r: "Minha área", i: Star }] : []),
     ...(devLocal ? [{ k: "desabilitar", r: "Desabilitar este aparelho", i: Lock, fn: desabilitarEste }] : []),
-    ...(lider ? [{ k: "fundo", r: "Música de fundo (admin)", i: Music }] : []),
+    ...(adminMode ? [{ k: "fundo", r: "Música de fundo (admin)", i: Music }] : []),
     ...(lider ? [{ k: "painel", r: "Painel do líder", i: ShieldCheck }, { k: "acessos", r: pendentesCad ? `Acessos da equipe (${pendentesCad} pendente${pendentesCad > 1 ? "s" : ""})` : "Acessos da equipe", i: KeyRound }] : []),
     ...(adminMode && !unidade ? [{ k: "unidades", r: "Unidades (outras igrejas)", i: Church }] : []),
     { k: "separador", r: "Separador de instrumentos", i: Layers },
@@ -17328,37 +17371,37 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
           <p className="text-[10px] font-mono uppercase tracking-wider mt-4 mb-1 px-3" style={{ color: t.dim }}>Mais</p>
           {extras.map((it) => <BotaoMenu key={it.k} it={it} />)}
           {!musico && !lider && <BotaoMenu it={{ k: "entrar", r: "Entrar (músico ou líder)", i: Lock }} />}
-          <p className="text-[11px] px-3 mt-auto pt-4" style={{ color: t.dim }}>{lider ? "Você pode inserir, editar e remover." : "Você está vendo em modo leitura. Só a liderança autorizada altera."}</p>
+          <p className="text-[11px] px-3 mt-auto pt-4" style={{ color: t.dim }}>{lider ? "Você pode inserir, editar e remover o conteúdo autorizado. A estrutura do app só o administrador altera." : "Você está vendo em modo leitura. Só a liderança autorizada altera."}</p>
         </aside>
 
         <main className={`flex-1 min-w-0 px-4 sm:px-6 pt-6 pb-28 lg:pb-12 mx-auto ${["harpa", "repertorio", "videos", "cursos", "projecao", "transmissao"].includes(tela) ? "max-w-7xl" : "max-w-5xl"}`}>
           {tela === "entrar" && !abertura && (musico || lider ? <AmVazio t={t}>Você já está identificado.</AmVazio> : <AmLogin t={t} dados={dados} salvar={saveMusicApp} onEntrar={entrar} tentarCodigoLider={tentarLiderLembrando} aviso={avisoDev} carregarFresco={carregarFresco} />)}
           {tela === "inicio" && <AmInicio t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} abrirCulto={abrirCulto} plId={plId} setPlId={setPlId} />}
-          {tela === "agenda" && (lider ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
-          {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={lider} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
-          {tela === "harpa" && <AmHarpa t={t} lider={lider} musico={musico} hinos={hinos || []} saveHinos={saveHinos} dados={dados} salvar={saveMusicApp} userKey={userKey} escuro={escuro} />}
+          {tela === "agenda" && (lider && perm.conteudo ? <AmEscalas t={t} dados={dados} salvar={saveMusicApp} /> : <AmAgendaLeitura t={t} dados={dados} salvar={saveMusicApp} musico={musico} />)}
+          {tela === "repertorio" && <AmRepertorio t={t} dados={dados} salvar={saveMusicApp} lider={perm.louvores} liderPlaylists={perm.mover} repertorio={repertorio} escuro={escuro} userKey={userKey} podeFav={!!(musico || lider)} nomesEquipe={nomesEquipe} acao={acao} limparAcao={limparAcao} onTocar={tocar} />}
+          {tela === "harpa" && <AmHarpa t={t} lider={perm.harpa} musico={musico} hinos={hinos || []} saveHinos={saveHinos} dados={dados} salvar={saveMusicApp} userKey={userKey} escuro={escuro} />}
           {tela === "separador" && <AmSeparador t={t} />}
           {tela === "projecao" && <AmProjetorTela t={t} dados={dados} hinos={hinos || []} lider={lider} musico={musico} userKey={userKey} irPara={irPara} />}
           {tela === "transmissao" && <AmSomenteLeitura t={t} ativo={!lider}><AmTransmissao t={t} dados={dados} lider={lider} /></AmSomenteLeitura>}
           {tela === "cultos" && <AmCultosTela t={t} lider={lider} />}
-          {tela === "videos" && <AmVideos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
-          {tela === "cursos" && <AmCursos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} userKey={userKey} />}
-          {tela === "membros" && <AmMembros t={t} musicos={musicos} saveMusicos={saveMusicos} dados={dados} salvar={saveMusicApp} lider={lider} acao={acao} limparAcao={limparAcao} />}
-          {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} />}
-          {tela === "equipamentos" && <AmSomenteLeitura t={t} ativo={!lider}><AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} /></AmSomenteLeitura>}
-          {tela === "fundo" && lider && <AmFundoAdmin t={t} dados={dados} salvar={saveMusicApp} />}
-          {tela === "comunicados" && <AmComunicados t={t} dados={dados} salvar={saveMusicApp} lider={lider} />}
-          {tela === "mural" && <AmPainelMusicos t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} musicos={musicos} irPara={irPara} />}
-          {tela === "forum" && <AmForum t={t} dados={dados} salvar={saveMusicApp} lider={lider} musico={musico} irPara={irPara} />}
+          {tela === "videos" && <AmVideos t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} musico={musico} />}
+          {tela === "cursos" && <AmCursos t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} musico={musico} userKey={userKey} />}
+          {tela === "membros" && <AmMembros t={t} musicos={musicos} saveMusicos={saveMusicos} dados={dados} salvar={saveMusicApp} lider={perm.musicos} acao={acao} limparAcao={limparAcao} />}
+          {tela === "ensaios" && <AmEnsaios t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} musico={musico} />}
+          {tela === "equipamentos" && <AmSomenteLeitura t={t} ativo={!perm.conteudo}><AmPatrimonio t={t} dados={dados} salvar={saveMusicApp} /></AmSomenteLeitura>}
+          {tela === "fundo" && adminMode && <AmFundoAdmin t={t} dados={dados} salvar={saveMusicApp} />}
+          {tela === "comunicados" && <AmComunicados t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} />}
+          {tela === "mural" && <AmPainelMusicos t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} musico={musico} musicos={musicos} irPara={irPara} />}
+          {tela === "forum" && <AmForum t={t} dados={dados} salvar={saveMusicApp} lider={perm.conteudo} musico={musico} irPara={irPara} />}
           {tela === "minha" && musico && <div className="space-y-4"><AmDashboard t={t} dados={dados} salvar={saveMusicApp} musico={musico} lider={false} irPara={irPara} abrirCulto={abrirCulto} /><AmTrocarSenha t={t} dados={dados} salvar={saveMusicApp} musico={musico} /><AmAparelhos t={t} dados={dados} escopo="meus" acessoId={musico.id} onEsteDesabilitado={desabilitarEste} /></div>}
           {tela === "unidades" && adminMode && !unidade && <AmUnidades t={t} dados={dados} salvar={saveMusicApp} />}
           {tela === "painel" && lider && <AmDashboardLider t={t} dados={dados} salvar={saveMusicApp} irPara={irPara} abrirCulto={abrirCulto} />}
-          {tela === "acessos" && lider && <div className="space-y-4"><AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || operatorMode)} /><AmAparelhos t={t} dados={dados} escopo="todos" onEsteDesabilitado={desabilitarEste} /></div>}
+          {tela === "acessos" && lider && <div className="space-y-4"><AmEquipe t={t} dados={dados} salvar={saveMusicApp} musicosGrupo={musicos} podeIndicar={!!(adminMode || (unidade && operatorMode))} /><AmAparelhos t={t} dados={dados} escopo="todos" onEsteDesabilitado={desabilitarEste} /></div>}
           {tela === "estudio" && <div className="space-y-4"><p className="font-display text-xl font-bold" style={{ color: t.ink }}>Estúdio</p><AmAfinador t={t} /><AmMetronomo t={t} /></div>}
           {tela === "historico" && <AmHistorico t={t} dados={dados} musico={musico && !lider ? musico : null} lider={lider} />}
           {tela === "albuns" && (
             <div className="rounded-2xl overflow-hidden -mx-4 sm:mx-0" style={{ background: C.parchment, color: C.ink }}>
-              <AvivarMusic abas={["albuns", "repertorio"]} repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={operatorMode} onRequestOperator={onRequestOperator} />
+              <AvivarMusic abas={["albuns", "repertorio"]} repertorio={repertorio} saveRepertorio={saveRepertorio} musicos={musicos} saveMusicos={saveMusicos} albuns={albuns} saveAlbuns={saveAlbuns} adminMode={adminMode} operatorMode={!!(operatorMode || (musico && musico.lider && perm.louvores))} onRequestOperator={onRequestOperator} />
             </div>
           )}
           {unidade && MODO_APP_MUSIC && <p className="mt-6 text-center text-[11px]" style={{ color: t.dim }}>Unidade: {unidade.nome} · <a href="/?app=music&u=principal" className="underline">Abrir o do Ministério Avivar</a></p>}
@@ -17546,6 +17589,8 @@ export default function App() {
     setMembros(await loadKey("avivar:membros", []));
     setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
     setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
+    setOracoes(await loadKey("avivar:oracoes", []));
+    setMensagens(await loadKey("avivar:mensagens", []));
   };
   const [oracaoEncontros, setOracaoEncontros] = useState([]);
   const [newsAbrirId, setNewsAbrirId] = useState(null);
@@ -17664,8 +17709,6 @@ export default function App() {
       setVisitantesDoDia(await loadKey("avivar:visitantesdodia", DEFAULT_VISITANTES_DIA));
       setEstudos(await loadKey("avivar:estudos", []));
       setAvivarNews(await loadKey("avivar:avivarnews", []));
-      setOracoes(await loadKey("avivar:oracoes", []));
-      setMensagens(await loadKey("avivar:mensagens", []));
       setForumPosts(await loadKey("avivar:forum", []));
       setRepertorio(await loadKey("avivar:repertorio", []));
       setMusicos(await loadKey("avivar:musicos", []));

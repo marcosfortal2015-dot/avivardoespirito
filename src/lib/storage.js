@@ -15,14 +15,17 @@ const API_PRIVADO = "/api/privado";
 const CHAVES_PRIVADAS = [
   "avivar:operatorcodes", "avivar:caixa", "avivar:caixaextra", "avivar:bens",
   "avivar:membros", "avivar:visitantes", "avivar:pedidosOracao", "avivar:pedidosfisicos",
+  "avivar:mensagens", "avivar:oracoes",
 ];
 const PREFIXOS_PRIVADOS = ["avivar:escalapins:"];
 // Visitantes (sem login) só podem ACRESCENTAR nestas; nunca ler nem alterar o que já existe.
-const ANONIMO_ACRESCENTA = ["avivar:pedidosOracao", "avivar:pedidosfisicos"];
+const ANONIMO_ACRESCENTA = ["avivar:pedidosOracao", "avivar:pedidosfisicos", "avivar:mensagens", "avivar:oracoes"];
 
 // Conteúdo público que só administrador/operador grava, e só pelo servidor (api/privado.js). Leitura segue direta.
 const CHAVES_PUBLICAS_SERVIDOR = ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds", "avivar:loja",
-  "avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados"];
+  "avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados",
+  "avivar:eventos", "avivar:galeria", "avivar:aovivo", "avivar:transmissoespassadas", "avivar:estudos", "avivar:avivarnews",
+  "avivar:biblioteca", "avivar:manchete", "avivar:historia", "avivar:visitantesdodia", "avivar:oracaoencontros", "avivar:oracaolocaldia"];
 export function ehChavePublicaServidor(key) { return CHAVES_PUBLICAS_SERVIDOR.includes(key); }
 
 // Avisa a tela quando uma gravação NÃO foi aceita (sessão vencida ou sem permissão), para a pessoa não achar que salvou.
