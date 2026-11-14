@@ -7481,34 +7481,59 @@ function CertificadoEditor({ valor, onSalvar, onFechar }) {
   );
 }
 
+const CERT_GRUPOS = [
+  { chave: "pastoral", titulo: "DIPLOMAS PASTORAIS", tipos: ["Consagração pastoral"], novoTipo: "Consagração pastoral", vagas: 6, rotulo: "Inserir diploma pastoral" },
+  { chave: "batismal", titulo: "DIPLOMAS BATISMAIS", tipos: ["Batismo"], novoTipo: "Batismo", rotulo: "Inserir diploma batismal" },
+  { chave: "apresentacao", titulo: "CERTIFICADOS DE APRESENTAÇÃO INFANTIL", tipos: ["Apresentação de criança"], novoTipo: "Apresentação de criança", rotulo: "Inserir certificado de apresentação" },
+  { chave: "outros", titulo: "OUTROS CERTIFICADOS E CONSAGRAÇÕES", tipos: ["Consagração de obreiro", "Outro"], novoTipo: "Consagração de obreiro", rotulo: "Inserir certificado", soComItens: true },
+];
+
 function Certificados({ items, save, adminMode }) {
   const lista = Array.isArray(items) ? items : [];
-  const [filtro, setFiltro] = useState("Todos");
   const [editor, setEditor] = useState(null);
   const [ampliada, setAmpliada] = useState(null);
-  const tiposPresentes = CERT_TIPOS.filter((t) => lista.some((c) => c.tipo === t));
-  const visiveis = lista
-    .filter((c) => filtro === "Todos" || c.tipo === filtro)
-    .sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")) || (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
+  const ordenar = (arr) => [...arr].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")) || (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
   const salvarItem = (v) => save(v.id ? lista.map((c) => (c.id === v.id ? { ...c, ...v } : c)) : [...lista, { ...v, id: uid() }]);
   const remover = (c) => { if (window.confirm(`Remover o certificado de ${c.nome}?`)) save(lista.filter((x) => x.id !== c.id)); };
+  const tiposConhecidos = CERT_GRUPOS.flatMap((g) => g.tipos);
+  const grupoDe = (g) => lista.filter((c) => g.tipos.includes(c.tipo) || (g.chave === "outros" && !tiposConhecidos.includes(c.tipo)));
+  const cartao = (c) => {
+    const mostra = c.imagem && c.exibirImagem !== false;
+    const podeVer = mostra || (adminMode && c.imagem);
+    return (
+      <div key={c.id} className="rounded-xl border overflow-hidden flex flex-col" style={{ borderColor: C.gold, background: C.cream }}>
+        <button
+          onClick={() => podeVer && setAmpliada(c.imagem)}
+          className="block w-full text-left focus:outline-none focus:ring-2"
+          style={{ background: C.parchmentDeep, cursor: podeVer ? "zoom-in" : "default" }}
+          title={podeVer ? "Ampliar o certificado" : ""}
+        >
+          {podeVer
+            ? <FotoKv src={c.imagem} alt={`Certificado de ${c.nome}`} className="w-full aspect-[1.414/1] object-contain" ph="Certificado" />
+            : <div className="w-full aspect-[1.414/1] flex flex-col items-center justify-center gap-2" style={{ color: C.goldDeep }}><Award size={44} /><span className="text-xs font-mono">{c.tipo}</span></div>}
+        </button>
+        <div className="p-4 flex-1 flex flex-col">
+          <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.ember }}>{c.tipo}{c.data ? ` · ${fmtDate(c.data)}` : ""}</p>
+          <h4 className="font-display font-semibold text-base leading-snug mt-0.5" style={{ color: C.ink }}>{c.nome}</h4>
+          <p className="text-sm leading-relaxed mt-2" style={{ color: C.ink }}>{c.historico || historicoCertificado(c)}</p>
+          {adminMode && (
+            <div className="flex gap-4 mt-3 pt-2 border-t" style={{ borderColor: C.line }}>
+              <button onClick={() => setEditor(c)} className="text-xs underline font-semibold" style={{ color: C.violet }}>editar</button>
+              <button onClick={() => remover(c)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
+              {c.imagem && c.exibirImagem === false && <span className="text-[10px] font-mono ml-auto" style={{ color: C.stone }}>imagem oculta ao público</span>}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <Eyebrow><Award size={12} className="inline mr-1" />Testemunho público de fé</Eyebrow>
       <SectionTitle>Certificados</SectionTitle>
       <p className="text-sm max-w-2xl" style={{ color: C.ink }}>
-        Batismos, consagrações e apresentações de crianças ao Senhor no Ministério Avivar do Espírito — cada certificado com o seu breve histórico.
+        Diplomas pastorais, batismos e apresentações de crianças ao Senhor no Ministério Avivar do Espírito — cada certificado com o seu breve histórico.
       </p>
-
-      {tiposPresentes.length > 1 && (
-        <div className="flex flex-wrap gap-2 mt-4">
-          {["Todos", ...tiposPresentes].map((t) => (
-            <button key={t} onClick={() => setFiltro(t)} className="px-3 py-1 rounded-full text-xs font-semibold border focus:outline-none focus:ring-2" style={{ background: filtro === t ? C.violet : "#fff", color: filtro === t ? "#fff" : C.ink, borderColor: filtro === t ? C.violet : C.line }}>
-              {t}
-            </button>
-          ))}
-        </div>
-      )}
 
       {adminMode && (
         <div className="mt-4">
@@ -7516,42 +7541,43 @@ function Certificados({ items, save, adminMode }) {
         </div>
       )}
 
-      {visiveis.length === 0 ? (
-        <div className="mt-6"><Empty text="Nenhum certificado publicado ainda." /></div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          {visiveis.map((c) => {
-            const mostra = c.imagem && c.exibirImagem !== false;
-            const podeVer = mostra || (adminMode && c.imagem);
-            return (
-              <div key={c.id} className="rounded-xl border overflow-hidden flex flex-col" style={{ borderColor: C.gold, background: C.cream }}>
-                <button
-                  onClick={() => podeVer && setAmpliada(c.imagem)}
-                  className="block w-full text-left focus:outline-none focus:ring-2"
-                  style={{ background: C.parchmentDeep, cursor: podeVer ? "zoom-in" : "default" }}
-                  title={podeVer ? "Ampliar o certificado" : ""}
-                >
-                  {mostra || (adminMode && c.imagem)
-                    ? <FotoKv src={c.imagem} alt={`Certificado de ${c.nome}`} className="w-full aspect-[1.414/1] object-contain" ph="Certificado" />
-                    : <div className="w-full aspect-[1.414/1] flex flex-col items-center justify-center gap-2" style={{ color: C.goldDeep }}><Award size={44} /><span className="text-xs font-mono">{c.tipo}</span></div>}
-                </button>
-                <div className="p-4 flex-1 flex flex-col">
-                  <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: C.ember }}>{c.tipo}{c.data ? ` · ${fmtDate(c.data)}` : ""}</p>
-                  <h3 className="font-display font-semibold text-base leading-snug mt-0.5" style={{ color: C.ink }}>{c.nome}</h3>
-                  <p className="text-sm leading-relaxed mt-2" style={{ color: C.ink }}>{c.historico || historicoCertificado(c)}</p>
-                  {adminMode && (
-                    <div className="flex gap-4 mt-3 pt-2 border-t" style={{ borderColor: C.line }}>
-                      <button onClick={() => setEditor(c)} className="text-xs underline font-semibold" style={{ color: C.violet }}>editar</button>
-                      <button onClick={() => remover(c)} className="text-xs underline" style={{ color: "#B03428" }}>remover</button>
-                      {c.imagem && c.exibirImagem === false && <span className="text-[10px] font-mono ml-auto" style={{ color: C.stone }}>imagem oculta ao público</span>}
-                    </div>
-                  )}
-                </div>
+      {CERT_GRUPOS.map((g) => {
+        const itens = ordenar(grupoDe(g));
+        if (itens.length === 0 && g.soComItens) return null;
+        const vazias = adminMode && g.vagas ? Math.max(0, g.vagas - itens.length) : 0;
+        if (itens.length === 0 && !adminMode) return null;
+        return (
+          <div key={g.chave} className="mt-9" data-grupo-cert={g.chave}>
+            <div className="flex items-end justify-between gap-3 border-b-2 pb-1.5" style={{ borderColor: C.gold }}>
+              <h3 className="font-display font-bold text-lg sm:text-xl tracking-wide" style={{ color: C.violet }}>{g.titulo}</h3>
+              <span className="text-[10px] font-mono uppercase" style={{ color: C.stone }}>{g.vagas ? `${itens.length} de ${Math.max(g.vagas, itens.length)}` : itens.length}</span>
+            </div>
+            {itens.length === 0 && vazias === 0 ? (
+              <div className="mt-4"><Empty text="Nenhum certificado nesta categoria ainda." /></div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                {itens.map(cartao)}
+                {Array.from({ length: vazias }).map((_, i) => (
+                  <button
+                    key={`vaga-${i}`}
+                    onClick={() => setEditor({ tipo: g.novoTipo })}
+                    className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 aspect-[1.414/1] min-h-[150px] hover:brightness-95 focus:outline-none focus:ring-2"
+                    style={{ borderColor: C.gold, background: C.parchmentDeep, color: C.goldDeep }}
+                    title={g.rotulo}
+                  >
+                    <Plus size={30} />
+                    <span className="text-xs font-semibold px-3 text-center">{g.rotulo}</span>
+                    <span className="text-[10px] font-mono" style={{ color: C.stone }}>vaga {itens.length + i + 1} de {g.vagas}</span>
+                  </button>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+            {adminMode && !g.vagas && !g.soComItens && (
+              <button onClick={() => setEditor({ tipo: g.novoTipo })} className="mt-3 text-xs underline font-semibold" style={{ color: C.violet }}>+ {g.rotulo}</button>
+            )}
+          </div>
+        );
+      })}
       {adminMode && editor && (
         <CertificadoEditor valor={editor} onFechar={() => setEditor(null)} onSalvar={(v) => { salvarItem(v); setEditor(null); }} />
       )}
@@ -19080,23 +19106,24 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       todo.celulaCoordPr1 = true;
     }
     // --- Certificados (batismo 07/11/2026, diploma pastoral, apresentações) + fotos novas na galeria ---
+    let certAtual = Array.isArray(certificados) ? certificados : [];
     if (!seeds.certificadosFotos1) {
-      let certificadosW = Array.isArray(certificados) ? certificados : [];
+      let certificadosW = certAtual;
       const certSeeds = [
         { seedId: "cert-batismo-antonio-renato", tipo: "Batismo", nome: "Antonio Renato Lima dos Santos", data: "2026-11-07", genero: "M", imagem: "/116-certificado-batismo-antonio-renato.jpg", exibirImagem: true },
         { seedId: "cert-batismo-brena", tipo: "Batismo", nome: "Brena Keze Lima de Moura", data: "2026-11-07", genero: "F", imagem: "/116-certificado-batismo-brena.jpg", exibirImagem: true },
         { seedId: "cert-batismo-francisco-kauan", tipo: "Batismo", nome: "Francisco Kauan dos Santos Noronha", data: "2026-11-07", genero: "M", imagem: "/116-certificado-batismo-francisco-kauan.jpg", exibirImagem: true },
         { seedId: "cert-batismo-lucia", tipo: "Batismo", nome: "Lúcia de Fátima Martins Lima", data: "2026-11-07", genero: "F", imagem: "/116-certificado-batismo-lucia.jpg", exibirImagem: true },
         { seedId: "cert-pastoral-gilvan", tipo: "Consagração pastoral", nome: "Pr. Gilvan de Sousa Medeiros", data: "2026-11-07", genero: "M", imagem: "/117-diploma-pastoral-gilvan.jpg", exibirImagem: true },
-        // Apresentações de crianças: sem imagem e com a imagem oculta de propósito (o certificado traz data de nascimento e nome dos pais) — o admin envia a imagem e libera pelo editor, se quiser.
-        { seedId: "cert-apresentacao-maya", tipo: "Apresentação de criança", nome: "Maya Sophia de Jesus de Alcântara", data: "2026-09-27", genero: "F", imagem: "", exibirImagem: false },
-        { seedId: "cert-apresentacao-aaron", tipo: "Apresentação de criança", nome: "Aaron Luigi de Oliveira Matos", data: "", genero: "M", imagem: "", exibirImagem: false },
+        { seedId: "cert-apresentacao-maya", tipo: "Apresentação de criança", nome: "Maya Sophia de Jesus de Alcântara", data: "2026-09-27", genero: "F", imagem: "/118-certificado-apresentacao-maya.jpg", exibirImagem: true },
+        { seedId: "cert-apresentacao-aaron", tipo: "Apresentação de criança", nome: "Aaron Luigi de Oliveira Matos", data: "", genero: "M", imagem: "/119-certificado-apresentacao-aaron.jpg", exibirImagem: true },
       ];
       const faltamCert = certSeeds.filter((c) => !certificadosW.some((x) => x.seedId === c.seedId)).map((c) => ({ id: uid(), ...c, historico: historicoCertificado(c) }));
       if (faltamCert.length > 0) {
         certificadosW = [...certificadosW, ...faltamCert];
         setCertificados(certificadosW);
         saveKey("avivar:certificados", certificadosW);
+        certAtual = certificadosW;
       }
       // Galeria: acrescenta as fotos à sessão que já existir (mesmo dia/tema) ou cria a sessão.
       const fotosCriancas = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `/114-culto-criancas-${i}.jpg`);
@@ -19115,6 +19142,20 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       setGaleria(galeriaW);
       saveKey("avivar:galeria", galeriaW);
       todo.certificadosFotos1 = true;
+    }
+    // --- Certificados de apresentação infantil: coloca a imagem nos que foram criados sem imagem ---
+    if (!seeds.certificadosImgApresentacao1) {
+      const imgs = { "cert-apresentacao-maya": "/118-certificado-apresentacao-maya.jpg", "cert-apresentacao-aaron": "/119-certificado-apresentacao-aaron.jpg" };
+      const base = certAtual;
+      if (base.length > 0) {
+        let mudou = false;
+        const novos = base.map((c) => {
+          if (c && imgs[c.seedId] && !c.imagem) { mudou = true; return { ...c, imagem: imgs[c.seedId], exibirImagem: true }; }
+          return c;
+        });
+        if (mudou) { setCertificados(novos); saveKey("avivar:certificados", novos); }
+      }
+      todo.certificadosImgApresentacao1 = true;
     }
     if (Object.keys(todo).length > 0) {
       const merged = { ...seeds, ...todo };
