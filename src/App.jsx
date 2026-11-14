@@ -10,7 +10,7 @@ import {
   Play, Pause, Maximize, Minus, Settings2, Layers, History,
   Eye, EyeOff, Bell, Star, Check, Download, Mic, Headphones, Music2, Music3, Music4, ArrowUp, ArrowDown, ExternalLink, Search, Megaphone, ListMusic, SkipForward, GripVertical, Volume2, VolumeX,
 } from "lucide-react";
-import { storageGet, storageSet } from "./lib/storage.js";
+import { storageGet, storageSet, privateLogin, privateLogout, sessaoPrivada } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ---------------------------------------------------------------- */
@@ -96,7 +96,7 @@ const CODIGOS_ARTIGO_DOM_DISCERNIMENTO = "/74-codigos-artigo-dom-discernimento.j
 const CODIGOS_ARTIGO_BOM_SAMARITANO = "/75-codigos-artigo-bom-samaritano.jpg";
 const CODIGOS_ARTIGO_REFIDIM_MAOS_MOISES = "/76-codigos-artigo-refidim-maos-moises.jpg";
 
-const MASTER_ADMIN_PASSWORD = "Avivar2026@@"; // senha única do administrador (church, Louvor e Bíblia)
+// A senha do administrador NÃO fica mais no código: ela é conferida no servidor (api/privado.js).
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -1024,6 +1024,15 @@ function SenhaInput({ value, onChange, autoFocus = false, onEnter, placeholder, 
 function AdminGateModal({ onClose, onSuccess }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const tentar = async () => {
+    if (enviando || !pw) return;
+    setEnviando(true); setErr("");
+    const r = await privateLogin(pw, { exigirPapel: "admin" });
+    setEnviando(false);
+    if (r.ok) onSuccess();
+    else setErr(r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos." : r.motivo === "sem_conexao" ? "Sem conexão com o servidor. Tente de novo." : "Senha incorreta.");
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000088" }}>
       <div className="w-full max-w-sm rounded-xl p-6 border" style={{ background: C.black, borderColor: C.gold + "44" }}>
@@ -1032,21 +1041,18 @@ function AdminGateModal({ onClose, onSuccess }) {
           <h3 className="font-display text-lg font-semibold text-white">Acesso administrativo</h3>
         </div>
         <p className="text-xs mb-4" style={{ color: "#ffffff99" }}>
-          Protótipo de demonstração — em produção, isto exige autenticação real no backend.
+          Acesso restrito à administração.
         </p>
         <Field label="Senha master">
-          <SenhaInput autoFocus value={pw} onChange={(e) => setPw(e.target.value)} onEnter={() => { if (pw === MASTER_ADMIN_PASSWORD) onSuccess(); else setErr("Senha incorreta."); }} />
+          <SenhaInput autoFocus value={pw} onChange={(e) => setPw(e.target.value)} onEnter={tentar} />
         </Field>
         {err && <p className="text-xs mt-2" style={{ color: "#F2A6A6" }}>{err}</p>}
         <div className="flex gap-2 mt-4">
           <Btn
             color={C.gold}
-            onClick={() => {
-              if (pw === MASTER_ADMIN_PASSWORD) onSuccess();
-              else setErr("Senha incorreta.");
-            }}
+            onClick={tentar}
           >
-            Entrar
+            {enviando ? "Verificando…" : "Entrar"}
           </Btn>
           <Btn variant="ghost" color={C.stone} onClick={onClose}>
             Cancelar
@@ -1072,19 +1078,20 @@ const TITULO_ACESSO_PADRAO = "VOCÊ É AUTORIZADO(A) — CADASTRE";
 function OperatorGateModal({ operatorCodes, onClose, onSuccess, setor = "" }) {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
-  const tentarEntrar = () => {
-    if (code === MASTER_ADMIN_PASSWORD) {
-      onSuccess({ nome: "Administração", setores: ["todos"] });
+  const [enviando, setEnviando] = useState(false);
+  const tentarEntrar = async () => {
+    if (enviando || !code.trim()) return;
+    setEnviando(true); setErr("");
+    const r = await privateLogin(code);
+    setEnviando(false);
+    if (r.ok) {
+      if (r.papel === "admin") onSuccess({ nome: "Administração", setores: ["todos"] });
+      else onSuccess({ id: r.id, nome: r.nome, setores: r.setores });
       return;
     }
-    const digitado = code.trim().toLowerCase();
-    const match = operatorCodes.find((o) => o.ativo !== false && String(o.codigo || "").trim().toLowerCase() === digitado);
-    if (match) {
-      onSuccess({ id: match.id, nome: match.nome, setores: parseSetoresOperador(match.setores) });
-      return;
-    }
-    const revogado = operatorCodes.some((o) => o.ativo === false && String(o.codigo || "").trim().toLowerCase() === digitado);
-    setErr(revogado ? "Este código foi revogado. Fale com a administração." : "Código inválido.");
+    setErr(r.motivo === "revogado" ? "Este código foi revogado. Fale com a administração."
+      : r.motivo === "muitas_tentativas" ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+      : r.motivo === "sem_conexao" ? "Sem conexão com o servidor. Tente de novo." : "Código inválido.");
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "#00000088" }}>
@@ -9821,7 +9828,7 @@ function AmLogin({ t, dados, salvar, onEntrar, tentarCodigoLider, carregarFresco
   const entrar = async () => {
     setErro("");
     if (modo === "lider") {
-      const r = tentarCodigoLider(ident.trim(), manter);
+      const r = await tentarCodigoLider(ident.trim(), manter);
       if (r === "semsetor") setErro("Seu código está ativo, mas sem o setor Louvor Avivar do Espírito liberado. Peça ao administrador para incluir \"avivarmusic\" no seu código de operador.");
       else if (!r) setErro("Código de liderança inválido. Use o código que o administrador te passou — ou, se você é músico líder, entre em \"Já tenho senha\" com o seu código.");
       return;
@@ -16738,10 +16745,11 @@ function AmUnidade({ unidadeId, ...props }) {
   const gravar = (v) => { ref.current = v; setRec(v); saveKey(chave, v); };
   const lista = (k) => (v) => gravar({ ...ref.current, [k]: v });
   const saveMusicApp = (v) => gravar({ ...v, grupo: ref.current.grupo, repertorio: ref.current.repertorio, albuns: ref.current.albuns, hinos: ref.current.hinos, liderCodigo: ref.current.liderCodigo, nome: ref.current.nome, cidade: ref.current.cidade, ativo: ref.current.ativo });
-  const tentar = (codigo) => {
+  const tentar = async (codigo) => {
     const c = String(codigo || "").trim();
     if (!c || !rec) return false;
-    if (c.toLowerCase() === String(rec.liderCodigo || "").toLowerCase() || c === MASTER_ADMIN_PASSWORD) {
+    const ehAdmin = c.toLowerCase() !== String(rec.liderCodigo || "").toLowerCase() && (await privateLogin(c, { guardar: false, exigirPapel: "admin" })).ok;
+    if (c.toLowerCase() === String(rec.liderCodigo || "").toLowerCase() || ehAdmin) {
       setLiderUn(true);
       try { sessionStorage.setItem("am-lider-" + unidadeId, "1"); } catch (e) { /* sem storage */ }
       return true;
@@ -16823,8 +16831,8 @@ function PaginaAvivarMusic({ repertorio, saveRepertorio, musicos, saveMusicos, a
     if (manter) { amDevRegistrar({ tipo: "musico", acessoId: id }).catch(() => {}); setDevLocal({ devId: amIdAparelho(), tipo: "musico", acessoId: id }); }
     else if (amDevLer()) { amDevDesabilitarId(amDevLer().devId, "novo login sem manter conectado").catch(() => {}); amDevLimparLocal(); setDevLocal(null); }
   };
-  const tentarLiderLembrando = (codigo, manter = true) => {
-    const r = tentarCodigoLider(codigo);
+  const tentarLiderLembrando = async (codigo, manter = true) => {
+    const r = await tentarCodigoLider(codigo);
     if (r === true) { setAvisoDev(""); if (manter) { amDevRegistrar({ tipo: "lider" }).catch(() => {}); setDevLocal({ devId: amIdAparelho(), tipo: "lider", acessoId: "" }); } }
     return r;
   };
@@ -17145,12 +17153,18 @@ export default function App() {
   const [celulaAuth, setCelulaAuth] = useState(null);
   const [relatorioCelulasOpen, setRelatorioCelulasOpen] = useState(false);
   // Registra no histórico da pessoa autorizada cada vez que ela entra com o código.
-  const registrarAcessoOperador = (id, evento) => {
-    if (!id) return;
-    const agora = nowISO();
-    const novos = operatorCodes.map((c) => (c.id === id ? { ...c, acessos: (c.acessos || 0) + 1, ultimoAcesso: agora, historico: [...(c.historico || []), { em: agora, evento }].slice(-60) } : c));
-    setOperatorCodes(novos);
-    saveKey("avivar:operatorcodes", novos);
+  // (o servidor já registra o acesso no histórico quando o código é conferido no login)
+  const registrarAcessoOperador = () => {};
+  // Carrega os dados sensíveis depois do login (o servidor só entrega o que o código/senha libera).
+  const carregarPrivados = async () => {
+    setOperatorCodes(await loadKey("avivar:operatorcodes", []));
+    setVisitantes(await loadKey("avivar:visitantes", []));
+    setCaixa(await loadKey("avivar:caixa", []));
+    setCaixaExtra({ ...CAIXA_EXTRA_VAZIO, ...(await loadKey("avivar:caixaextra", CAIXA_EXTRA_VAZIO)) });
+    setBens(await loadKey("avivar:bens", []));
+    setMembros(await loadKey("avivar:membros", []));
+    setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
+    setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
   };
   const [oracaoEncontros, setOracaoEncontros] = useState([]);
   const [newsAbrirId, setNewsAbrirId] = useState(null);
@@ -17258,7 +17272,6 @@ export default function App() {
       setGaleria(await loadKey("avivar:galeria", []));
       setAoVivo(await loadKey("avivar:aovivo", DEFAULT_AOVIVO));
       setTransmissoesPassadas(await loadKey("avivar:transmissoespassadas", []));
-      setOperatorCodes(await loadKey("avivar:operatorcodes", []));
       setOracaoEncontros(await loadKey("avivar:oracaoencontros", []));
       setDoacoes(await loadKey("avivar:doacoes", DEFAULT_DOACOES));
       setLoja(await loadKey("avivar:loja", []));
@@ -17269,14 +17282,9 @@ export default function App() {
       setVisitantesDoDia(await loadKey("avivar:visitantesdodia", DEFAULT_VISITANTES_DIA));
       setEstudos(await loadKey("avivar:estudos", []));
       setAvivarNews(await loadKey("avivar:avivarnews", []));
-      setVisitantes(await loadKey("avivar:visitantes", []));
       setOracoes(await loadKey("avivar:oracoes", []));
       setMensagens(await loadKey("avivar:mensagens", []));
       setForumPosts(await loadKey("avivar:forum", []));
-      setCaixa(await loadKey("avivar:caixa", []));
-      setCaixaExtra({ ...CAIXA_EXTRA_VAZIO, ...(await loadKey("avivar:caixaextra", CAIXA_EXTRA_VAZIO)) });
-      setBens(await loadKey("avivar:bens", []));
-      setMembros(await loadKey("avivar:membros", []));
       setRepertorio(await loadKey("avivar:repertorio", []));
       setMusicos(await loadKey("avivar:musicos", []));
       setAlbuns(await loadKey("avivar:albuns", []));
@@ -17284,8 +17292,6 @@ export default function App() {
       { const h = await loadKey("avivar:harpa", []); setHarpaHinos(Array.isArray(h) ? h : []); }
       setEscala(await loadKey("avivar:escalaObreiros", DEFAULT_ESCALA_OBREIROS));
       setManchete(await loadKey("avivar:manchete", DEFAULT_MANCHETE));
-      setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
-      setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
       setOracaoLocalDia(await loadKey("avivar:oracaolocaldia", { fotoUrl: "", local: "" }));
       setBiblioteca(await loadKey("avivar:biblioteca", []));
       setIntercessao(await loadKey("avivar:intercessao", []));
@@ -17295,6 +17301,14 @@ export default function App() {
       setLoading(false);
     })();
   }, []);
+
+  // Saiu da administração e da área de operador: encerra a sessão do cofre e esvazia os dados sensíveis da tela.
+  useEffect(() => {
+    if (adminMode || operatorAuth || !sessaoPrivada()) return;
+    privateLogout();
+    setOperatorCodes([]); setVisitantes([]); setCaixa([]); setCaixaExtra(CAIXA_EXTRA_VAZIO);
+    setBens([]); setMembros([]); setPedidosOracao([]); setPedidosFisicos([]);
+  }, [adminMode, operatorAuth]);
 
   // Link direto de Oração nos Lares (?oracao=...): depois de carregar, rola até a seção.
   // (agora abre a página própria — o estado inicial de paginaOracaoOpen já cuida disso)
@@ -18884,7 +18898,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
             onSuccess={(auth) => {
               setOperatorAuth(auth);
               setOperatorGateOpen(false);
-              registrarAcessoOperador(auth.id, "Acesso ao site");
+              carregarPrivados();
             }}
           />
         )}
@@ -18960,16 +18974,13 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         hinos={harpaHinos} saveHinos={persist.harpaHinos}
         restaurarLider={() => setOperatorAuth({ nome: "Líder do Louvor (aparelho conectado)", setores: ["avivarmusic"] })}
         onSairLiderAparelho={() => setOperatorAuth(null)}
-        tentarCodigoLider={(codigo) => {
-          const digitado = String(codigo || "").trim().toLowerCase();
-          if (!digitado) return false;
-          if (String(codigo).trim() === MASTER_ADMIN_PASSWORD) { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
-          const m = operatorCodes.find((o) => o.ativo !== false && String(o.codigo || "").trim().toLowerCase() === digitado);
-          if (!m) return false;
-          const setores = parseSetoresOperador(m.setores);
-          if (!setores.includes("todos") && !setores.includes("avivarmusic")) return "semsetor";
-          setOperatorAuth({ id: m.id, nome: m.nome, setores });
-          registrarAcessoOperador(m.id, "Acesso ao Louvor Avivar do Espírito");
+        tentarCodigoLider={async (codigo) => {
+          if (!String(codigo || "").trim()) return false;
+          const r = await privateLogin(codigo, { guardar: false });
+          if (!r.ok) return false;
+          if (r.papel === "admin") { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
+          if (!r.setores.includes("todos") && !r.setores.includes("avivarmusic")) return "semsetor";
+          setOperatorAuth({ id: r.id, nome: r.nome, setores: r.setores });
           return true;
         }}
       />
@@ -19078,6 +19089,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           onSuccess={() => {
             setAdminMode(true);
             setGateOpen(false);
+            carregarPrivados();
           }}
         />
       )}
@@ -19089,7 +19101,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           onSuccess={(auth) => {
             setOperatorAuth(auth);
             setOperatorGateOpen(false);
-            registrarAcessoOperador(auth.id, "Acesso ao site");
+            carregarPrivados();
           }}
         />
       )}
