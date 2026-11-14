@@ -19,6 +19,12 @@ import crypto from "node:crypto";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://xnxfzygofnztpumqxqzt.supabase.co";
 const TABELA = "site_private";
+const TABELA_PUBLICA = "site_data";
+// Conteúdo público que SÓ o administrador pode gravar (e só por aqui). Hoje: tudo do site da Bíblia Avivar.
+const PUBLICAS_SO_ADMIN = [(k) => /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k)];
+const LIMITE_PUBLICO = 1_500_000; // bytes de JSON por gravação
+// Sites autorizados a chamar esta função a partir do navegador (CORS). Mais endereços: variável CORS_ORIGENS, separados por vírgula.
+const ORIGENS = ["https://biblia-avivar.vercel.app", ...String(process.env.CORS_ORIGENS || "").split(",").map((x) => x.trim()).filter(Boolean)];
 const CHAVE_OPERADORES = "avivar:operatorcodes";
 const SESSAO_MS = 12 * 60 * 60 * 1000; // 12 horas
 
@@ -97,8 +103,8 @@ async function lerLinha(key) {
   const rows = await r.json();
   return rows.length ? rows[0] : null;
 }
-async function gravar(key, value) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABELA}?on_conflict=key`, {
+async function gravar(key, value, tabela = TABELA) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?on_conflict=key`, {
     method: "POST",
     headers: cab({ Prefer: "resolution=merge-duplicates,return=minimal" }),
     body: JSON.stringify([{ key, value, updated_at: new Date().toISOString() }]),
@@ -175,7 +181,20 @@ function resposta(res, status, corpo) {
   res.end(JSON.stringify(corpo));
 }
 
+function cors(req, res) {
+  const o = String((req.headers && req.headers.origin) || "");
+  if (o && ORIGENS.includes(o)) {
+    res.setHeader("Access-Control-Allow-Origin", o);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Max-Age", "600");
+  }
+}
+
 export default async function handler(req, res) {
+  cors(req, res);
+  if (req.method === "OPTIONS") { res.statusCode = 204; return res.end(); }
   if (req.method !== "POST") return resposta(res, 405, { ok: false, motivo: "metodo" });
   const segredo = process.env.TOKEN_SECRET;
   if (!process.env.SUPABASE_SERVICE_KEY || !segredo || segredo.length < 16) return resposta(res, 500, { ok: false, motivo: "servidor_nao_configurado" });
@@ -195,6 +214,15 @@ export default async function handler(req, res) {
       return resposta(res, r.status || (r.ok ? 200 : 401), r);
     }
     const key = typeof corpo.key === "string" ? corpo.key : "";
+    if (corpo.acao === "setpub") {
+      if (!PUBLICAS_SO_ADMIN.some((t) => t(key))) return resposta(res, 400, { ok: false, motivo: "chave_nao_permitida" });
+      if (!sessao) return resposta(res, 401, { ok: false, motivo: "sem_sessao" });
+      if (sessao.papel !== "admin") return resposta(res, 403, { ok: false, motivo: "sem_permissao" });
+      if (corpo.value === undefined) return resposta(res, 400, { ok: false, motivo: "sem_valor" });
+      if (JSON.stringify(corpo.value).length > LIMITE_PUBLICO) return resposta(res, 413, { ok: false, motivo: "valor_grande_demais" });
+      await gravar(key, corpo.value, TABELA_PUBLICA);
+      return resposta(res, 200, { ok: true });
+    }
     const regra = regraDe(key);
     if (!regra) return resposta(res, 400, { ok: false, motivo: "chave_nao_permitida" });
 
