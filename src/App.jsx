@@ -18676,17 +18676,8 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       saveKey("avivar:colaboradores", colaboradoresW);
       todo.colaboradoraVitoriaDimas2 = true;
     }
-    // Acesso pessoal do Marcos em Códigos Avivar — nome "Admin", nível Serafim
-    // (libera todo o conteúdo), pra entrar pelas credenciais sem usar o RESTRITO.
-    // Substitui o código provisório AVR-MF-7K42 da versão anterior.
-    if (!seeds.codigoAcessoMarcos2) {
-      const SENHA = "Impacto131310@";
-      const atuais = ((codigos && codigos.codes) || []).filter((c) => (c.code || "").toUpperCase() !== "AVR-MF-7K42" && c.code !== SENHA);
-      const novoCodigos = { ...codigos, codes: [...atuais, { id: uid(), holder: "Admin", code: SENHA, active: true, tier: "serafim" }] };
-      setCodigos(novoCodigos);
-      saveKey("avivar:codigos", novoCodigos);
-      todo.codigoAcessoMarcos2 = true;
-    }
+    // (removido: o acesso pessoal do administrador em Códigos Avivar não fica mais escrito no código.
+    //  Ele já foi gravado uma vez; a senha deve ser trocada e gerida dentro do próprio Códigos Avivar.)
     // Avivar Kids — Ir. Isaac (foto enviada pelo Marcos).
     if (!seeds.avivarKidsIsaac1) {
       if (!avivarKidsW.some((k) => k.seedId === "kids-isaac" || semAcento(k.nome).includes("isaac"))) {
