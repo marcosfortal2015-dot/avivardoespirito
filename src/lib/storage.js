@@ -20,6 +20,15 @@ const PREFIXOS_PRIVADOS = ["avivar:escalapins:"];
 // Visitantes (sem login) só podem ACRESCENTAR nestas; nunca ler nem alterar o que já existe.
 const ANONIMO_ACRESCENTA = ["avivar:pedidosOracao", "avivar:pedidosfisicos"];
 
+// Conteúdo público que só administrador/operador grava, e só pelo servidor (api/privado.js). Leitura segue direta.
+const CHAVES_PUBLICAS_SERVIDOR = ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds", "avivar:loja"];
+export function ehChavePublicaServidor(key) { return CHAVES_PUBLICAS_SERVIDOR.includes(key); }
+
+// Avisa a tela quando uma gravação NÃO foi aceita (sessão vencida ou sem permissão), para a pessoa não achar que salvou.
+function avisarFalha(key, motivo) {
+  try { window.dispatchEvent(new CustomEvent("avivar:falha-gravacao", { detail: { key, motivo } })); } catch (e) { /* sem window */ }
+}
+
 export function ehChavePrivada(key) {
   return CHAVES_PRIVADAS.includes(key) || PREFIXOS_PRIVADOS.some((p) => String(key).startsWith(p));
 }
@@ -88,11 +97,23 @@ export async function storageGet(key) {
 
 export async function storageSet(key, value) {
   try {
+    if (ehChavePublicaServidor(key)) {
+      if (!sessao) { avisarFalha(key, "sem_sessao"); return null; }
+      const res = await chamarPrivado({ acao: "setpub", key, value });
+      if (!res.ok) {
+        console.error("Falha ao salvar", key, res.status);
+        avisarFalha(key, res.status === 401 ? "sem_sessao" : "recusado");
+        return null;
+      }
+      return { key, value, shared: true };
+    }
     if (ehChavePrivada(key)) {
-      if (!sessao && !ANONIMO_ACRESCENTA.includes(key)) return null;
+      if (!sessao && !ANONIMO_ACRESCENTA.includes(key)) { avisarFalha(key, "sem_sessao"); return null; }
+      const tinhaSessao = !!sessao;
       const res = await chamarPrivado({ acao: "set", key, value });
       if (!res.ok) {
         console.error("Falha ao salvar", key, res.status);
+        if (tinhaSessao) avisarFalha(key, res.status === 401 ? "sem_sessao" : "recusado");
         return null;
       }
       return { key, value, shared: true };

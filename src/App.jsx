@@ -17302,6 +17302,22 @@ export default function App() {
     })();
   }, []);
 
+  // Aviso quando uma gravação não é aceita (sessão vencida ou sem permissão): evita achar que salvou.
+  useEffect(() => {
+    let ultimo = 0;
+    const ouvir = (e) => {
+      const agora = Date.now();
+      if (agora - ultimo < 15000) return;
+      ultimo = agora;
+      const m = e && e.detail && e.detail.motivo;
+      window.alert(m === "sem_sessao"
+        ? "Não foi possível salvar: a sua sessão de acesso venceu (ou você não está logado). Entre de novo como administrador/operador e refaça a alteração."
+        : "Não foi possível salvar: o seu acesso não tem permissão para esta alteração.");
+    };
+    window.addEventListener("avivar:falha-gravacao", ouvir);
+    return () => window.removeEventListener("avivar:falha-gravacao", ouvir);
+  }, []);
+
   // Saiu da administração e da área de operador: encerra a sessão do cofre e esvazia os dados sensíveis da tela.
   useEffect(() => {
     if (adminMode || operatorAuth || !sessaoPrivada()) return;
@@ -17317,7 +17333,7 @@ export default function App() {
   // — usa a flag avivar:seeds pra nunca duplicar, mesmo que a página recarregue várias vezes,
   // mas sem recriar o item se o admin apagá-lo de propósito depois.
   useEffect(() => {
-    if (loading) return;
+    if (loading || !adminMode) return; // o conteúdo inicial só é gravado com o administrador logado (gravação passa pelo servidor)
     const todo = {};
     // Variáveis "de trabalho" — usadas por TODOS os blocos que mexem em loja/biblioteca/
     // galeria nesta mesma passagem síncrona do efeito, pra cada bloco enxergar o resultado
@@ -18712,7 +18728,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
       saveKey("avivar:seeds", merged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, adminMode]);
 
   const persist = {
     site: (v) => { setSite(v); saveKey("avivar:site", v); },
@@ -18967,10 +18983,10 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         onSairLiderAparelho={() => setOperatorAuth(null)}
         tentarCodigoLider={async (codigo) => {
           if (!String(codigo || "").trim()) return false;
-          const r = await privateLogin(codigo, { guardar: false });
+          const r = await privateLogin(codigo);
           if (!r.ok) return false;
           if (r.papel === "admin") { setOperatorAuth({ nome: "Administração", setores: ["todos"] }); return true; }
-          if (!r.setores.includes("todos") && !r.setores.includes("avivarmusic")) return "semsetor";
+          if (!r.setores.includes("todos") && !r.setores.includes("avivarmusic")) { privateLogout(); return "semsetor"; }
           setOperatorAuth({ id: r.id, nome: r.nome, setores: r.setores });
           return true;
         }}

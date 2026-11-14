@@ -20,8 +20,20 @@ import crypto from "node:crypto";
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://xnxfzygofnztpumqxqzt.supabase.co";
 const TABELA = "site_private";
 const TABELA_PUBLICA = "site_data";
-// Conteúdo público que SÓ o administrador pode gravar (e só por aqui). Hoje: tudo do site da Bíblia Avivar.
-const PUBLICAS_SO_ADMIN = [(k) => /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k)];
+// Conteúdo público que só quem tem direito grava, e só por aqui (qualquer um continua LENDO direto do banco).
+// setores vazio = só administrador. Com setores, o operador desse setor (ou "todos") também grava.
+const PUBLICAS = [
+  { teste: (k) => /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k), setores: [] },                       // site da Bíblia Avivar
+  { teste: (k) => ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds"].includes(k), setores: [] }, // chave Pix, textos do site, conteúdo inicial
+  { teste: (k) => k === "avivar:loja", setores: ["loja"] },                                      // preços e links de pagamento
+];
+const regraPublicaDe = (key) => PUBLICAS.find((r) => r.teste(key));
+export function podeGravarPublica(sessao, regra) {
+  if (!sessao || !regra) return false;
+  if (sessao.papel === "admin") return true;
+  const s = sessao.setores || [];
+  return regra.setores.some((x) => s.includes(x)) || (regra.setores.length > 0 && s.includes("todos"));
+}
 const LIMITE_PUBLICO = 1_500_000; // bytes de JSON por gravação
 // Sites autorizados a chamar esta função a partir do navegador (CORS). Mais endereços: variável CORS_ORIGENS, separados por vírgula.
 const ORIGENS = ["https://biblia-avivar.vercel.app", ...String(process.env.CORS_ORIGENS || "").split(",").map((x) => x.trim()).filter(Boolean)];
@@ -215,9 +227,10 @@ export default async function handler(req, res) {
     }
     const key = typeof corpo.key === "string" ? corpo.key : "";
     if (corpo.acao === "setpub") {
-      if (!PUBLICAS_SO_ADMIN.some((t) => t(key))) return resposta(res, 400, { ok: false, motivo: "chave_nao_permitida" });
+      const regraPub = regraPublicaDe(key);
+      if (!regraPub) return resposta(res, 400, { ok: false, motivo: "chave_nao_permitida" });
       if (!sessao) return resposta(res, 401, { ok: false, motivo: "sem_sessao" });
-      if (sessao.papel !== "admin") return resposta(res, 403, { ok: false, motivo: "sem_permissao" });
+      if (!podeGravarPublica(sessao, regraPub)) return resposta(res, 403, { ok: false, motivo: "sem_permissao" });
       if (corpo.value === undefined) return resposta(res, 400, { ok: false, motivo: "sem_valor" });
       if (JSON.stringify(corpo.value).length > LIMITE_PUBLICO) return resposta(res, 413, { ok: false, motivo: "valor_grande_demais" });
       await gravar(key, corpo.value, TABELA_PUBLICA);
