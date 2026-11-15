@@ -10729,9 +10729,10 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
   const doAcervo = dados.acervo || [];
   const titulos = new Set(doAcervo.map((m) => semAcento(m.titulo).trim()));
   const antigas = [];
+  const ocultos = new Set(dados.acervoOcultos || []); // músicas do repertório antigo que o líder excluiu do acervo
   (repertorio || []).forEach((c) => (c.musicas || []).forEach((m) => {
     const k = semAcento(m.titulo).trim();
-    if (k && !titulos.has(k)) { titulos.add(k); antigas.push({ id: "rep-" + m.id, titulo: m.titulo, tomIgreja: m.tom || "", tomOriginal: "", bpm: "", youtubeUrl: m.youtubeUrl || "", cifra: m.cifra || m.letra || "", doRepertorio: true }); }
+    if (k && !titulos.has(k) && !ocultos.has(k)) { titulos.add(k); antigas.push({ id: "rep-" + m.id, titulo: m.titulo, tomIgreja: m.tom || "", tomOriginal: "", bpm: "", youtubeUrl: m.youtubeUrl || "", cifra: m.cifra || m.letra || "", doRepertorio: true }); }
   }));
   const todas = [...doAcervo, ...antigas];
   const ehFav = (id) => (dados.favoritos || []).some((f) => f.musicoId === userKey && f.musicaId === id);
@@ -10772,7 +10773,20 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
     salvar(final);
     setForm(null);
   };
-  const excluir = (m) => salvar(amAud({ ...dados, acervo: doAcervo.filter((x) => x.id !== m.id), favoritos: (dados.favoritos || []).filter((f) => f.musicaId !== m.id), eventos: (dados.eventos || []).map((e) => ({ ...e, musicas: (e.musicas || []).filter((x) => x !== m.id) })) }, `Música excluída: ${m.titulo}`));
+  const excluir = (m) => {
+    if (!window.confirm(`Excluir "${m.titulo}" do acervo de louvores?${m.doRepertorio ? "\n\nEsta música veio do repertório antigo dos cultos: ela deixa de aparecer aqui, mas o histórico dos cultos não é alterado." : ""}`)) return;
+    const k = semAcento(m.titulo).trim();
+    const temAntiga = (repertorio || []).some((c) => (c.musicas || []).some((x) => semAcento(x.titulo).trim() === k));
+    const ocultosNovos = temAntiga && k && !(dados.acervoOcultos || []).includes(k) ? [...(dados.acervoOcultos || []), k] : (dados.acervoOcultos || []);
+    salvar(amAud({
+      ...dados,
+      acervo: doAcervo.filter((x) => x.id !== m.id),
+      acervoOcultos: ocultosNovos,
+      favoritos: (dados.favoritos || []).filter((f) => f.musicaId !== m.id),
+      ensaioSelecao: (dados.ensaioSelecao || []).filter((s) => !(s.tipo === "louvor" && s.refId === m.id)),
+      eventos: (dados.eventos || []).map((e) => ({ ...e, musicas: (e.musicas || []).filter((x) => x !== m.id) })),
+    }, `Música excluída: ${m.titulo}`));
+  };
   const vazioMsg = todas.length === 0 ? "Nenhuma música no acervo ainda." : filtro === "favoritas" ? "Você ainda não marcou nenhuma favorita. Toque na ⭐ de uma música." : "Nenhuma música encontrada.";
   return (
     <div className="space-y-4">
@@ -10848,7 +10862,7 @@ function AmAcervo({ t, dados, salvar, lider, repertorio, escuro, userKey, podeFa
             {lider && (
               <div className="flex items-center justify-end gap-1 px-2 pb-2">
                 <button aria-label="Editar" onClick={() => setForm(m.doRepertorio ? { ...AM_MUSICA_VAZIA, ...m, id: uid() } : { ...AM_MUSICA_VAZIA, ...m })} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: t.ink }}><Pencil size={15} /></button>
-                {!m.doRepertorio && <button aria-label="Excluir" onClick={() => excluir(m)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>}
+                <button aria-label={`Excluir ${m.titulo}`} title="Excluir" onClick={() => excluir(m)} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.card2, color: "#D0473A" }}><Trash2 size={15} /></button>
               </div>
             )}
           </div>
