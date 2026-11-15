@@ -14242,6 +14242,111 @@ function amReduzirImagem(arquivo, lado = 1920) {
   });
 }
 
+/* ----- Importar PowerPoint (.pptx) sem biblioteca externa -----
+   Um .pptx é um arquivo ZIP com XML. Aqui lemos o ZIP, pegamos a ordem dos slides, o texto de cada um
+   (título e corpo) e, quando o slide só tem figura, a maior imagem dele. Não reproduz formas, cores, fontes,
+   animações nem transições: para a aparência exata, exporte o PowerPoint como imagens. */
+async function amLerZip(buf) {
+  const u8 = new Uint8Array(buf); const dv = new DataView(buf);
+  let e = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) { if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; } }
+  if (e < 0) throw new Error("Esse arquivo não parece um PowerPoint (.pptx).");
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+  const itens = new Map(); const dec = new TextDecoder();
+  for (let k = 0; k < n; k++) {
+    if (p + 46 > u8.length || dv.getUint32(p, true) !== 0x02014b50) break;
+    const metodo = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), usize = dv.getUint32(p + 24, true);
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    itens.set(dec.decode(u8.subarray(p + 46, p + 46 + nl)), { metodo, csize, usize, off });
+    p += 46 + nl + xl + cl;
+  }
+  const ler = async (nome) => {
+    const it = itens.get(nome); if (!it) return null;
+    if (dv.getUint32(it.off, true) !== 0x04034b50) throw new Error("O PowerPoint está danificado.");
+    const ini = it.off + 30 + dv.getUint16(it.off + 26, true) + dv.getUint16(it.off + 28, true);
+    const comp = u8.subarray(ini, ini + it.csize);
+    if (it.metodo === 0) return comp.slice();
+    if (it.metodo !== 8) throw new Error("Esse PowerPoint usa uma compactação que não sei ler.");
+    if (typeof DecompressionStream === "undefined") throw new Error("Este navegador é antigo para importar .pptx. Atualize o navegador ou exporte o PowerPoint como imagens.");
+    const fluxo = new Blob([comp]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(fluxo).arrayBuffer());
+  };
+  return { itens, ler };
+}
+const AM_NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const AM_NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main";
+const AM_NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+function amXml(bytes) {
+  const d = new DOMParser().parseFromString(new TextDecoder().decode(bytes), "application/xml");
+  if (d.getElementsByTagName("parsererror").length) throw new Error("O PowerPoint está danificado.");
+  return d;
+}
+function amParagrafos(no) {
+  return Array.from(no.getElementsByTagNameNS(AM_NS_A, "p")).map((par) => {
+    let t = "";
+    const anda = (x) => Array.from(x.childNodes).forEach((c) => { if (c.nodeType !== 1) return; if (c.localName === "t") t += c.textContent; else if (c.localName === "br") t += "\n"; else if (c.localName === "r" || c.localName === "fld") anda(c); });
+    anda(par);
+    return t.replace(/\u000b/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+  }).filter(Boolean);
+}
+function amCaminhoRel(base, alvo) {
+  if (alvo.startsWith("/")) return alvo.slice(1);
+  const partes = base.split("/"); partes.pop();
+  alvo.split("/").forEach((x) => { if (x === "..") partes.pop(); else if (x && x !== ".") partes.push(x); });
+  return partes.join("/");
+}
+async function amRelacoes(zip, arquivo) {
+  const nome = arquivo.replace(/([^/]+)$/, "_rels/$1.rels"); const b = await zip.ler(nome); const m = new Map();
+  if (!b) return m;
+  Array.from(amXml(b).getElementsByTagName("Relationship")).forEach((r) => m.set(r.getAttribute("Id"), amCaminhoRel(arquivo, r.getAttribute("Target") || "")));
+  return m;
+}
+const AM_MIME_IMG = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", bmp: "image/bmp" };
+// Devolve { slides: [{ tit, txt } | { arq: File }], vazios, comFigura } na ordem do PowerPoint.
+async function amLerPptx(arquivo) {
+  if (arquivo.size > 80 * 1024 * 1024) throw new Error("Esse PowerPoint é muito grande (mais de 80 MB). Reduza as imagens ou exporte como imagens.");
+  const zip = await amLerZip(await arquivo.arrayBuffer());
+  const pres = await zip.ler("ppt/presentation.xml");
+  if (!pres) throw new Error("Esse arquivo não parece um PowerPoint (.pptx). Se for .ppt antigo, abra no PowerPoint e use Salvar como > .pptx.");
+  const rels = await amRelacoes(zip, "ppt/presentation.xml");
+  const ordem = Array.from(amXml(pres).getElementsByTagNameNS(AM_NS_P, "sldId")).map((x) => rels.get(x.getAttributeNS(AM_NS_R, "id"))).filter(Boolean);
+  if (!ordem.length) throw new Error("Não achei slides nesse PowerPoint.");
+  if (ordem.length > 300) throw new Error("Esse PowerPoint tem mais de 300 slides. Divida em partes menores.");
+  const slides = []; let vazios = 0, comFigura = 0;
+  for (const arqSlide of ordem) {
+    const bytes = await zip.ler(arqSlide); if (!bytes) { vazios++; continue; }
+    const doc = amXml(bytes); let tit = ""; const corpo = [];
+    Array.from(doc.getElementsByTagNameNS(AM_NS_P, "sp")).forEach((sp) => {
+      const ph = sp.getElementsByTagNameNS(AM_NS_P, "ph")[0]; const tipo = ph ? (ph.getAttribute("type") || "body") : "";
+      if (["sldNum", "ftr", "dt", "hdr"].includes(tipo)) return;
+      const ps = amParagrafos(sp); if (!ps.length) return;
+      if ((tipo === "title" || tipo === "ctrTitle") && !tit) tit = ps.join(" "); else corpo.push(ps.join("\n"));
+    });
+    Array.from(doc.getElementsByTagNameNS(AM_NS_A, "tbl")).forEach((tb) => {
+      const linhas = Array.from(tb.getElementsByTagNameNS(AM_NS_A, "tr")).map((tr) => Array.from(tr.getElementsByTagNameNS(AM_NS_A, "tc")).map((tc) => amParagrafos(tc).join(" ")).filter(Boolean).join(" · ")).filter(Boolean);
+      if (linhas.length) corpo.push(linhas.join("\n"));
+    });
+    const ids = Array.from(doc.getElementsByTagNameNS(AM_NS_A, "blip")).map((b) => b.getAttributeNS(AM_NS_R, "embed")).filter(Boolean);
+    const temTexto = !!(tit || corpo.length);
+    if (temTexto) {
+      if (ids.length) comFigura++;
+      slides.push(corpo.length ? { tit, txt: corpo.join("\n\n") } : { tit: "", txt: tit });
+      continue;
+    }
+    if (!ids.length) { vazios++; continue; }
+    const rl = await amRelacoes(zip, arqSlide);
+    let melhor = null;
+    ids.map((i) => rl.get(i)).filter(Boolean).forEach((c) => {
+      const ext = (c.split(".").pop() || "").toLowerCase(); const it = zip.itens.get(c);
+      if (AM_MIME_IMG[ext] && it && (!melhor || it.usize > melhor.tam)) melhor = { c, ext, tam: it.usize };
+    });
+    if (!melhor) { vazios++; continue; }
+    const img = await zip.ler(melhor.c);
+    slides.push({ arq: new File([img], `slide-${slides.length + 1}.${melhor.ext}`, { type: AM_MIME_IMG[melhor.ext] }) });
+  }
+  return { slides, vazios, comFigura };
+}
+
 /* ----- o que aparece no telão quando uma mídia da bandeja está "no ar" ----- */
 const AM_MODOS_MIDIA = [
   { k: "cheia", r: "Tela cheia" },
@@ -14367,6 +14472,7 @@ function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProje
   const [url, setUrl] = useState("");
   const [msg, setMsg] = useState("");
   const [deck, setDeck] = useState(null);
+  const [lendoPptx, setLendoPptx] = useState(false);
   const letras = editor.letras;
   const q = semAcento(busca).trim();
   const abas = [["texto", "Texto", FileText], ["video", "Vídeos", Video], ["imagem", "Imagens", ImageIcon], ["apr", "Apresentações", Layers]];
@@ -14422,6 +14528,28 @@ function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProje
     setDeck(null); setMsg("Apresentação salva.");
   };
   const moverSlide = (k, d) => setDeck((x) => { const s = [...x.slides]; const j = k + d; if (j < 0 || j >= s.length) return x; [s[k], s[j]] = [s[j], s[k]]; return { ...x, slides: s }; });
+  // Importa um .pptx: slides com texto viram slides de texto; slides só com figura viram imagem (enviada ao servidor).
+  const importarPptx = async (arquivo, aoPronto) => {
+    if (!arquivo || lendoPptx) return;
+    if (!/\.pptx$/i.test(arquivo.name)) { setMsg("Escolha um arquivo .pptx. Se for .ppt antigo, abra no PowerPoint e use Salvar como > .pptx."); return; }
+    setLendoPptx(true); setMsg("Lendo o PowerPoint…");
+    try {
+      const r = await amLerPptx(arquivo);
+      if (!r.slides.length) { setMsg("Não achei texto nem imagens nesse PowerPoint. Para slides desenhados, exporte como imagens (Arquivo > Exportar > PNG ou JPG)."); return; }
+      const arqs = r.slides.filter((x) => x.arq).map((x) => x.arq);
+      let urls = [];
+      if (arqs.length) {
+        const feitos = await subirImagens(arqs, { biblioteca: false });
+        if (feitos.length !== arqs.length) { setMsg("Nem todas as imagens do PowerPoint foram enviadas. Nada foi importado; tente de novo."); return; }
+        urls = feitos.map((f) => f.url);
+      }
+      let k = 0;
+      const slides = r.slides.map((x) => (x.arq ? { img: urls[k++] } : { tit: x.tit, txt: x.txt }));
+      aoPronto(arquivo.name.replace(/\.pptx$/i, "").slice(0, 60), slides);
+      setMsg(`PowerPoint importado: ${slides.length} slide(s)` + (arqs.length ? `, ${arqs.length} como imagem` : "") + "." + (r.comFigura ? ` ${r.comFigura} slide(s) tinham figura junto do texto: só o texto veio.` : "") + (r.vazios ? ` ${r.vazios} slide(s) vazio(s) ficaram de fora.` : "") + " Confira e salve.");
+    } catch (er) { setMsg(er && er.message ? er.message : "Não consegui ler esse PowerPoint."); }
+    finally { setLendoPptx(false); }
+  };
   const imagensDoDeck = async (files) => { const feitos = await subirImagens(files, { biblioteca: false }); if (feitos.length) setDeck((x) => ({ ...x, slides: [...x.slides, ...feitos.map((f) => ({ img: f.url }))] })); };
 
   const corpo = (() => {
@@ -14523,7 +14651,7 @@ function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProje
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>{deck.id ? "Editar apresentação" : "Nova apresentação"}</p>
           <input value={deck.titulo} onChange={(e) => setDeck({ ...deck, titulo: e.target.value })} placeholder="Nome da apresentação" aria-label="Nome da apresentação" data-testid="apr-titulo" className={amCInput} />
           <div className="flex-1 min-h-[80px] overflow-y-auto space-y-1" data-testid="apr-slides">
-            {deck.slides.length === 0 && <p className="text-[11px] text-white/65">Sem slides. Envie imagens (exporte o PowerPoint como imagens) ou crie slides de texto.</p>}
+            {deck.slides.length === 0 && <p className="text-[11px] text-white/65">Sem slides. Importe um PowerPoint (.pptx), envie imagens ou crie slides de texto.</p>}
             {deck.slides.map((s, k) => (
               <div key={k} className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,.08)" }}>
                 <span className="w-5 text-center text-[11px] font-bold shrink-0">{k + 1}</span>
@@ -14536,6 +14664,7 @@ function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProje
             ))}
           </div>
           <label className={amCBtnS + " cursor-pointer"} style={amCFundo}><ImageIcon size={13} /> Adicionar imagens como slides<input type="file" accept="image/*" multiple className="sr-only" data-testid="apr-arquivo" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ""; if (f.length) imagensDoDeck(f); }} /></label>
+          <label className={amCBtnS + " cursor-pointer" + (lendoPptx ? " opacity-60" : "")} style={amCFundo}><Layers size={13} /> {lendoPptx ? "Lendo o PowerPoint…" : "Importar PowerPoint (.pptx) para esta apresentação"}<input type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" className="sr-only" disabled={lendoPptx} data-testid="apr-pptx-deck" onChange={(e) => { const f = (e.target.files || [])[0]; e.target.value = ""; if (f) importarPptx(f, (nome, sl) => setDeck((x) => ({ ...x, titulo: x.titulo || nome, slides: [...x.slides, ...sl] }))); }} /></label>
           <input value={deck.tit} onChange={(e) => setDeck({ ...deck, tit: e.target.value })} placeholder="Título do slide de texto (opcional)" aria-label="Título do slide" className={amCInput} />
           <textarea value={deck.txt} onChange={(e) => setDeck({ ...deck, txt: e.target.value })} rows={2} placeholder="Texto do slide" aria-label="Texto do slide" data-testid="apr-txt" className={amCInput} />
           <button onClick={() => { if (!deck.tit.trim() && !deck.txt.trim()) { setMsg("Digite o título ou o texto do slide."); return; } setDeck({ ...deck, slides: [...deck.slides, { tit: deck.tit.trim(), txt: deck.txt.trim() }], tit: "", txt: "" }); }} className={amCBtnS} style={amCFundo} data-testid="apr-add-texto"><Plus size={13} /> Adicionar slide de texto</button>
@@ -14549,8 +14678,9 @@ function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProje
     return (
       <>
         <button onClick={novoDeck} className={amCBtnS + " w-full"} style={amCFundo} data-testid="apr-nova"><Plus size={13} /> Nova apresentação</button>
+        <label className={amCBtnS + " w-full cursor-pointer mt-1" + (lendoPptx ? " opacity-60" : "")} style={amCFundo}><Layers size={13} /> {lendoPptx ? "Lendo o PowerPoint…" : "Importar PowerPoint (.pptx)"}<input type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" className="sr-only" disabled={lendoPptx} data-testid="apr-pptx" onChange={(e) => { const f = (e.target.files || [])[0]; e.target.value = ""; if (f) importarPptx(f, (nome, sl) => setDeck({ id: "", titulo: nome, slides: sl, tit: "", txt: "" })); }} /></label>
         <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto space-y-1">
-          {bibApr.itens.length === 0 && <p className="text-[11px] text-white/65">Nenhuma apresentação salva. Exporte o seu PowerPoint como imagens (Arquivo &gt; Exportar &gt; PNG ou JPG) e envie aqui, ou monte slides de texto.</p>}
+          {bibApr.itens.length === 0 && <p className="text-[11px] text-white/65">Nenhuma apresentação salva. Importe um PowerPoint (.pptx): o texto vira slides de texto e os slides só com figura viram imagem. Para manter a aparência exata, exporte como imagens (Arquivo &gt; Exportar &gt; PNG ou JPG) e envie aqui.</p>}
           {bibApr.itens.map((d) => linhaMidia(doApr(d), (
             <>
               <span className="text-[10px] text-white/60 shrink-0">{d.slides.length} slide(s)</span>
@@ -18511,6 +18641,45 @@ function Contato({ items, save, adminMode }) {
 /* ---------------------------------------------------------------- */
 /* App                                                                  */
 /* ---------------------------------------------------------------- */
+
+/* ----- Aviso "Nova versão disponível" (só no app instalado do Louvor Avivar) -----
+   De tempos em tempos (e quando o app volta para a tela) compara o arquivo principal que está rodando
+   com o que o servidor publicou. Se mudou, mostra o aviso; quem decide atualizar é a pessoa (botão). */
+function AmAvisoNovaVersao() {
+  const [nova, setNova] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    let q = null; try { q = new URLSearchParams(window.location.search); } catch (e) { return undefined; }
+    if (!MODO_APP_MUSIC || q.get("tela") || q.get("camera") || q.get("ver")) return undefined; // telão e câmera nunca recebem o aviso
+    const rodando = (Array.from(document.scripts).map((x) => x.src).find((u) => /\/assets\/[^/]+\.js/.test(u)) || "").split("/assets/")[1] || "";
+    if (!rodando) return undefined; // modo de desenvolvimento
+    const checar = async () => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+        const r = await fetch("/index.html?v=" + Date.now(), { cache: "no-store" }); if (!r.ok) return;
+        const m = (await r.text()).match(/<script[^>]*src="[^"]*\/assets\/([^"]+\.js)"/);
+        if (vivo && m && m[1] !== rodando) setNova(true);
+      } catch (e) { /* sem internet: tenta depois */ }
+    };
+    const t0 = setTimeout(checar, 8000); const iv = setInterval(checar, 10 * 60 * 1000);
+    const vis = () => { if (document.visibilityState === "visible") checar(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(iv); document.removeEventListener("visibilitychange", vis); };
+  }, []);
+  const atualizar = async () => {
+    try { const regs = (await navigator.serviceWorker?.getRegistrations?.()) || []; await Promise.all(regs.map((r) => r.update().catch(() => {}))); } catch (e) { /* ok */ }
+    window.location.reload();
+  };
+  if (!nova) return null;
+  return (
+    <div role="status" aria-live="polite" data-testid="aviso-nova-versao" className="fixed left-3 right-3 bottom-3 z-[200] mx-auto max-w-md rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl" style={{ background: "#351052", color: "#F7F5F2", border: "1.5px solid #D6B46A" }}>
+      <p className="flex-1 text-sm leading-snug"><b style={{ color: "#D6B46A" }}>Nova versão disponível.</b> Toque em atualizar para usar as novidades.</p>
+      <button onClick={atualizar} className="min-h-[44px] px-4 rounded-xl text-sm font-bold shrink-0" style={{ background: "#D6B46A", color: "#351052" }}>Atualizar</button>
+      <button onClick={() => setNova(false)} aria-label="Agora não" className="min-h-[44px] w-9 shrink-0 text-lg" style={{ color: "#F7F5F2" }}>×</button>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("home");
   // Histórico de navegação (pilha) — cada vez que `page` muda, empilha o novo valor.
@@ -20633,6 +20802,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
           }}
         />
       )}
+      <AmAvisoNovaVersao />
     </div>
   );
 }
