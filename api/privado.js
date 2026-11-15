@@ -23,7 +23,7 @@ const TABELA_PUBLICA = "site_data";
 // Conteúdo público que só quem tem direito grava, e só por aqui (qualquer um continua LENDO direto do banco).
 // setores vazio = só administrador. Com setores, o operador desse setor (ou "todos") também grava.
 const PUBLICAS = [
-  { teste: (k) => /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k), setores: [] },                       // site da Bíblia Avivar
+  { teste: (k) => k !== "biblia:sermoes" && /^biblia:[A-Za-z0-9:_-]{1,80}$/.test(k), setores: [] },   // site da Bíblia Avivar (os sermões são PRIVADOS: ver REGRAS)
   { teste: (k) => ["avivar:doacoes", "avivar:site", "avivar:codigos", "avivar:seeds"].includes(k), setores: [] }, // chave Pix, textos do site, conteúdo inicial
   { teste: (k) => ["avivar:colaboradores", "avivar:avivarkids", "avivar:lideranca", "avivar:certificados"].includes(k), setores: [] }, // equipe e certificados (só o administrador edita)
   { teste: (k) => k === "avivar:loja", setores: ["loja"] },                                      // preços e links de pagamento
@@ -40,7 +40,7 @@ export function podeGravarPublica(sessao, regra) {
 }
 const LIMITE_PUBLICO = 1_500_000; // bytes de JSON por gravação
 // Sites autorizados a chamar esta função a partir do navegador (CORS). Mais endereços: variável CORS_ORIGENS, separados por vírgula.
-const ORIGENS = ["https://biblia-avivar.vercel.app", ...String(process.env.CORS_ORIGENS || "").split(",").map((x) => x.trim()).filter(Boolean)];
+export const ORIGENS = ["https://biblia-avivar.vercel.app", ...String(process.env.CORS_ORIGENS || "").split(",").map((x) => x.trim()).filter(Boolean)];
 const CHAVE_OPERADORES = "avivar:operatorcodes";
 const SESSAO_MS = 12 * 60 * 60 * 1000; // 12 horas
 
@@ -48,6 +48,7 @@ const SESSAO_MS = 12 * 60 * 60 * 1000; // 12 horas
 // "todos" libera tudo, exceto o que tem semTodos (caixa só com setor "caixa" marcado explicitamente).
 const REGRAS = [
   { teste: (k) => k === CHAVE_OPERADORES, setores: [] }, // só administrador
+  { teste: (k) => k === "biblia:sermoes", setores: [] }, // sermões dos pastores (Bíblia Avivar): só o administrador lê e grava, nunca público
   { teste: (k) => ["avivar:caixa", "avivar:caixaextra", "avivar:bens"].includes(k), setores: ["caixa"], semTodos: true },
   { teste: (k) => k === "avivar:membros", setores: ["membros"] },
   { teste: (k) => k === "avivar:visitantes", setores: ["visitantes"] },
