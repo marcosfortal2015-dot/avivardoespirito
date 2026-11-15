@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { storageGet, storageSet, privateLogin, privateLogout, sessaoPrivada, restaurarSessaoLembrada, limparSessaoLembrada, musicaLogin, musicaPrimeiro, musicaConcluir, musicaCadastro, musicaTrocarSenha, musicaLider, musicaMigrar } from "./lib/storage.js";
 import { QRCodeSVG } from "qrcode.react";
+import * as BIB from "./lib/biblia.js";
 
 /* ---------------------------------------------------------------- */
 /* Tokens                                                            */
@@ -11252,7 +11253,7 @@ function AmEquipe({ t, dados, salvar, musicosGrupo, podeIndicar = true }) {
             <AmBotao t={t} tom="suave" onClick={() => copiar(a.codigo)}><Copy size={15} /> {copiado === a.codigo ? "Copiado!" : "Copiar código"}</AmBotao>
             <a href={a.whatsapp ? amLinkWhats(a.whatsapp, convite(a)) : `https://wa.me/?text=${encodeURIComponent(convite(a))}`} target="_blank" rel="noopener noreferrer" className="min-h-[48px] px-4 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2" style={{ background: t.card2, color: t.ink }}><MessageCircle size={15} /> Enviar convite</a>
             {podeIndicar && <AmBotao t={t} tom="suave" onClick={() => abrirPerm(a)}><ShieldCheck size={15} /> {a.lider ? "Permissões do líder" : "Autorizar como líder…"}</AmBotao>}
-            {podeIndicar && a.lider && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: false }, `Autorização de líder retirada: ${a.nome}`)}>Retirar autorização</AmBotao>}}
+            {podeIndicar && a.lider && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { lider: false }, `Autorização de líder retirada: ${a.nome}`)}>Retirar autorização</AmBotao>}
             <AmBotao t={t} tom="suave" onClick={() => novaSenha(a)}><KeyRound size={15} /> Gerar nova senha e enviar</AmBotao>
             {a.senhaHash && <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { senhaHash: "" }, `Senha zerada: ${a.nome}`)}>Zerar senha</AmBotao>}
             <AmBotao t={t} tom="suave" onClick={() => upd(a.id, { ativo: a.ativo === false }, `${a.ativo === false ? "Código reativado" : "Código desativado"}: ${a.nome}`)}>{a.ativo === false ? "Reativar" : "Desativar"}</AmBotao>
@@ -13830,6 +13831,34 @@ function AmAvisoView({ av, w, h }) {
   );
 }
 
+/* ---------- Bíblia no telão (versículos que o operador manda para a projeção) ---------- */
+function amFonteTexto(texto, w, h, esc) {
+  const len = String(texto || "").length;
+  const max = Math.floor(h * 0.115 * (esc || 1));
+  for (let f = max; f > 13; f -= 2) {
+    const cpl = Math.max(6, Math.floor((w * 0.86) / (f * 0.5)));
+    const linhas = Math.max(1, Math.ceil((len * 1.08) / cpl));
+    if (linhas * f * 1.3 <= h * 0.6) return f;
+  }
+  return 13;
+}
+function AmBibliaSaida({ bb, w, h, esc, dest, sombra }) {
+  const multi = bb.vs.length > 1;
+  const texto = bb.vs.map((x) => (multi ? x.n + " " : "") + x.t).join(" ");
+  const fs = amFonteTexto(texto, w, h, esc);
+  const lv = BIB.achaLivro(bb.abbr);
+  const tr = BIB.traducaoDe(bb.tr);
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-[6%]" data-testid="proj-biblia" data-ref={bb.ref} style={{ textShadow: sombra }}>
+      <div aria-hidden="true" style={{ width: Math.max(40, w * 0.1), height: Math.max(3, h * 0.009), background: lv ? lv.cor : dest, borderRadius: 4, marginBottom: h * 0.035 }} />
+      <p className="font-display" data-testid="proj-biblia-texto" style={{ fontSize: fs, lineHeight: 1.3, fontWeight: 600 }}>
+        {bb.vs.map((x) => <span key={x.n}>{multi && <sup style={{ color: dest, fontSize: "0.5em", marginRight: "0.25em", fontWeight: 700 }}>{x.n}</sup>}{x.t}{" "}</span>)}
+      </p>
+      <p data-testid="proj-biblia-ref" style={{ fontSize: Math.max(11, Math.floor(h * 0.055)), color: dest, marginTop: h * 0.04, fontWeight: 700, letterSpacing: "0.04em" }}>{bb.ref} · {tr.sigla}</p>
+    </div>
+  );
+}
+
 function AmSaida({ est, lista, semVideo = false, className = "", style }) {
   const [ref, dm] = useAmCaixa();
   const md = est.md && !est.preto ? est.md : null;
@@ -13854,7 +13883,8 @@ function AmSaida({ est, lista, semVideo = false, className = "", style }) {
           <p style={{ fontSize: Math.max(9, Math.floor(d.h * 0.035)), opacity: 0.75 }}>Ministério Avivar do Espírito</p>
         </div>
       );
-    } else if (emVideo) corpo = <AmVideoSaida item={it} vc={est.vc} semVideo={semVideo || !!md} w={d.w} h={d.h} />;
+    } else if (est.bb && est.bb.vs) corpo = <AmBibliaSaida bb={est.bb} w={d.w} h={d.h} esc={est.esc} dest={tm.k === "claro" ? "#8A5A00" : "#D6B46A"} sombra={sombra} />;
+    else if (emVideo) corpo = <AmVideoSaida item={it} vc={est.vc} semVideo={semVideo || !!md} w={d.w} h={d.h} />;
     else if (it && sl.capa) {
       const n = String(sl.titulo || "").length;
       const temNum = sl.numero !== "" && sl.numero != null;
@@ -13921,6 +13951,241 @@ const amCOuro = { background: "#D6B46A", color: "#351052" };
 const amCCaixa = { background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.14)" };
 const amCInput = "w-full rounded-lg px-2.5 py-2 text-sm bg-white/10 text-white placeholder-white/50 outline-none focus:ring-2";
 const amCBtnS = "min-h-[32px] px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center justify-center gap-1 focus:outline-none focus:ring-2";
+
+/* ---------- Tela da Bíblia na projeção: livros e capítulos coloridos, busca de palavras e versículos pelas setas ---------- */
+function amOuvir(aoTexto, aoErro) {
+  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  if (!SR) { aoErro("Este navegador não tem reconhecimento de voz. Digite o número."); return null; }
+  const r = new SR();
+  r.lang = "pt-BR"; r.interimResults = false; r.maxAlternatives = 1;
+  r.onresult = (ev) => { try { aoTexto(ev.results[0][0].transcript); } catch (e) { aoErro("Não entendi. Tente de novo."); } };
+  r.onerror = () => aoErro("Não consegui ouvir. Tente de novo ou digite.");
+  try { r.start(); } catch (e) { aoErro("Não consegui ligar o microfone."); return null; }
+  return r;
+}
+function AmBibliaTela({ est, mod, aoPasso, g, setG, onReduzir, onFechar }) {
+  const larga = useAmLarga(1100);
+  const [tr, setTr] = useState(() => { const t = amLerLS("am-bib-tr", "nvi"); return BIB.TRADUCOES.some((x) => x.id === t) ? t : "nvi"; });
+  const [st, setSt] = useState(() => (BIB.biblia(tr) ? "ok" : "carregando"));
+  const [pos, setPos] = useState(() => {
+    if (est.bb) return { abbr: est.bb.abbr, c: est.bb.c };
+    try { const p = JSON.parse(amLerLS("am-bib-pos", "null")); if (p && BIB.achaLivro(p.abbr)) return p; } catch (e) { /* sem posição guardada */ }
+    return { abbr: null, c: null };
+  });
+  const [etapa, setEtapa] = useState(() => (est.bb ? "vers" : "livros"));
+  const [q, setQ] = useState("");
+  const [ver, setVer] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [ouvindo, setOuvindo] = useState(false);
+  const carregar = (id) => { setSt(BIB.biblia(id) ? "ok" : "carregando"); BIB.carregarBiblia(id).then(() => setSt("ok")).catch(() => setSt("erro")); };
+  useEffect(() => { carregar(tr); }, [tr]);
+  const bbRef = useRef(est.bb); bbRef.current = est.bb;
+  useEffect(() => { if (st === "ok" && bbRef.current && bbRef.current.tr !== tr) { const b = bbRef.current; const n = BIB.monta({ tr, abbr: b.abbr, c: b.c, v1: b.v1, v2: b.v2 }, g); if (n) mod({ bb: n }); } }, [st, tr]);
+  const trocarTr = (id) => { setTr(id); amGravarLS("am-bib-tr", id); };
+  const livro = pos.abbr ? BIB.achaLivro(pos.abbr) : null;
+  const vers = st === "ok" && livro && pos.c ? BIB.capitulo(tr, pos.abbr, pos.c) : null;
+  const guardarPos = (p) => { setPos(p); amGravarLS("am-bib-pos", JSON.stringify(p)); };
+  const escolherLivro = (b) => { guardarPos({ abbr: b.abbr, c: null }); setEtapa("caps"); setAviso(""); };
+  const escolherCap = (n) => { guardarPos({ abbr: pos.abbr, c: n }); setEtapa("vers"); setAviso(""); };
+  const projetar = (abbr, c, v1, v2) => {
+    const b = BIB.monta({ tr, abbr, c, v1, v2: v2 && v2 > v1 ? Math.min(v2, v1 + 4) : undefined }, g);
+    if (!b) { setAviso("Não achei esse trecho na tradução escolhida."); return; }
+    guardarPos({ abbr, c }); mod({ bb: b, preto: false, logo: false, rel: false }); setAviso(v2 && v2 > v1 + 4 ? `Mostrando ${b.ref}. O resto do trecho vem ao passar com a seta →.` : "");
+  };
+  const irVersiculo = (txt) => {
+    if (!livro || !pos.c) { setAviso("Escolha primeiro o livro e o capítulo."); return; }
+    const v = BIB.lerVersiculos(txt);
+    if (!v) { setAviso("Não entendi o número. Exemplos: 16 · 16 a 18 · do 5 ao 9."); return; }
+    const max = vers ? vers.length : 999;
+    if (v.v1 > max) { setAviso(`${livro.nome} ${pos.c} só tem ${max} versículos.`); return; }
+    projetar(pos.abbr, pos.c, v.v1, Math.min(v.v2, max));
+  };
+  const ouvir = (aoTexto) => { setAviso(""); setOuvindo(true); const r = amOuvir((t) => { setOuvindo(false); aoTexto(t); }, (m) => { setOuvindo(false); setAviso(m); }); if (!r) setOuvindo(false); };
+  const ref = BIB.lerReferencia(q);
+  const refValida = !!(ref && ref.c);
+  const achados = useMemo(() => (st === "ok" && q.trim().length >= 2 && !refValida ? BIB.buscarPalavras(tr, q, { max: 150 }) : null), [st, tr, q, refValida]);
+  const noAr = est.bb && est.bb.abbr === pos.abbr && est.bb.c === pos.c ? est.bb : null;
+  const mostrarBusca = q.trim().length >= 2;
+
+  const colLivros = (
+    <div className="min-h-0 flex flex-col rounded-2xl p-2.5" style={amCCaixa} data-testid="col-livros">
+      <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#D6B46A" }}>1 · Livros</p>
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
+        {BIB.GRUPOS.map((gr) => (
+          <div key={gr.k}>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: gr.cor === "#8E3B1F" ? "#E8A07C" : "#fff", opacity: 0.85 }}>{gr.r}</p>
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(88px,1fr))" }}>
+              {BIB.LIVROS.filter((b) => b.grupo === gr.k).map((b) => (
+                <button key={b.abbr} onClick={() => escolherLivro(b)} data-testid={"livro-" + b.abbr} aria-pressed={pos.abbr === b.abbr} title={b.nome}
+                  className="rounded-xl px-1.5 py-1.5 min-h-[50px] flex flex-col items-center justify-center text-white focus:outline-none focus:ring-2 leading-tight"
+                  style={{ background: b.cor, outline: pos.abbr === b.abbr ? "3px solid #fff" : "none", outlineOffset: 1, boxShadow: pos.abbr === b.abbr ? "0 0 0 5px #D6B46A" : "none" }}>
+                  <span className="text-base font-extrabold">{b.sigla}</span>
+                  <span className="text-[10px] font-semibold text-center break-words w-full">{b.nome}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  const colCaps = (
+    <div className="min-h-0 flex flex-col rounded-2xl p-2.5" style={amCCaixa} data-testid="col-capitulos">
+      <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#D6B46A" }}>2 · Capítulos{livro ? ` de ${livro.nome}` : ""}</p>
+      {!livro ? <p className="text-sm text-white/70">Escolha um livro.</p> : (
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(52px,1fr))" }}>
+            {Array.from({ length: livro.caps }, (_, k) => k + 1).map((n) => (
+              <button key={n} onClick={() => escolherCap(n)} data-testid={"cap-" + n} aria-pressed={pos.c === n}
+                className="rounded-xl min-h-[46px] text-base font-extrabold text-white focus:outline-none focus:ring-2"
+                style={{ background: livro.cor, outline: pos.c === n ? "3px solid #fff" : "none", outlineOffset: 1, boxShadow: pos.c === n ? "0 0 0 5px #D6B46A" : "none", filter: pos.c === n ? "none" : "saturate(.9)" }}>{n}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  const colVers = (
+    <div className="min-h-0 flex flex-col rounded-2xl p-2.5" style={amCCaixa} data-testid="col-versiculos">
+      <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#D6B46A" }}>3 · Versículos{livro && pos.c ? ` · ${livro.nome} ${pos.c}` : ""}</p>
+      <div className="flex gap-1.5 mb-2">
+        <input value={ver} onChange={(e) => setVer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") irVersiculo(ver); }} placeholder="Versículo: 16 ou 16 a 18" className={amCInput} aria-label="Ir ao versículo" data-testid="campo-versiculo" />
+        <button onClick={() => irVersiculo(ver)} className={amCBtnS} style={amCOuro} data-testid="btn-ir-versiculo">Ir</button>
+        <button onClick={() => ouvir((t) => { setVer(t); irVersiculo(t); })} className={amCBtnS} style={ouvindo ? amCOuro : amCFundo} aria-label="Falar o número do versículo" data-testid="btn-voz-versiculo"><Mic size={14} /></button>
+      </div>
+      {!vers ? <p className="text-sm text-white/70">{st === "carregando" ? "Carregando a Bíblia…" : livro ? "Escolha um capítulo." : "Escolha um livro e um capítulo."}</p> : (
+        <ol className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-1" data-testid="lista-versiculos">
+          {vers.map((x) => {
+            const no = noAr && x.n >= noAr.v1 && x.n <= noAr.v2;
+            return (
+              <li key={x.n}>
+                <button onClick={() => projetar(pos.abbr, pos.c, x.n)} data-testid={"ver-" + x.n} aria-pressed={!!no}
+                  className="w-full text-left rounded-lg px-2 py-1.5 min-h-[40px] flex gap-2 items-start focus:outline-none focus:ring-2"
+                  style={{ background: no ? "#D6B46A" : "rgba(255,255,255,.09)", color: no ? "#351052" : "#fff" }}>
+                  <span className="shrink-0 h-[26px] rounded-md text-xs font-extrabold inline-flex items-center justify-center text-white" style={{ background: livro.cor, minWidth: 30, padding: "0 4px" }}>{x.n}</span>
+                  <span className="text-sm leading-snug line-clamp-3">{BIB.limparTexto(x.t)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+  const colBusca = (
+    <div className="min-h-0 flex flex-col rounded-2xl p-2.5" style={amCCaixa} data-testid="col-busca">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>{refValida ? "Ir para a referência" : `Resultados${achados ? ` (${achados.length}${achados.length >= 150 ? "+" : ""})` : ""}`}</p>
+        <button onClick={() => setQ("")} className="text-[11px] underline text-white/70" data-testid="limpar-busca">Limpar busca</button>
+      </div>
+      {refValida ? (
+        <div>
+          <button onClick={() => { const b = BIB.achaLivro(ref.abbr); guardarPos({ abbr: ref.abbr, c: ref.c }); setEtapa("vers"); if (ref.v1) projetar(ref.abbr, ref.c, ref.v1, ref.v2); else { setQ(""); } void b; }} className={amCBtn + " w-full"} style={amCOuro} data-testid="ir-referencia">Abrir {BIB.textoReferencia(ref.abbr, ref.c, ref.v1, ref.v2)}</button>
+        </div>
+      ) : !achados ? <p className="text-sm text-white/70">Digite uma palavra (ex.: graça, côvados) ou uma referência (ex.: Jo 3:16).</p>
+        : achados.length === 0 ? <p className="text-sm text-white/70" data-testid="busca-vazia">Nada encontrado para “{q}”.</p> : (
+        <ol className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-1" data-testid="resultados-busca">
+          {achados.map((x) => {
+            const b = BIB.achaLivro(x.abbr);
+            return (
+              <li key={x.abbr + x.c + ":" + x.v}>
+                <button onClick={() => { setEtapa("vers"); projetar(x.abbr, x.c, x.v); }} data-testid="resultado" className="w-full text-left rounded-lg px-2 py-1.5 flex gap-2 items-start focus:outline-none focus:ring-2" style={{ background: "rgba(255,255,255,.09)" }}>
+                  <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-extrabold text-white" style={{ background: b.cor }}>{b.sigla} {x.c}:{x.v}</span>
+                  <span className="text-sm leading-snug line-clamp-3">{x.t}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+  const pPrev = (
+    <div className="rounded-xl overflow-hidden" style={{ aspectRatio: "16 / 9", border: "2px solid #D6B46A" }}>
+      <AmSaida est={est} lista={[]} semVideo className="w-full h-full" />
+    </div>
+  );
+  const pRef = <p className="text-center text-sm font-semibold" data-testid="bib-no-ar" style={{ color: est.bb ? "#fff" : "rgba(255,255,255,.6)" }}>{est.bb ? `${est.bb.ref} · ${BIB.traducaoDe(est.bb.tr).sigla}` : "Nenhum versículo no ar"}</p>;
+  const pNav = (
+    <div className="flex items-center justify-center gap-2">
+      <button onClick={() => aoPasso(-1)} disabled={!est.bb} className={amCBtn + " min-w-[96px] !min-h-[48px] !text-sm disabled:opacity-40"} style={amCFundo} data-testid="bib-anterior"><ChevronLeft size={20} /> Anterior</button>
+      <button onClick={() => aoPasso(1)} disabled={!est.bb} className={amCBtn + " min-w-[96px] !min-h-[48px] !text-sm disabled:opacity-40"} style={amCOuro} data-testid="bib-proximo">Próximo <ChevronRight size={20} /></button>
+    </div>
+  );
+  const pOpc = (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-white/80">Versículos por tela:</span>
+        {[1, 2, 3].map((n) => <button key={n} onClick={() => { setG(n); if (est.bb) { const b = BIB.monta({ tr: est.bb.tr, abbr: est.bb.abbr, c: est.bb.c, v1: est.bb.v1 }, n); if (b) mod({ bb: b }); } }} className={amCBtnS} style={g === n ? amCOuro : amCFundo} aria-pressed={g === n} data-testid={"bib-g-" + n}>{n}</button>)}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-white/80">Tradução:</span>
+        <select value={tr} onChange={(e) => trocarTr(e.target.value)} className="min-h-[32px] rounded-lg px-2 text-[11px] bg-white/15 text-white" aria-label="Tradução da Bíblia" data-testid="bib-traducao">
+          {BIB.TRADUCOES.map((t) => <option key={t.id} value={t.id} style={{ color: "#000" }}>{t.sigla} · {t.nome}</option>)}
+        </select>
+      </div>
+      {est.bb && <button onClick={() => mod({ bb: null })} className={amCBtnS + " self-start"} style={amCFundo} data-testid="bib-tirar"><X size={12} /> Tirar da tela</button>}
+    </div>
+  );
+  const painel = (
+    <div className="min-h-0 flex flex-col gap-2 rounded-2xl p-2.5" style={amCCaixa} data-testid="painel-bib-ar">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>No telão</p>
+      {pPrev}{pRef}{pNav}
+      <p className="text-[11px] text-white/70 text-center leading-snug">Teclado: → ou espaço passa o versículo · ← volta · B tela preta · Esc reduz esta tela.</p>
+      {pOpc}
+    </div>
+  );
+  const painelEstreito = (
+    <div className="rounded-2xl p-2" style={amCCaixa} data-testid="painel-bib-ar">
+      <div className="flex gap-2 items-center">
+        <div style={{ width: "44%" }} className="shrink-0">{pPrev}</div>
+        <div className="flex-1 min-w-0 space-y-1.5">{pRef}
+          <div className="flex gap-1.5">
+            <button onClick={() => aoPasso(-1)} disabled={!est.bb} className={amCBtn + " flex-1 disabled:opacity-40"} style={amCFundo} data-testid="bib-anterior" aria-label="Versículo anterior"><ChevronLeft size={20} /></button>
+            <button onClick={() => aoPasso(1)} disabled={!est.bb} className={amCBtn + " flex-1 disabled:opacity-40"} style={amCOuro} data-testid="bib-proximo" aria-label="Próximo versículo"><ChevronRight size={20} /></button>
+          </div>
+        </div>
+      </div>
+      <details className="mt-1.5"><summary className="text-[11px] text-white/80 cursor-pointer min-h-[28px] flex items-center">Opções: versículos por tela, tradução</summary><div className="mt-1.5">{pOpc}</div></details>
+    </div>
+  );
+  const passos = [["livros", "1 Livros"], ["caps", "2 Capítulos"], ["vers", "3 Versículos"]];
+  return (
+    <div className="fixed inset-0 z-[90] flex flex-col" style={{ background: "#140a22", color: "#fff" }} role="dialog" aria-modal="true" aria-label="Bíblia na projeção" data-testid="tela-biblia" data-bib-tela="1">
+      <div className="px-3 py-2 flex flex-wrap items-center gap-1.5" style={{ background: "linear-gradient(90deg,#3A1260,#5B2394)", borderBottom: "2px solid #D6B46A" }}>
+        <button onClick={onReduzir} className={amCBtn} style={amCFundo} aria-label="Reduzir e voltar à mesa de projeção" data-testid="bib-reduzir"><Minus size={16} /> Reduzir</button>
+        <div className="min-w-0 flex-1 px-1">
+          <p className="font-display text-sm sm:text-base font-bold truncate"><BookOpen size={16} className="inline -mt-0.5 mr-1" />Bíblia na projeção</p>
+          <p className="text-[11px] truncate" style={{ color: "#E8D9B0" }}>{est.bb ? `No ar: ${est.bb.ref}` : "Escolha o livro, o capítulo e o versículo"}</p>
+        </div>
+        <div className="flex items-center gap-1" style={{ width: "min(360px, 100%)" }}>
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/60" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar palavra ou referência (Jo 3:16)" className={amCInput} style={{ paddingLeft: 30 }} aria-label="Buscar na Bíblia" data-testid="bibl-busca" />
+          </div>
+          <button onClick={() => ouvir((t) => setQ(t))} className={amCBtnS} style={ouvindo ? amCOuro : amCFundo} aria-label="Buscar falando" data-testid="btn-voz-busca"><Mic size={14} /></button>
+        </div>
+        <button onClick={onFechar} className={amCBtn} style={amCFundo} aria-label="Fechar a Bíblia e tirar da tela" data-testid="bib-fechar"><X size={16} /> Fechar</button>
+      </div>
+      {aviso && <p className="px-3 py-1.5 text-xs" style={{ background: "rgba(214,180,106,.18)", color: "#F3D77C" }} data-testid="bib-aviso">{aviso}</p>}
+      {st === "carregando" && <p className="px-3 py-1.5 text-xs text-white/80" data-testid="bib-carregando">Carregando o texto da Bíblia (só na primeira vez)…</p>}
+      {st === "erro" && <p className="px-3 py-2 text-sm" style={{ background: "rgba(179,38,30,.35)" }} data-testid="bib-erro">Não consegui baixar a Bíblia agora. Confira a internet. <button className="underline font-semibold" onClick={() => { setSt("carregando"); carregar(tr); }}>Tentar de novo</button></p>}
+      {larga ? (
+        <div className="flex-1 min-h-0 p-3 grid gap-3" style={{ gridTemplateColumns: "minmax(280px,1.15fr) minmax(190px,.65fr) minmax(300px,1.1fr) minmax(300px,.85fr)" }}>
+          {colLivros}{colCaps}{mostrarBusca ? colBusca : colVers}{painel}
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col p-2 gap-2">
+          <div className="flex gap-1.5" role="tablist">
+            {passos.map(([k, r]) => <button key={k} role="tab" aria-selected={!mostrarBusca && etapa === k} onClick={() => { setQ(""); setEtapa(k); }} className={amCBtnS + " flex-1"} style={!mostrarBusca && etapa === k ? amCOuro : amCFundo} data-testid={"etapa-" + k}>{r}</button>)}
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col">{mostrarBusca ? colBusca : etapa === "livros" ? colLivros : etapa === "caps" ? colCaps : colVers}</div>
+          <div className="shrink-0">{painelEstreito}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------- Mesa de projeção: biblioteca, bandeja de mídia e buscador de letras ---------- */
 const amArrastar = (obj) => ({ draggable: true, onDragStart: (e) => { try { e.dataTransfer.setData("text/avivar", JSON.stringify(obj)); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* sem arrastar */ } } });
@@ -14605,7 +14870,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const [est, setEstado] = useState(() => {
     let cf = {}; try { cf = JSON.parse(amLerLS("am-proj-conf", "{}")) || {}; } catch (e) { cf = {}; }
     const rc = cf.relCfg || {};
-    return { i: amLimitar(inicio, 0, Math.max(0, lista.length - 1)), s: 0, preto: false, logo: false, rel: false, av: null, md: null, fundo: cf.fundo || "nenhum", tema: cf.tema || "preto", esc: cf.esc || 1, vc: { a: "", n: 0 },
+    return { i: amLimitar(inicio, 0, Math.max(0, lista.length - 1)), s: 0, preto: false, logo: false, rel: false, av: null, md: null, bb: null, fundo: cf.fundo || "nenhum", tema: cf.tema || "preto", esc: cf.esc || 1, vc: { a: "", n: 0 },
       relCfg: { ...AM_REL_PADRAO, modo: rc.modo || "hora", fonte: rc.fonte || "duracao", dur: rc.dur || 600, titulo: rc.titulo || "" } };
   });
   const E = useRef(est); E.current = est;
@@ -14635,6 +14900,11 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const [modoMidia, setModoMidia] = useState(() => { const m = amLerLS("am-proj-modo-midia", "cheia"); return AM_MODOS_MIDIA.some((x) => x.k === m) ? m : "cheia"; });
   const [sobreLista, setSobreLista] = useState(false);
   const [envio, setEnvio] = useState("");
+  const [bibAberta, setBibAberta] = useState(false);
+  const BA = useRef(false); BA.current = bibAberta;
+  const [bibG, setBibGv] = useState(() => amLimitar(Number(amLerLS("am-bib-g", "1")) || 1, 1, 3));
+  const BG = useRef(bibG); BG.current = bibG;
+  const setBibG = (n) => { setBibGv(n); amGravarLS("am-bib-g", String(n)); };
   const addBandeja = (m) => gravarBandeja((p) => (p.some((x) => x.id === m.id) ? p : [...p, m]));
   const remBandeja = (id) => { gravarBandeja((p) => p.filter((x) => x.id !== id)); if (E.current.md && E.current.md.id === id) mod({ md: null }); };
   // Duplo clique (ou "Projetar"): a mídia entra por cima do telão; o louvor/slide de baixo fica como estava e volta quando ela sai.
@@ -14676,10 +14946,11 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const ir = (ni, ns) => {
     const l = L.current; if (!l.length) return;
     const ii = amLimitar(ni, 0, l.length - 1); const tot = l[ii].slides.length;
-    mod({ i: ii, s: amLimitar(ns, 0, tot - 1), preto: false, logo: false, rel: false });
+    mod({ i: ii, s: amLimitar(ns, 0, tot - 1), preto: false, logo: false, rel: false, bb: null });
   };
-  const prox = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(1); return; } if (!l.length) return; const tot = l[e.i].slides.length; if (e.s + 1 < tot) ir(e.i, e.s + 1); else if (e.i + 1 < l.length) ir(e.i + 1, 0); };
-  const ant = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(-1); return; } if (!l.length) return; if (e.s > 0) ir(e.i, e.s - 1); else if (e.i > 0) ir(e.i - 1, l[e.i - 1].slides.length - 1); };
+  const bibPasso = (d) => { const e = E.current; if (!e.bb) return; const n = BIB.passo(e.bb, d, BG.current); if (n) mod({ bb: n }); };
+  const prox = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(1); return; } if (e.bb) { bibPasso(1); return; } if (BA.current) return; if (!l.length) return; const tot = l[e.i].slides.length; if (e.s + 1 < tot) ir(e.i, e.s + 1); else if (e.i + 1 < l.length) ir(e.i + 1, 0); };
+  const ant = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(-1); return; } if (e.bb) { bibPasso(-1); return; } if (BA.current) return; if (!l.length) return; if (e.s > 0) ir(e.i, e.s - 1); else if (e.i > 0) ir(e.i - 1, l[e.i - 1].slides.length - 1); };
   const itemProx = () => ir(E.current.i + 1, 0);
   const itemAnt = () => ir(E.current.i - 1, 0);
   const alternarPreto = () => mod({ preto: !E.current.preto, logo: false, rel: false });
@@ -14721,6 +14992,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
     const k = (e) => {
       if (e.target && (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable)) return;
       const c = e.key;
+      if ((c === "Enter" || c === " ") && e.target && e.target.closest && e.target.closest("[data-bib-tela]") && /^(BUTTON|A)$/.test(e.target.tagName)) return; // deixa o botão focado ser acionado
       if (c === "ArrowRight" || c === " " || c === "PageDown" || c === "Enter") { e.preventDefault(); prox(); }
       else if (c === "ArrowLeft" || c === "PageUp" || c === "Backspace") { e.preventDefault(); ant(); }
       else if (c === "ArrowDown") { e.preventDefault(); itemProx(); }
@@ -14732,7 +15004,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
       else if (c === "f" || c === "F") { if (LC.current) tela(); else abrirLocal(); }
       else if (c === "+" || c === "=") setEstado((x) => ({ ...x, esc: amLimitar(Math.round((x.esc + 0.1) * 10) / 10, 0.5, 1.8) }));
       else if (c === "-") setEstado((x) => ({ ...x, esc: amLimitar(Math.round((x.esc - 0.1) * 10) / 10, 0.5, 1.8) }));
-      else if (c === "Escape") { if (E.current.md) setEstado((x) => ({ ...x, md: null })); else if (LC.current) fecharLocal(); else if (!document.fullscreenElement) onFechar(); }
+      else if (c === "Escape") { if (E.current.md) setEstado((x) => ({ ...x, md: null })); else if (BA.current) setBibAberta(false); else if (E.current.bb) setEstado((x) => ({ ...x, bb: null })); else if (LC.current) fecharLocal(); else if (!document.fullscreenElement) onFechar(); }
       if (LC.current) mostrarBarra();
     };
     window.addEventListener("keydown", k);
@@ -14793,10 +15065,11 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const pecaPrevia = (
     <div className="relative mx-auto" style={{ width: "min(100%, 62vh)" }}>
       <div onClick={cliquePrevia} className="cursor-pointer rounded-xl overflow-hidden shadow-lg" style={{ aspectRatio: "16 / 9", border: "2px solid #D6B46A" }} data-testid="console-preview" aria-label="Prévia do telão: clique para avançar">
-        {(it || est.av || est.rel || est.logo || est.md) ? <AmSaida est={est} lista={lista} semVideo className="w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-sm text-white/70 text-center px-14">{editor ? "A lista do culto está vazia. Escolha um louvor na biblioteca e clique nele (ou arraste para a lista)." : "A lista do culto está vazia."}</div>}
+        {(it || est.av || est.rel || est.logo || est.md || est.bb) ? <AmSaida est={est} lista={lista} semVideo className="w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-sm text-white/70 text-center px-14">{editor ? "A lista do culto está vazia. Escolha um louvor na biblioteca e clique nele (ou arraste para a lista)." : "A lista do culto está vazia."}</div>}
       </div>
       <button onClick={ant} className={setaCls + " left-1.5"} style={setaSty} aria-label="Quadro anterior" data-testid="seta-esq"><ChevronLeft size={22} /></button>
       <button onClick={prox} className={setaCls + " right-1.5"} style={setaSty} aria-label="Próximo quadro" data-testid="seta-dir"><ChevronRight size={22} /></button>
+      {est.bb && !est.md && <span className="absolute z-10 top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold pointer-events-none" style={{ background: "#D6B46A", color: "#351052" }} data-testid="badge-biblia">NO AR: {est.bb.ref}</span>}
       {est.md && <span className="absolute z-10 top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold pointer-events-none" style={{ background: "#D6B46A", color: "#351052" }} data-testid="badge-midia">NO AR: {est.md.titulo}</span>}
     </div>
   );
@@ -14819,6 +15092,8 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
       {auto && <select value={autoSeg} onChange={(e) => setAutoSeg(Number(e.target.value))} className="min-h-[32px] rounded-lg px-2 text-[11px] bg-white/15 text-white" aria-label="Segundos por quadro">{[5, 8, 10, 15, 20, 30].map((x) => <option key={x} value={x} style={{ color: "#000" }}>{x} s por quadro</option>)}</select>}
       {ehVideo && <><button onClick={() => video("play")} className={amCBtnS} style={amCFundo} data-testid="btn-video-play"><Play size={12} /> Reproduzir vídeo</button><button onClick={() => video("pause")} className={amCBtnS} style={amCFundo}><Pause size={12} /> Pausar vídeo</button></>}
       {est.md && <button onClick={tirarMidia} className={amCBtnS} style={amCOuro} data-testid="btn-voltar-louvor"><X size={12} /> Voltar ao louvor</button>}
+      <button onClick={() => setBibAberta(true)} className={amCBtnS} style={est.bb ? amCOuro : amCFundo} aria-pressed={!!est.bb} data-testid="btn-biblia"><BookOpen size={12} /> Bíblia</button>
+      {est.bb && <button onClick={() => mod({ bb: null })} className={amCBtnS} style={amCOuro} data-testid="btn-voltar-louvor-biblia"><X size={12} /> Tirar versículo</button>}
     </div>
   );
   const pecaLista = (
@@ -14973,6 +15248,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
           </div>
         </div>
       </div>
+      {bibAberta && <AmBibliaTela est={est} mod={mod} aoPasso={bibPasso} g={bibG} setG={setBibG} onReduzir={() => setBibAberta(false)} onFechar={() => { mod({ bb: null }); setBibAberta(false); }} />}
       {local && (
         <div ref={locRef} className="fixed inset-0 z-[95] select-none" style={{ cursor: barra ? "default" : "none", background: "#000" }} onPointerMove={mostrarBarra} onPointerDown={mostrarBarra} data-testid="proj-aqui">
           <AmSaida est={est} lista={lista} className="absolute inset-0" />
@@ -15052,7 +15328,7 @@ function AmTelaExterna({ sala }) {
           <button onClick={() => { setPronto(true); tela(); mostrar(); }} className="mt-6 min-h-[56px] px-8 rounded-2xl text-base font-bold" style={{ background: "#D6B46A", color: "#351052" }} data-testid="btn-iniciar-tela">Iniciar esta tela</button>
           <p className="mt-3 text-xs opacity-70 max-w-sm">Toque uma vez para começar (isso libera a tela cheia e o som dos vídeos). Depois é só o operador passar os quadros na mesa de projeção.</p>
         </div>
-      ) : !est || est.fechado || (!lista.length && !est.av && !est.rel && !est.logo) ? espera(!est ? "Aguardando o operador abrir a mesa de projeção…" : est.fechado ? "Projeção encerrada. Aguardando o operador…" : "Aguardando a lista do culto…")
+      ) : !est || est.fechado || (!lista.length && !est.av && !est.rel && !est.logo && !est.bb) ? espera(!est ? "Aguardando o operador abrir a mesa de projeção…" : est.fechado ? "Projeção encerrada. Aguardando o operador…" : "Aguardando a lista do culto…")
         : <AmSaida est={est} lista={lista} className="absolute inset-0" />}
       {pronto && <button onClick={tela} aria-label="Tela cheia" className="absolute top-2 right-2 z-10 w-11 h-11 rounded-xl flex items-center justify-center transition-opacity" style={{ background: "rgba(255,255,255,.18)", color: "#fff", opacity: barra ? 1 : 0 }}><Maximize size={18} /></button>}
     </div>
