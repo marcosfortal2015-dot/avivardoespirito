@@ -13350,11 +13350,6 @@ const amItemLouvor = (m) => {
   return { id: "l" + m.id, titulo: m.titulo, nome: m.titulo, numero: "", sub: m.artista || "", kind: "Louvor",
     slides: [{ capa: true, kind: "Louvor", numero: "", titulo: m.titulo, sub: m.artista || "" }, ...(ls.length ? ls : amSemLetra)] };
 };
-const amItemLetra = (m) => {
-  const ls = amLetraSlides(m.letra);
-  return { id: "t" + m.id, titulo: m.titulo, nome: m.titulo, numero: "", sub: m.artista || "", kind: "Louvor",
-    slides: [{ capa: true, kind: "Louvor", numero: "", titulo: m.titulo, sub: m.artista || "" }, ...(ls.length ? ls : amSemLetra)] };
-};
 const amItemVideo = (v) => ({ id: "v" + v.id, titulo: v.titulo || "Vídeo", nome: v.titulo || "Vídeo", numero: "", sub: "Vídeo", kind: "Vídeo", video: { url: v.url, titulo: v.titulo || "Vídeo" }, slides: [{ video: true, titulo: v.titulo || "Vídeo" }] });
 
 const AM_PROJ_TEMAS = [
@@ -13373,14 +13368,6 @@ const AM_FUNDOS = [
   { k: "ondas", r: "Ondas", cor: "#2AA6B9" },
   { k: "ouro", r: "Chuva de ouro", cor: "#D6B46A" },
   { k: "aurora", r: "Aurora", cor: "#3DDC97" },
-  { k: "neve", r: "Neve", cor: "#CFE6FF" },
-  { k: "chuva", r: "Chuva", cor: "#7FA6D6" },
-  { k: "vagalumes", r: "Vaga-lumes", cor: "#D8FF70" },
-  { k: "raios", r: "Raios de luz", cor: "#FFE9A8" },
-  { k: "petalas", r: "Pétalas", cor: "#FF9DB8" },
-  { k: "nevoa", r: "Névoa", cor: "#AAB8E6" },
-  { k: "meteoros", r: "Meteoros", cor: "#9DB8FF" },
-  { k: "gloria", r: "Ondas de glória", cor: "#F3D77C" },
 ];
 const amLerLS = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
 const amGravarLS = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) { /* sem storage */ } };
@@ -13533,110 +13520,6 @@ function amFundoIniciar(cv, tipo) {
             ctx.fillStyle = g; ctx.fillRect(x, y0, 7, alt);
           }
         });
-        ctx.globalCompositeOperation = "source-over";
-      },
-    },
-    neve: {
-      init() { st.f = Array.from({ length: 140 }, () => ({ x: R(), y: R(), r: 0.6 + R() * 2.4, v: 0.03 + R() * 0.09, sw: R() * 6.28, a: 0.45 + R() * 0.5 })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#070f26"], [0.6, "#15305e"], [1, "#2c4f86"]]); ctx.fillRect(0, 0, W, H);
-        bolha(W / 2, H * 1.05, H * 0.9, "rgba(190,220,255,.22)", "rgba(190,220,255,0)");
-        st.f.forEach((f) => {
-          f.y += f.v * dt / 1000; f.x += 0.012 * Math.sin(t * 0.0006 + f.sw) * dt / 1000; if (f.y > 1.04) { f.y = -0.04; f.x = R(); }
-          ctx.fillStyle = `rgba(255,255,255,${f.a})`; ctx.beginPath(); ctx.arc(f.x * W, f.y * H, f.r * (W / 1000 + 0.5), 0, 6.2832); ctx.fill();
-        });
-      },
-    },
-    chuva: {
-      init() { st.g = Array.from({ length: 150 }, () => ({ x: R() * 1.2 - 0.1, y: R(), v: 0.9 + R() * 0.9, l: 0.03 + R() * 0.05, a: 0.18 + R() * 0.3 })); st.fl = 0; st.prox = 4000; },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#080e1a"], [0.7, "#142235"], [1, "#22344c"]]); ctx.fillRect(0, 0, W, H);
-        st.prox -= dt; if (st.prox <= 0) { st.fl = 1; st.prox = 5000 + R() * 6000; }
-        if (st.fl > 0) { ctx.fillStyle = `rgba(200,220,255,${st.fl * 0.16})`; ctx.fillRect(0, 0, W, H); st.fl = Math.max(0, st.fl - dt / 350); }
-        ctx.lineWidth = Math.max(1, W / 900);
-        st.g.forEach((g) => {
-          g.y += g.v * dt / 1000; g.x -= g.v * 0.12 * dt / 1000; if (g.y > 1.05) { g.y = -0.1; g.x = R() * 1.2 - 0.1; }
-          ctx.strokeStyle = `rgba(170,200,235,${g.a})`; ctx.beginPath(); ctx.moveTo(g.x * W, g.y * H); ctx.lineTo((g.x - g.l * 0.12) * W, (g.y - g.l) * H); ctx.stroke();
-        });
-        ctx.fillStyle = grad([[0, "rgba(120,150,190,0)"], [1, "rgba(120,150,190,.22)"]], 0, H * 0.7, 0, H); ctx.fillRect(0, H * 0.7, W, H * 0.3);
-      },
-    },
-    vagalumes: {
-      init() { st.v = Array.from({ length: 55 }, () => ({ x: R(), y: R(), a: R() * 6.28, s: 0.02 + R() * 0.05, ph: R() * 6.28, r: 0.012 + R() * 0.02 })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#030c08"], [0.6, "#0a2218"], [1, "#12402a"]]); ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = "lighter";
-        st.v.forEach((v) => {
-          v.a += (R() - 0.5) * 0.12; v.x += Math.cos(v.a) * v.s * dt / 1000; v.y += Math.sin(v.a) * v.s * dt / 1000;
-          if (v.x < -0.05) v.x = 1.05; if (v.x > 1.05) v.x = -0.05; if (v.y < -0.05) v.y = 1.05; if (v.y > 1.05) v.y = -0.05;
-          const al = Math.max(0, Math.sin(t * 0.0018 + v.ph)); bolha(v.x * W, v.y * H, v.r * H * (0.6 + al), `rgba(220,255,120,${0.15 + al * 0.8})`, "rgba(120,255,80,0)");
-        });
-        ctx.globalCompositeOperation = "source-over";
-      },
-    },
-    raios: {
-      init() { st.p = Array.from({ length: 50 }, () => ({ x: R(), y: R(), r: 0.6 + R() * 1.6, v: 0.004 + R() * 0.012, ph: R() * 6.28 })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#0c1030"], [0.6, "#2a2060"], [1, "#4a3a86"]]); ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = "lighter";
-        const ox = W * 0.78; const oy = -H * 0.15;
-        for (let k = 0; k < 8; k++) {
-          const ang = 1.15 + k * 0.17 + 0.05 * Math.sin(t * 0.0003 + k); const len = H * 1.7; const a = 0.06 + 0.07 * (0.5 + 0.5 * Math.sin(t * 0.0007 + k * 1.7));
-          const g = ctx.createLinearGradient(ox, oy, ox + Math.cos(ang) * len, oy + Math.sin(ang) * len); g.addColorStop(0, `rgba(255,236,170,${a * 2.4})`); g.addColorStop(1, "rgba(255,236,170,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + Math.cos(ang - 0.06) * len, oy + Math.sin(ang - 0.06) * len); ctx.lineTo(ox + Math.cos(ang + 0.06) * len, oy + Math.sin(ang + 0.06) * len); ctx.closePath(); ctx.fill();
-        }
-        st.p.forEach((p) => { p.y -= p.v * dt / 1000; if (p.y < -0.05) { p.y = 1.05; p.x = R(); } ctx.fillStyle = `rgba(255,240,200,${0.2 + 0.3 * Math.sin(t * 0.002 + p.ph) ** 2})`; ctx.beginPath(); ctx.arc(p.x * W, p.y * H, p.r * (W / 1100 + 0.5), 0, 6.2832); ctx.fill(); });
-        ctx.globalCompositeOperation = "source-over";
-      },
-    },
-    petalas: {
-      init() { st.p = Array.from({ length: 55 }, () => ({ x: R(), y: R(), v: 0.05 + R() * 0.1, sw: R() * 6.28, rot: R() * 6.28, vr: (R() - 0.5) * 0.003, s: 0.012 + R() * 0.02, c: ["#FF9DB8", "#FFD1DC", "#FFFFFF", "#F28AAE", "#FFC2A8"][(R() * 5) | 0] })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#2a0b2e"], [0.6, "#5a1a4a"], [1, "#8a2a5c"]]); ctx.fillRect(0, 0, W, H);
-        st.p.forEach((p) => {
-          p.y += p.v * dt / 1000; p.rot += p.vr * dt; if (p.y > 1.06) { p.y = -0.06; p.x = R(); }
-          const x = (p.x + 0.04 * Math.sin(t * 0.0007 + p.sw)) * W; const y = p.y * H; const s = p.s * H;
-          ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot); ctx.scale(1, 0.6 + 0.4 * Math.sin(t * 0.002 + p.sw)); ctx.fillStyle = p.c; ctx.globalAlpha = 0.85;
-          ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.55, 0, 0, 6.2832); ctx.fill(); ctx.restore();
-        });
-        ctx.globalAlpha = 1;
-      },
-    },
-    nevoa: {
-      init() { st.n = Array.from({ length: 10 }, () => ({ x: R(), y: 0.2 + R() * 0.7, r: 0.25 + R() * 0.35, v: 0.006 + R() * 0.014, a: 0.08 + R() * 0.12 })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#0a0d1a"], [0.7, "#1a2036"], [1, "#2a3050"]]); ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = "lighter";
-        st.n.forEach((n) => { n.x += n.v * dt / 1000; if (n.x > 1.4) n.x = -0.4; bolha(n.x * W, n.y * H, n.r * H * 1.4, `rgba(170,185,230,${n.a})`, "rgba(170,185,230,0)"); });
-        ctx.globalCompositeOperation = "source-over";
-      },
-    },
-    meteoros: {
-      init() { st.c = []; st.e = Array.from({ length: 130 }, () => ({ x: R(), y: R(), r: 0.4 + R() * 1.4, ph: R() * 6.28, sp: 0.001 + R() * 0.003 })); },
-      draw(t, dt) {
-        ctx.fillStyle = grad([[0, "#01020a"], [0.8, "#0b1238"], [1, "#161c52"]]); ctx.fillRect(0, 0, W, H);
-        st.e.forEach((s) => { ctx.fillStyle = `rgba(255,250,225,${0.3 + 0.6 * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph))})`; ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r * (W / 1100 + 0.5), 0, 6.2832); ctx.fill(); });
-        if (R() < dt * 0.0016 && st.c.length < 6) st.c.push({ x: R() * W * 1.1, y: -H * 0.05, vx: -W * (0.35 + R() * 0.3), vy: H * (0.5 + R() * 0.4), v: 1 });
-        ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = Math.max(1.5, W / 700);
-        st.c = st.c.filter((c) => {
-          c.x += c.vx * dt / 1000; c.y += c.vy * dt / 1000; c.v -= dt / 1700; if (c.v <= 0 || c.y > H) return false;
-          const g = ctx.createLinearGradient(c.x, c.y, c.x - c.vx * 0.3, c.y - c.vy * 0.3); g.addColorStop(0, `rgba(255,255,255,${c.v})`); g.addColorStop(1, "rgba(160,190,255,0)");
-          ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x - c.vx * 0.3, c.y - c.vy * 0.3); ctx.stroke(); return true;
-        });
-        ctx.globalCompositeOperation = "source-over";
-      },
-    },
-    gloria: {
-      init() {},
-      draw(t) {
-        ctx.fillStyle = grad([[0, "#1a0833"], [1, "#3a1160"]]); ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = "lighter";
-        const cx = W / 2; const cy = H / 2;
-        for (let k = 0; k < 7; k++) {
-          const f = ((t * 0.00018 + k / 7) % 1); const r = f * Math.max(W, H) * 0.7;
-          ctx.strokeStyle = `rgba(243,215,124,${(1 - f) * 0.55})`; ctx.lineWidth = Math.max(2, H * 0.012 * (1 - f) + 1); ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.stroke();
-        }
-        bolha(cx, cy, H * (0.3 + 0.03 * Math.sin(t * 0.002)), "rgba(255,230,150,.45)", "rgba(255,200,80,0)");
         ctx.globalCompositeOperation = "source-over";
       },
     },
@@ -13831,10 +13714,7 @@ function AmAvisoView({ av, w, h }) {
 }
 
 function AmSaida({ est, lista, semVideo = false, className = "", style }) {
-  const [ref, dm] = useAmCaixa();
-  const md = est.md && !est.preto ? est.md : null;
-  const geo = md ? amGeoMidia(md.modo, dm.w, dm.h) : null;
-  const d = geo && geo.meia ? { w: dm.w / 2, h: dm.h } : dm;
+  const [ref, d] = useAmCaixa();
   const it = (lista && (lista[est.i] || lista[0])) || null;
   const total = it ? it.slides.length : 0;
   const sl = it ? (it.slides[Math.min(est.s || 0, total - 1)] || {}) : {};
@@ -13854,7 +13734,7 @@ function AmSaida({ est, lista, semVideo = false, className = "", style }) {
           <p style={{ fontSize: Math.max(9, Math.floor(d.h * 0.035)), opacity: 0.75 }}>Ministério Avivar do Espírito</p>
         </div>
       );
-    } else if (emVideo) corpo = <AmVideoSaida item={it} vc={est.vc} semVideo={semVideo || !!md} w={d.w} h={d.h} />;
+    } else if (emVideo) corpo = <AmVideoSaida item={it} vc={est.vc} semVideo={semVideo} w={d.w} h={d.h} />;
     else if (it && sl.capa) {
       const n = String(sl.titulo || "").length;
       const temNum = sl.numero !== "" && sl.numero != null;
@@ -13880,19 +13760,10 @@ function AmSaida({ est, lista, semVideo = false, className = "", style }) {
     }
   }
   return (
-    <div ref={ref} className={(/\b(absolute|fixed)\b/.test(className) ? "" : "relative ") + "isolate overflow-hidden " + className} style={{ background: est.preto || anim ? "#000" : tm.bg, color: fg, ...(style || {}) }}>
-      {!(geo && geo.cheia) && (
-        <div className="absolute top-0 bottom-0" style={geo && geo.meia ? (md.modo === "esq" ? { left: "50%", width: "50%" } : { left: 0, width: "50%" }) : { left: 0, width: "100%" }}>
-          {!est.preto && anim && !emVideo && <><AmFundo tipo={est.fundo} /><div className="absolute inset-0" style={{ background: "rgba(0,0,0,.22)" }} /></>}
-          {corpo}
-        </div>
-      )}
-      {md && (
-        <div className="absolute z-20 overflow-hidden" data-testid="proj-midia" data-modo={md.modo || "cheia"} data-tipo={md.tipo} style={{ ...geo.box, background: "#000" }}>
-          <AmMidiaSaida md={md} vc={est.vc} semVideo={semVideo} w={geo.w} h={geo.h} />
-        </div>
-      )}
-      {est.av && <AmAvisoView av={est.av} w={dm.w} h={dm.h} />}
+    <div ref={ref} className={(/\b(absolute|fixed)\b/.test(className) ? "" : "relative ") + "overflow-hidden " + className} style={{ background: est.preto || anim ? "#000" : tm.bg, color: fg, ...(style || {}) }}>
+      {!est.preto && anim && !emVideo && <><AmFundo tipo={est.fundo} /><div className="absolute inset-0" style={{ background: "rgba(0,0,0,.22)" }} /></>}
+      {corpo}
+      {est.av && <AmAvisoView av={est.av} w={d.w} h={d.h} />}
     </div>
   );
 }
@@ -13920,439 +13791,6 @@ const amCFundo = { background: "rgba(255,255,255,.14)", color: "#fff" };
 const amCOuro = { background: "#D6B46A", color: "#351052" };
 const amCCaixa = { background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.14)" };
 const amCInput = "w-full rounded-lg px-2.5 py-2 text-sm bg-white/10 text-white placeholder-white/50 outline-none focus:ring-2";
-const amCBtnS = "min-h-[32px] px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center justify-center gap-1 focus:outline-none focus:ring-2";
-
-/* ---------- Mesa de projeção: biblioteca, bandeja de mídia e buscador de letras ---------- */
-const amArrastar = (obj) => ({ draggable: true, onDragStart: (e) => { try { e.dataTransfer.setData("text/avivar", JSON.stringify(obj)); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* sem arrastar */ } } });
-const amLerArraste = (e) => { try { const s = e.dataTransfer.getData("text/avivar"); return s ? JSON.parse(s) : null; } catch (er) { return null; } };
-
-function useAmLarga(min = 1280) {
-  const [v, setV] = useState(() => typeof window !== "undefined" && window.innerWidth >= min);
-  useEffect(() => { const f = () => setV(window.innerWidth >= min); window.addEventListener("resize", f); f(); return () => window.removeEventListener("resize", f); }, [min]);
-  return v;
-}
-
-// Biblioteca guardada no app (letras, vídeos, imagens, apresentações): cada uma na sua chave, por unidade.
-function useAmBib(cat, base, ativo = true) {
-  const chave = `avivar:proj${cat}:${base}`;
-  const [itens, setItens] = useState([]);
-  const ref = useRef([]);
-  useEffect(() => {
-    if (!ativo) return undefined; let vivo = true;
-    loadKey(chave, []).then((r) => { if (vivo) { const l = Array.isArray(r) ? r : []; ref.current = l; setItens(l); } });
-    return () => { vivo = false; };
-  }, [chave, ativo]);
-  const gravar = (fn) => { const n = fn(ref.current); ref.current = n; setItens(n); saveKey(chave, n); return n; };
-  return { itens, add: (x) => gravar((p) => [...p, x]), upd: (id, patch) => gravar((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x))), rem: (id) => gravar((p) => p.filter((x) => x.id !== id)), gravar };
-}
-
-// Reduz a imagem (lado maior 1920 px, JPEG) para carregar rápido no telão.
-function amReduzirImagem(arquivo, lado = 1920) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(arquivo); const img = new Image();
-    img.onload = () => {
-      try {
-        const r = Math.min(1, lado / Math.max(img.width, img.height));
-        const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(img.width * r)); cv.height = Math.max(1, Math.round(img.height * r));
-        const c = cv.getContext("2d"); c.fillStyle = "#000"; c.fillRect(0, 0, cv.width, cv.height); c.drawImage(img, 0, 0, cv.width, cv.height);
-        cv.toBlob((b) => { URL.revokeObjectURL(url); if (b) resolve(b); else reject(new Error("Imagem inválida.")); }, "image/jpeg", 0.88);
-      } catch (e) { URL.revokeObjectURL(url); reject(new Error("Não consegui preparar a imagem.")); }
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Esse arquivo não é uma imagem.")); };
-    img.src = url;
-  });
-}
-
-/* ----- o que aparece no telão quando uma mídia da bandeja está "no ar" ----- */
-const AM_MODOS_MIDIA = [
-  { k: "cheia", r: "Tela cheia" },
-  { k: "esq", r: "Meia tela ◧" },
-  { k: "dir", r: "Meia tela ◨" },
-  { k: "canto", r: "Canto" },
-];
-function amGeoMidia(modo, w, h) {
-  if (modo === "esq") return { box: { left: 0, top: 0, width: "50%", height: "100%" }, w: w / 2, h, meia: true };
-  if (modo === "dir") return { box: { right: 0, top: 0, width: "50%", height: "100%" }, w: w / 2, h, meia: true };
-  if (modo === "canto") { const bw = w * 0.34; return { box: { right: "3%", bottom: "5%", width: "34%", aspectRatio: "16 / 9", border: "2px solid #D6B46A", borderRadius: 8 }, w: bw, h: (bw * 9) / 16 }; }
-  return { box: { left: 0, top: 0, width: "100%", height: "100%" }, w, h, cheia: true };
-}
-function AmImgSaida({ url, titulo }) {
-  const [falhou, setFalhou] = useState(false);
-  useEffect(() => { setFalhou(false); }, [url]);
-  if (falhou) return <div className="absolute inset-0 flex items-center justify-center text-center px-4 text-sm" style={{ color: "#fff" }}>Não consegui abrir esta imagem.</div>;
-  return <img src={url} alt={titulo || "Imagem"} draggable={false} onError={() => setFalhou(true)} data-testid="proj-midia-img" className="absolute inset-0 w-full h-full" style={{ objectFit: "contain", background: "#000" }} />;
-}
-function AmSlideApr({ sl, w, h }) {
-  if (sl.img) return <AmImgSaida url={sl.img} titulo="Slide" />;
-  const corpo = String(sl.txt || "");
-  const fs = amFonte(corpo, w, h * 0.7, 1);
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-[6%]" data-testid="proj-slide-texto" style={{ background: "linear-gradient(160deg,#2a0f42,#0d0618)", color: "#FFF6DA" }}>
-      {sl.tit && <p className="font-display font-bold leading-tight" style={{ fontSize: Math.max(12, Math.floor(Math.min(h * 0.11, w * 0.07))), color: "#D6B46A", marginBottom: h * 0.04 }}>{sl.tit}</p>}
-      {corpo && <p className="font-display" style={{ fontSize: Math.max(10, fs), lineHeight: 1.3, fontWeight: 600, whiteSpace: "pre-line" }}>{corpo}</p>}
-    </div>
-  );
-}
-function AmMidiaSaida({ md, vc, semVideo, w, h }) {
-  if (md.tipo === "img") return <AmImgSaida url={md.url} titulo={md.titulo} />;
-  if (md.tipo === "video") return <AmVideoSaida item={{ id: md.id, video: { url: md.url, titulo: md.titulo } }} vc={vc} semVideo={semVideo} w={w} h={h} />;
-  const sl = (md.slides || [])[amLimitar(md.i || 0, 0, Math.max(0, (md.slides || []).length - 1))] || {};
-  return <AmSlideApr sl={sl} w={w} h={h} />;
-}
-
-/* ----- Buscador de letras (pronto; só responde quando o serviço licenciado estiver ligado no servidor) ----- */
-function AmBuscaLetras({ aoSalvar, aoFechar }) {
-  const [q, setQ] = useState("");
-  const [artista, setArtista] = useState("");
-  const [estado, setEstado] = useState({ s: "ocioso" });
-  const [sel, setSel] = useState(null);
-  const cab = () => { const s = sessaoPrivada(); return s && s.token ? { Authorization: `Bearer ${s.token}` } : {}; };
-  const buscar = async () => {
-    const termo = q.trim(); if (termo.length < 2) { setEstado({ s: "erro", msg: "Digite o nome do louvor (ou um trecho)." }); return; }
-    setEstado({ s: "buscando" }); setSel(null);
-    try {
-      const r = await fetch(`/api/letras?${new URLSearchParams({ q: termo, artista: artista.trim() })}`, { headers: cab() });
-      let j = null; try { j = await r.json(); } catch (e) { j = null; }
-      if (r.status === 401) { setEstado({ s: "erro", msg: "Entre com o seu código e senha para usar o buscador." }); return; }
-      if (r.status === 429) { setEstado({ s: "erro", msg: "Muitas buscas seguidas. Espere alguns minutos." }); return; }
-      if (j && j.motivo === "aguardando_licenca") { setEstado({ s: "licenca", msg: j.mensagem }); return; }
-      if (!r.ok || !j || !j.ok) { setEstado({ s: "erro", msg: (j && j.mensagem) || "A busca não respondeu. Tente de novo em instantes." }); return; }
-      setEstado({ s: "ok", lista: Array.isArray(j.resultados) ? j.resultados : [] });
-    } catch (e) { setEstado({ s: "erro", msg: "Sem conexão para buscar." }); }
-  };
-  const abrir = async (x) => {
-    if (x.letra) { setSel(x); return; }
-    setEstado((e) => ({ ...e, carregando: x.id }));
-    try {
-      const r = await fetch(`/api/letras?${new URLSearchParams({ id: x.id })}`, { headers: cab() }); const j = await r.json();
-      if (j && j.ok && j.item) setSel({ ...x, ...j.item }); else setEstado((e) => ({ ...e, carregando: "", msg: (j && j.mensagem) || "Não consegui abrir esta letra." }));
-    } catch (e) { setEstado((e2) => ({ ...e2, carregando: "", msg: "Sem conexão." })); }
-    setEstado((e) => ({ ...e, carregando: "" }));
-  };
-  return (
-    <div className="flex flex-col min-h-0 flex-1" data-testid="busca-letras">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Buscar letra na internet</p>
-        <button onClick={aoFechar} className="text-[11px] underline text-white/70" data-testid="busca-fechar">Fechar busca</button>
-      </div>
-      {!sel && (
-        <>
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") buscar(); }} placeholder="Nome do louvor ou um trecho da letra" aria-label="Buscar letra" data-testid="busca-q" className={amCInput} />
-          <input value={artista} onChange={(e) => setArtista(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") buscar(); }} placeholder="Cantor ou ministério (opcional)" aria-label="Artista" className={amCInput + " mt-1.5"} />
-          <button onClick={buscar} disabled={estado.s === "buscando"} className={amCBtnS + " mt-1.5 w-full disabled:opacity-50"} style={amCOuro} data-testid="busca-ir"><Search size={13} /> {estado.s === "buscando" ? "Buscando…" : "Buscar"}</button>
-          {estado.s === "licenca" && (
-            <div className="mt-2 rounded-lg p-2.5 text-[11px] leading-snug" style={{ background: "rgba(214,180,106,.16)", border: "1px solid rgba(214,180,106,.45)" }} data-testid="busca-licenca">
-              <b style={{ color: "#F3D77C" }}>Buscador pronto, aguardando a licença.</b>
-              <span className="block mt-1 text-white/85">{estado.msg || "Quando o serviço licenciado for ligado no servidor, as buscas passam a funcionar aqui e as letras achadas ficam salvas no app."} Enquanto isso, use “Digitar letra”.</span>
-            </div>
-          )}
-          {estado.s === "erro" && <p className="mt-2 text-[11px]" style={{ color: "#FFB4AB" }} role="alert">{estado.msg}</p>}
-          {estado.s === "ok" && (
-            <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-1" data-testid="busca-resultados">
-              {estado.lista.length === 0 && <p className="text-[11px] text-white/70">Nada encontrado.</p>}
-              {estado.lista.map((x, k) => (
-                <button key={(x.id || "") + k} onClick={() => abrir(x)} className="w-full text-left rounded-lg px-2.5 py-2 min-h-[44px]" style={{ background: "rgba(255,255,255,.1)" }} data-testid="busca-resultado">
-                  <span className="block text-sm font-semibold leading-tight">{x.titulo}</span>
-                  <span className="block text-[11px] text-white/65">{x.artista || "—"}{estado.carregando === x.id ? " · abrindo…" : ""}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      {sel && (
-        <div className="flex flex-col min-h-0 flex-1" data-testid="busca-previa">
-          <p className="text-sm font-semibold leading-tight">{sel.titulo}</p>
-          <p className="text-[11px] text-white/65 mb-1.5">{sel.artista || "—"}</p>
-          <pre className="flex-1 min-h-[120px] overflow-y-auto rounded-lg p-2 text-[11px] leading-snug whitespace-pre-wrap font-sans" style={{ background: "rgba(0,0,0,.3)" }}>{sel.letra}</pre>
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            <button onClick={() => { aoSalvar({ titulo: sel.titulo, artista: sel.artista || "", letra: sel.letra, fonte: "busca" }, true); setSel(null); }} className={amCBtnS} style={amCOuro} data-testid="busca-salvar-lista"><Plus size={13} /> Salvar e pôr na lista</button>
-            <button onClick={() => { aoSalvar({ titulo: sel.titulo, artista: sel.artista || "", letra: sel.letra, fonte: "busca" }, false); setSel(null); }} className={amCBtnS} style={amCFundo} data-testid="busca-salvar">Só salvar no app</button>
-            <button onClick={() => setSel(null)} className={amCBtnS} style={amCFundo}>Voltar</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ----- Biblioteca (esquerda): Texto, Vídeos, Imagens, Apresentações ----- */
-function AmBiblioteca({ editor, base, bibVid, bibImg, bibApr, aoBandeja, aoProjetar, subirImagens, envio, noBandeja }) {
-  const [aba, setAba] = useState("texto");
-  const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState("todos");
-  const [lim, setLim] = useState(120);
-  const [form, setForm] = useState(null);
-  const [erroForm, setErroForm] = useState("");
-  const [buscando, setBuscando] = useState(false);
-  const [url, setUrl] = useState("");
-  const [msg, setMsg] = useState("");
-  const [deck, setDeck] = useState(null);
-  const letras = editor.letras;
-  const q = semAcento(busca).trim();
-  const abas = [["texto", "Texto", FileText], ["video", "Vídeos", Video], ["imagem", "Imagens", ImageIcon], ["apr", "Apresentações", Layers]];
-  const chip = (on) => (on ? amCOuro : amCFundo);
-
-  // ----- Texto -----
-  const linhasTexto = (() => {
-    const l = [];
-    if (filtro === "todos" || filtro === "harpa") (editor.hinos || []).forEach((h) => l.push({ tipo: "hino", id: h.numero, titulo: `${h.numero} — ${h.titulo}`, kind: "Harpa", busca: semAcento(`${h.numero} ${h.titulo}`) }));
-    if (filtro === "todos" || filtro === "louvor") (editor.acervo || []).forEach((m) => l.push({ tipo: "louvor", id: m.id, titulo: m.titulo, sub: m.artista || "", kind: "Louvor", busca: semAcento(`${m.titulo} ${m.artista || ""}`) }));
-    if (filtro === "todos" || filtro === "salvas") letras.itens.forEach((m) => l.push({ tipo: "texto", id: m.id, titulo: m.titulo, sub: m.artista || "", kind: "Salva", salva: m, busca: semAcento(`${m.titulo} ${m.artista || ""} ${m.letra || ""}`) }));
-    return q ? l.filter((x) => x.busca.includes(q) || (x.tipo === "hino" && String(x.id) === q)) : l;
-  })();
-  const corK = { Harpa: "#D6B46A", Louvor: "#B78CFF", Salva: "#6FD3C1" };
-  const salvarLetra = (f, adicionar) => {
-    const t = (f.titulo || "").trim();
-    if (!t || !String(f.letra || "").trim()) { setErroForm("Digite o título e a letra."); return null; }
-    const id = f.id || "s" + uid();
-    const item = { id, titulo: t, artista: (f.artista || "").trim(), letra: f.letra, fonte: f.fonte || "digitada", ts: Date.now() };
-    if (f.id) letras.upd(id, item); else letras.add(item);
-    if (adicionar) editor.add({ tipo: "texto", id });
-    setErroForm(""); return id;
-  };
-  const apagarLetra = (m) => { if (window.confirm(`Apagar a letra “${m.titulo}” do app?`)) letras.rem(m.id); };
-
-  // ----- Vídeos -----
-  const addVideoUrl = () => {
-    const info = amMidiaInfo(url);
-    if (!info.tipo || info.tipo === "link") { setMsg("Cole o link de um vídeo do YouTube, Instagram, Google Drive ou de um arquivo (.mp4)."); return; }
-    const id = "v" + uid(); bibVid.add({ id, titulo: amTituloAuto(info, info.url), url: info.url }); setUrl(""); setMsg("Vídeo salvo na biblioteca.");
-    if (info.tipo === "youtube") amBuscarTituloYt(info.url).then((tt) => { if (tt) bibVid.upd(id, { titulo: tt }); });
-  };
-  const doVideo = (v) => ({ id: v.id, tipo: "video", titulo: v.titulo, url: v.url });
-  const doApr = (d) => ({ id: d.id, tipo: "apr", titulo: d.titulo, slides: d.slides });
-  const doImg = (i) => ({ id: i.id, tipo: "img", titulo: i.titulo, url: i.url });
-  const linhaMidia = (m, extra) => (
-    <div key={m.id} {...amArrastar({ z: "bandeja", item: m })} className="flex items-center gap-1 rounded-lg" style={{ background: noBandeja(m.id) ? "rgba(214,180,106,.22)" : "rgba(255,255,255,.08)" }} data-testid="bib-midia">
-      <button onClick={() => aoBandeja(m)} onDoubleClick={() => aoProjetar(m)} className="flex-1 min-w-0 text-left px-2.5 py-2 min-h-[44px] flex items-center gap-2" aria-label={`Copiar ${m.titulo} para a mídia do culto`}>
-        <span className="text-sm font-semibold leading-tight line-clamp-2 flex-1">{m.titulo}</span>
-        {noBandeja(m.id) ? <Check size={14} className="shrink-0" style={{ color: "#D6B46A" }} /> : <Plus size={14} className="shrink-0" />}
-      </button>
-      {extra}
-    </div>
-  );
-
-  // ----- Apresentações -----
-  const novoDeck = () => setDeck({ id: "", titulo: "", slides: [], tit: "", txt: "" });
-  const salvarDeck = () => {
-    const t = deck.titulo.trim(); if (!t) { setMsg("Dê um nome à apresentação."); return; }
-    if (!deck.slides.length) { setMsg("Adicione ao menos um slide (imagem ou texto)."); return; }
-    const id = deck.id || "a" + uid(); const item = { id, titulo: t, slides: deck.slides };
-    if (deck.id) bibApr.upd(id, item); else bibApr.add(item);
-    setDeck(null); setMsg("Apresentação salva.");
-  };
-  const moverSlide = (k, d) => setDeck((x) => { const s = [...x.slides]; const j = k + d; if (j < 0 || j >= s.length) return x; [s[k], s[j]] = [s[j], s[k]]; return { ...x, slides: s }; });
-  const imagensDoDeck = async (files) => { const feitos = await subirImagens(files, { biblioteca: false }); if (feitos.length) setDeck((x) => ({ ...x, slides: [...x.slides, ...feitos.map((f) => ({ img: f.url }))] })); };
-
-  const corpo = (() => {
-    if (aba === "texto") {
-      if (buscando) return <AmBuscaLetras aoFechar={() => setBuscando(false)} aoSalvar={(f, ad) => { salvarLetra(f, ad); setMsg("Letra salva no app."); }} />;
-      if (form) {
-        return (
-          <div className="flex flex-col min-h-0 flex-1 gap-1.5" data-testid="form-letra">
-            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>{form.id ? "Editar letra" : "Digitar ou colar uma letra"}</p>
-            <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título do louvor" aria-label="Título" data-testid="letra-titulo" className={amCInput} />
-            <input value={form.artista || ""} onChange={(e) => setForm({ ...form, artista: e.target.value })} placeholder="Cantor ou ministério (opcional)" aria-label="Artista" className={amCInput} />
-            <textarea value={form.letra} onChange={(e) => setForm({ ...form, letra: e.target.value })} placeholder={"Cole a letra aqui.\nDeixe uma linha em branco entre as estrofes."} aria-label="Letra" data-testid="letra-texto" className={amCInput + " flex-1 min-h-[110px] leading-snug"} />
-            {erroForm && <p className="text-[11px]" style={{ color: "#FFB4AB" }} role="alert">{erroForm}</p>}
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => { if (salvarLetra(form, true)) setForm(null); }} className={amCBtnS} style={amCOuro} data-testid="letra-salvar-lista"><Plus size={13} /> Salvar e pôr na lista</button>
-              <button onClick={() => { if (salvarLetra(form, false)) setForm(null); }} className={amCBtnS} style={amCFundo} data-testid="letra-salvar">Salvar</button>
-              <button onClick={() => { setForm(null); setErroForm(""); }} className={amCBtnS} style={amCFundo}>Cancelar</button>
-            </div>
-          </div>
-        );
-      }
-      return (
-        <>
-          <input value={busca} onChange={(e) => { setBusca(e.target.value); setLim(120); }} placeholder="Buscar hino, louvor ou letra salva…" aria-label="Buscar na biblioteca de textos" data-testid="bib-busca" className={amCInput} />
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {[["todos", "Todos"], ["harpa", "Harpa"], ["louvor", "Louvores"], ["salvas", `Salvas (${letras.itens.length})`]].map(([k, r]) => <button key={k} onClick={() => { setFiltro(k); setLim(120); }} aria-pressed={filtro === k} className={amCBtnS} style={chip(filtro === k)}>{r}</button>)}
-          </div>
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            <button onClick={() => { setForm({ id: "", titulo: "", artista: "", letra: "" }); setErroForm(""); }} className={amCBtnS} style={amCFundo} data-testid="btn-digitar-letra"><Pencil size={12} /> Digitar letra</button>
-            <button onClick={() => setBuscando(true)} className={amCBtnS} style={amCFundo} data-testid="btn-buscar-internet"><Search size={12} /> Buscar na internet</button>
-          </div>
-          <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto space-y-1 pr-0.5" data-testid="bib-lista-texto">
-            {linhasTexto.length === 0 && <p className="text-[11px] text-white/65 mt-1">{q ? "Nada encontrado." : "Nada por aqui ainda."}</p>}
-            {linhasTexto.slice(0, lim).map((x) => {
-              const ja = editor.tem(x.tipo, x.id);
-              return (
-                <div key={x.tipo + x.id} {...amArrastar({ z: "lista", a: { tipo: x.tipo, id: x.id, titulo: x.titulo } })} className="flex items-center gap-1 rounded-lg" style={{ background: "rgba(255,255,255,.08)" }} data-testid="bib-item">
-                  <button onClick={() => editor.add({ tipo: x.tipo, id: x.id, titulo: x.titulo })} disabled={ja} className="flex-1 min-w-0 text-left px-2 py-1.5 min-h-[40px] flex items-center gap-1.5 disabled:opacity-45" aria-label={`Copiar ${x.titulo} para a lista do culto`}>
-                    <span className="text-[9px] font-bold uppercase rounded-full px-1.5 py-0.5 shrink-0" style={{ background: "rgba(0,0,0,.35)", color: corK[x.kind] }}>{x.kind}</span>
-                    <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold leading-tight line-clamp-2">{x.titulo}</span>{x.sub && <span className="block text-[10px] text-white/60 truncate">{x.sub}</span>}</span>
-                    {ja ? <Check size={13} className="shrink-0" style={{ color: "#D6B46A" }} /> : <Plus size={13} className="shrink-0" />}
-                  </button>
-                  {x.salva && <button aria-label={`Editar ${x.titulo}`} onClick={() => { setForm({ id: x.salva.id, titulo: x.salva.titulo, artista: x.salva.artista || "", letra: x.salva.letra || "", fonte: x.salva.fonte }); setErroForm(""); }} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10"><Pencil size={12} /></button>}
-                  {x.salva && <button aria-label={`Apagar ${x.titulo}`} onClick={() => apagarLetra(x.salva)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ color: "#FF8A80" }}><Trash2 size={12} /></button>}
-                </div>
-              );
-            })}
-            {linhasTexto.length > lim && <button onClick={() => setLim((n) => n + 200)} className={amCBtnS + " w-full"} style={amCFundo}>Mostrar mais ({linhasTexto.length - lim})</button>}
-          </div>
-          <p className="text-[10px] text-white/55 mt-1.5 leading-snug">Clique para copiar para a lista do culto, ou arraste até ela.</p>
-        </>
-      );
-    }
-    if (aba === "video") {
-      const doApp = (editor.videos || []).filter((v) => !v.oculto && v.url);
-      return (
-        <>
-          <div className="flex gap-1.5">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addVideoUrl(); }} placeholder="Link do vídeo (YouTube, Instagram, Drive, .mp4)" aria-label="Link do vídeo" data-testid="bib-video-url" className={amCInput} />
-            <button onClick={addVideoUrl} className={amCBtnS} style={amCOuro} aria-label="Salvar o vídeo" data-testid="bib-video-add"><Plus size={14} /></button>
-          </div>
-          <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto space-y-1">
-            {bibVid.itens.length === 0 && doApp.length === 0 && <p className="text-[11px] text-white/65">Nenhum vídeo salvo ainda.</p>}
-            {bibVid.itens.length > 0 && <p className="text-[10px] uppercase tracking-wide text-white/55">Salvos aqui</p>}
-            {bibVid.itens.map((v) => linhaMidia(doVideo(v), <button aria-label={`Apagar ${v.titulo}`} onClick={() => { if (window.confirm(`Apagar o vídeo “${v.titulo}” da biblioteca?`)) bibVid.rem(v.id); }} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ color: "#FF8A80" }}><Trash2 size={12} /></button>))}
-            {doApp.length > 0 && <p className="text-[10px] uppercase tracking-wide text-white/55 mt-1.5">Vídeos do app</p>}
-            {doApp.slice(0, 60).map((v) => linhaMidia({ id: "c" + v.id, tipo: "video", titulo: v.titulo || "Vídeo", url: v.url }))}
-          </div>
-          <p className="text-[10px] text-white/55 mt-1.5 leading-snug">Clique para copiar para a mídia do culto; duplo clique projeta na hora.</p>
-        </>
-      );
-    }
-    if (aba === "imagem") {
-      return (
-        <>
-          <label className={amCBtnS + " cursor-pointer w-full"} style={amCFundo}><Plus size={13} /> Enviar imagens<input type="file" accept="image/*" multiple className="sr-only" data-testid="bib-img-arquivo" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ""; if (f.length) subirImagens(f, { biblioteca: true }); }} /></label>
-          <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto">
-            {bibImg.itens.length === 0 && <p className="text-[11px] text-white/65">Nenhuma imagem guardada ainda.</p>}
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(92px,1fr))" }}>
-              {bibImg.itens.map((i) => (
-                <div key={i.id} {...amArrastar({ z: "bandeja", item: doImg(i) })} className="relative rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,.08)", outline: noBandeja(i.id) ? "2px solid #D6B46A" : "none" }} data-testid="bib-imagem">
-                  <button onClick={() => aoBandeja(doImg(i))} onDoubleClick={() => aoProjetar(doImg(i))} className="block w-full" aria-label={`Copiar ${i.titulo} para a mídia do culto`}>
-                    <img src={i.url} alt={i.titulo} loading="lazy" draggable={false} className="w-full block" style={{ aspectRatio: "4/3", objectFit: "cover" }} />
-                    <span className="block px-1 py-0.5 text-[10px] truncate text-left">{i.titulo}</span>
-                  </button>
-                  <button aria-label={`Apagar ${i.titulo}`} onClick={() => { if (window.confirm(`Apagar a imagem “${i.titulo}” da biblioteca?`)) bibImg.rem(i.id); }} className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,.6)", color: "#FF8A80" }}><X size={12} /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="text-[10px] text-white/55 mt-1.5 leading-snug">Clique copia para a mídia do culto; duplo clique projeta na hora.</p>
-        </>
-      );
-    }
-    // apresentações
-    if (deck) {
-      return (
-        <div className="flex flex-col min-h-0 flex-1 gap-1.5" data-testid="form-apr">
-          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>{deck.id ? "Editar apresentação" : "Nova apresentação"}</p>
-          <input value={deck.titulo} onChange={(e) => setDeck({ ...deck, titulo: e.target.value })} placeholder="Nome da apresentação" aria-label="Nome da apresentação" data-testid="apr-titulo" className={amCInput} />
-          <div className="flex-1 min-h-[80px] overflow-y-auto space-y-1" data-testid="apr-slides">
-            {deck.slides.length === 0 && <p className="text-[11px] text-white/65">Sem slides. Envie imagens (exporte o PowerPoint como imagens) ou crie slides de texto.</p>}
-            {deck.slides.map((s, k) => (
-              <div key={k} className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,.08)" }}>
-                <span className="w-5 text-center text-[11px] font-bold shrink-0">{k + 1}</span>
-                {s.img ? <img src={s.img} alt="" className="w-12 h-9 object-cover rounded shrink-0" /> : <span className="flex-1 min-w-0 text-[11px] truncate"><b>{s.tit || "Texto"}</b> {s.txt}</span>}
-                {s.img && <span className="flex-1 text-[11px] text-white/60">imagem</span>}
-                <button aria-label="Subir slide" onClick={() => moverSlide(k, -1)} disabled={k === 0} className="w-7 h-7 flex items-center justify-center disabled:opacity-30"><ArrowUp size={12} /></button>
-                <button aria-label="Descer slide" onClick={() => moverSlide(k, 1)} disabled={k === deck.slides.length - 1} className="w-7 h-7 flex items-center justify-center disabled:opacity-30"><ArrowDown size={12} /></button>
-                <button aria-label="Tirar slide" onClick={() => setDeck({ ...deck, slides: deck.slides.filter((_, j) => j !== k) })} className="w-7 h-7 flex items-center justify-center" style={{ color: "#FF8A80" }}><X size={12} /></button>
-              </div>
-            ))}
-          </div>
-          <label className={amCBtnS + " cursor-pointer"} style={amCFundo}><ImageIcon size={13} /> Adicionar imagens como slides<input type="file" accept="image/*" multiple className="sr-only" data-testid="apr-arquivo" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ""; if (f.length) imagensDoDeck(f); }} /></label>
-          <input value={deck.tit} onChange={(e) => setDeck({ ...deck, tit: e.target.value })} placeholder="Título do slide de texto (opcional)" aria-label="Título do slide" className={amCInput} />
-          <textarea value={deck.txt} onChange={(e) => setDeck({ ...deck, txt: e.target.value })} rows={2} placeholder="Texto do slide" aria-label="Texto do slide" data-testid="apr-txt" className={amCInput} />
-          <button onClick={() => { if (!deck.tit.trim() && !deck.txt.trim()) { setMsg("Digite o título ou o texto do slide."); return; } setDeck({ ...deck, slides: [...deck.slides, { tit: deck.tit.trim(), txt: deck.txt.trim() }], tit: "", txt: "" }); }} className={amCBtnS} style={amCFundo} data-testid="apr-add-texto"><Plus size={13} /> Adicionar slide de texto</button>
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={salvarDeck} className={amCBtnS} style={amCOuro} data-testid="apr-salvar"><Save size={13} /> Salvar apresentação</button>
-            <button onClick={() => { setDeck(null); setMsg(""); }} className={amCBtnS} style={amCFundo}>Cancelar</button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <>
-        <button onClick={novoDeck} className={amCBtnS + " w-full"} style={amCFundo} data-testid="apr-nova"><Plus size={13} /> Nova apresentação</button>
-        <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto space-y-1">
-          {bibApr.itens.length === 0 && <p className="text-[11px] text-white/65">Nenhuma apresentação salva. Exporte o seu PowerPoint como imagens (Arquivo &gt; Exportar &gt; PNG ou JPG) e envie aqui, ou monte slides de texto.</p>}
-          {bibApr.itens.map((d) => linhaMidia(doApr(d), (
-            <>
-              <span className="text-[10px] text-white/60 shrink-0">{d.slides.length} slide(s)</span>
-              <button aria-label={`Editar ${d.titulo}`} onClick={() => setDeck({ ...d, tit: "", txt: "" })} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10"><Pencil size={12} /></button>
-              <button aria-label={`Apagar ${d.titulo}`} onClick={() => { if (window.confirm(`Apagar a apresentação “${d.titulo}”?`)) bibApr.rem(d.id); }} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ color: "#FF8A80" }}><Trash2 size={12} /></button>
-            </>
-          )))}
-        </div>
-        <p className="text-[10px] text-white/55 mt-1.5 leading-snug">Clique copia para a mídia do culto; duplo clique projeta na hora.</p>
-      </>
-    );
-  })();
-
-  return (
-    <div className="rounded-2xl p-2.5 flex flex-col min-h-0 flex-1" style={amCCaixa} data-testid="biblioteca">
-      <div className="flex flex-wrap gap-1" role="tablist" aria-label="Biblioteca">
-        {abas.map(([k, r, Ic]) => <button key={k} role="tab" aria-selected={aba === k} onClick={() => { setAba(k); setMsg(""); }} className={amCBtnS} style={chip(aba === k)} data-testid={`aba-bib-${k}`}><Ic size={12} /> {r}</button>)}
-      </div>
-      <div className="mt-2 flex flex-col min-h-0 flex-1">{corpo}</div>
-      {(envio || msg) && <p className="text-[11px] mt-1.5" style={{ color: "#D6B46A" }} data-testid="bib-aviso">{envio || msg}</p>}
-    </div>
-  );
-}
-
-/* ----- Mídia do culto (direita): recebe imagens, vídeos e apresentações; duplo clique projeta ----- */
-function AmBandeja({ itens, md, modo, aoModo, aoSoltar, aoArquivos, aoProjetar, aoRemover, aoTirar, aoPasso, aoVideo, aoLimpar }) {
-  const [sobre, setSobre] = useState(false);
-  const rotulo = { img: "Imagem", video: "Vídeo", apr: "Apresentação" };
-  const cor = { img: "#6FD3C1", video: "#FF7A6B", apr: "#F3D77C" };
-  const soltar = (e) => {
-    e.preventDefault(); setSobre(false);
-    const p = amLerArraste(e);
-    if (p && p.z === "bandeja" && p.item) { aoSoltar(p.item); return; }
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) aoArquivos(e.dataTransfer.files);
-  };
-  return (
-    <div className="rounded-2xl p-3" style={{ ...amCCaixa, outline: sobre ? "2px dashed #D6B46A" : "none" }} onDragOver={(e) => { e.preventDefault(); setSobre(true); }} onDragLeave={() => setSobre(false)} onDrop={soltar} data-testid="bandeja">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Mídia do culto ({itens.length})</p>
-        {itens.length > 0 && <button onClick={() => { if (window.confirm("Limpar a mídia do culto?")) aoLimpar(); }} className="text-[11px] underline text-white/70">Limpar</button>}
-      </div>
-      <p className="text-[11px] text-white/65 mt-1 leading-snug">Arraste imagens, vídeos e apresentações da biblioteca para cá (ou clique neles lá). <b>Duplo clique</b> projeta.</p>
-      <div className="flex flex-wrap gap-1 mt-2" role="group" aria-label="Como projetar a mídia">
-        {AM_MODOS_MIDIA.map((m) => <button key={m.k} onClick={() => aoModo(m.k)} aria-pressed={modo === m.k} data-testid={`modo-${m.k}`} className={amCBtnS} style={modo === m.k ? amCOuro : amCFundo}>{m.r}</button>)}
-      </div>
-      {md && (
-        <div className="mt-2 rounded-xl p-2 space-y-1.5" style={{ background: "rgba(214,180,106,.18)", border: "1px solid rgba(214,180,106,.5)" }} data-testid="midia-no-ar">
-          <p className="text-[11px] font-bold" style={{ color: "#F3D77C" }}>NO AR: {md.titulo}</p>
-          <div className="flex flex-wrap items-center gap-1">
-            {md.slides && md.slides.length > 0 && (
-              <>
-                <button onClick={() => aoPasso(-1)} className={amCBtnS} style={amCFundo} aria-label="Slide anterior" data-testid="apr-ant"><ChevronLeft size={14} /></button>
-                <span className="text-[11px] font-mono px-1" data-testid="apr-pos">{(md.i || 0) + 1}/{md.slides.length}</span>
-                <button onClick={() => aoPasso(1)} className={amCBtnS} style={amCFundo} aria-label="Próximo slide" data-testid="apr-prox"><ChevronRight size={14} /></button>
-              </>
-            )}
-            {md.tipo === "video" && (<><button onClick={() => aoVideo("play")} className={amCBtnS} style={amCFundo}><Play size={12} /> Tocar</button><button onClick={() => aoVideo("pause")} className={amCBtnS} style={amCFundo}><Pause size={12} /> Pausar</button></>)}
-            <button onClick={aoTirar} className={amCBtnS} style={amCOuro} data-testid="btn-tirar-midia"><X size={12} /> Tirar e voltar</button>
-          </div>
-        </div>
-      )}
-      {itens.length === 0 && <p className="text-sm text-white/70 mt-2" data-testid="bandeja-vazia">Solte aqui.</p>}
-      <ul className="mt-2 space-y-1.5" data-testid="bandeja-itens">
-        {itens.map((m) => {
-          const no = md && md.id === m.id;
-          const capa = m.tipo === "img" ? m.url : m.tipo === "apr" && m.slides && m.slides[0] && m.slides[0].img ? m.slides[0].img : "";
-          return (
-            <li key={m.id} className="rounded-xl flex items-stretch gap-1" style={{ background: no ? "#D6B46A" : "rgba(255,255,255,.08)", color: no ? "#351052" : "#fff" }}>
-              <button onDoubleClick={() => aoProjetar(m)} onClick={() => { /* um clique só marca; duplo clique projeta */ }} className="flex-1 min-w-0 text-left px-2 py-1.5 min-h-[52px] flex items-center gap-2" aria-label={`${m.titulo}: duplo clique para projetar`} data-testid="item-bandeja">
-                {capa ? <img src={capa} alt="" draggable={false} className="w-14 h-10 object-cover rounded shrink-0" /> : <span className="w-14 h-10 rounded shrink-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,.35)", color: no ? "#D6B46A" : cor[m.tipo] }}>{m.tipo === "video" ? <Play size={16} /> : <Layers size={16} />}</span>}
-                <span className="min-w-0"><span className="block text-[10px] font-bold uppercase" style={{ color: no ? "#351052" : cor[m.tipo] }}>{rotulo[m.tipo]}{m.slides ? ` · ${m.slides.length} slides` : ""}</span><span className="block text-[13px] font-semibold leading-tight line-clamp-2">{m.titulo}</span></span>
-              </button>
-              <button onClick={() => aoProjetar(m)} className="px-2 text-[11px] font-bold shrink-0" aria-label={no ? `Tirar ${m.titulo} da tela` : `Projetar ${m.titulo}`} data-testid="btn-projetar-midia">{no ? "Tirar" : "Projetar"}</button>
-              <button aria-label={`Tirar ${m.titulo} da mídia do culto`} onClick={() => aoRemover(m.id)} className="w-8 flex items-center justify-center shrink-0" style={{ color: no ? "#8C1D18" : "#FF8A7A" }}><X size={15} /></button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
 
 function AmRelogioPainel({ cfg, setCfg, ativo, alternar }) {
   const c = { ...AM_REL_PADRAO, ...(cfg || {}) };
@@ -14605,7 +14043,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const [est, setEstado] = useState(() => {
     let cf = {}; try { cf = JSON.parse(amLerLS("am-proj-conf", "{}")) || {}; } catch (e) { cf = {}; }
     const rc = cf.relCfg || {};
-    return { i: amLimitar(inicio, 0, Math.max(0, lista.length - 1)), s: 0, preto: false, logo: false, rel: false, av: null, md: null, fundo: cf.fundo || "nenhum", tema: cf.tema || "preto", esc: cf.esc || 1, vc: { a: "", n: 0 },
+    return { i: amLimitar(inicio, 0, Math.max(0, lista.length - 1)), s: 0, preto: false, logo: false, rel: false, av: null, fundo: cf.fundo || "nenhum", tema: cf.tema || "preto", esc: cf.esc || 1, vc: { a: "", n: 0 },
       relCfg: { ...AM_REL_PADRAO, modo: rc.modo || "hora", fonte: rc.fonte || "duracao", dur: rc.dur || 600, titulo: rc.titulo || "" } };
   });
   const E = useRef(est); E.current = est;
@@ -14626,43 +14064,6 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   const [autoSeg, setAutoSeg] = useState(10);
   const [copiado, setCopiado] = useState(false);
   const locRef = useRef(null);
-  const larga = useAmLarga();
-  const bibVid = useAmBib("vid", base, !!editor);
-  const bibImg = useAmBib("img", base, !!editor);
-  const bibApr = useAmBib("apr", base, !!editor);
-  const [bandeja, setBandeja] = useState(() => { try { return JSON.parse(amLerLS(`am-proj-bandeja-${base}`, "[]")) || []; } catch (e) { return []; } });
-  const gravarBandeja = (fn) => setBandeja((p) => { const nv = fn(p); amGravarLS(`am-proj-bandeja-${base}`, JSON.stringify(nv)); return nv; });
-  const [modoMidia, setModoMidia] = useState(() => { const m = amLerLS("am-proj-modo-midia", "cheia"); return AM_MODOS_MIDIA.some((x) => x.k === m) ? m : "cheia"; });
-  const [sobreLista, setSobreLista] = useState(false);
-  const [envio, setEnvio] = useState("");
-  const addBandeja = (m) => gravarBandeja((p) => (p.some((x) => x.id === m.id) ? p : [...p, m]));
-  const remBandeja = (id) => { gravarBandeja((p) => p.filter((x) => x.id !== id)); if (E.current.md && E.current.md.id === id) mod({ md: null }); };
-  // Duplo clique (ou "Projetar"): a mídia entra por cima do telão; o louvor/slide de baixo fica como estava e volta quando ela sai.
-  const projetarMidia = (m) => {
-    if (E.current.md && E.current.md.id === m.id) { mod({ md: null }); return; }
-    mod({ md: { id: m.id, tipo: m.tipo, titulo: m.titulo, url: m.url || "", slides: m.slides || null, i: 0, modo: modoMidia, n: Date.now() } });
-  };
-  const tirarMidia = () => mod({ md: null });
-  const trocarModoMidia = (k) => { setModoMidia(k); amGravarLS("am-proj-modo-midia", k); setEstado((e) => (e.md ? { ...e, md: { ...e.md, modo: k } } : e)); };
-  const midiaPasso = (d) => setEstado((e) => (e.md && e.md.slides && e.md.slides.length ? { ...e, md: { ...e.md, i: amLimitar((e.md.i || 0) + d, 0, e.md.slides.length - 1) } } : e));
-  const subirImagens = async (arquivos, opc = {}) => {
-    const imgs = Array.from(arquivos || []).filter((f) => /^image\//.test(f.type));
-    if (!imgs.length) { setEnvio("Escolha arquivos de imagem (JPG, PNG ou WebP)."); return []; }
-    const feitos = [];
-    for (let k = 0; k < imgs.length; k++) {
-      setEnvio(`Enviando imagem ${k + 1} de ${imgs.length}…`);
-      try {
-        const b = await amReduzirImagem(imgs[k]); const id = "i" + uid();
-        const url = await amEnviarMidia(b, `${base}/projecao/${id}.jpg`);
-        const item = { id, titulo: imgs[k].name.replace(/\.[^.]+$/, "").slice(0, 60) || "Imagem", url };
-        if (opc.biblioteca !== false) bibImg.add(item);
-        if (opc.bandeja) addBandeja({ id, tipo: "img", titulo: item.titulo, url });
-        feitos.push(item);
-      } catch (er) { setEnvio(er.message || "Não consegui enviar a imagem."); return feitos; }
-    }
-    setEnvio(`${feitos.length} imagem(ns) enviada(s).`); setTimeout(() => setEnvio(""), 4000);
-    return feitos;
-  };
   const timer = useRef(null);
   const sidRef = useRef(String(Date.now()));
   const bcRef = useRef(null);
@@ -14678,8 +14079,8 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
     const ii = amLimitar(ni, 0, l.length - 1); const tot = l[ii].slides.length;
     mod({ i: ii, s: amLimitar(ns, 0, tot - 1), preto: false, logo: false, rel: false });
   };
-  const prox = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(1); return; } if (!l.length) return; const tot = l[e.i].slides.length; if (e.s + 1 < tot) ir(e.i, e.s + 1); else if (e.i + 1 < l.length) ir(e.i + 1, 0); };
-  const ant = () => { const e = E.current; const l = L.current; if (e.md) { if (e.md.slides) midiaPasso(-1); return; } if (!l.length) return; if (e.s > 0) ir(e.i, e.s - 1); else if (e.i > 0) ir(e.i - 1, l[e.i - 1].slides.length - 1); };
+  const prox = () => { const e = E.current; const l = L.current; if (!l.length) return; const tot = l[e.i].slides.length; if (e.s + 1 < tot) ir(e.i, e.s + 1); else if (e.i + 1 < l.length) ir(e.i + 1, 0); };
+  const ant = () => { const e = E.current; const l = L.current; if (!l.length) return; if (e.s > 0) ir(e.i, e.s - 1); else if (e.i > 0) ir(e.i - 1, l[e.i - 1].slides.length - 1); };
   const itemProx = () => ir(E.current.i + 1, 0);
   const itemAnt = () => ir(E.current.i - 1, 0);
   const alternarPreto = () => mod({ preto: !E.current.preto, logo: false, rel: false });
@@ -14732,7 +14133,7 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
       else if (c === "f" || c === "F") { if (LC.current) tela(); else abrirLocal(); }
       else if (c === "+" || c === "=") setEstado((x) => ({ ...x, esc: amLimitar(Math.round((x.esc + 0.1) * 10) / 10, 0.5, 1.8) }));
       else if (c === "-") setEstado((x) => ({ ...x, esc: amLimitar(Math.round((x.esc - 0.1) * 10) / 10, 0.5, 1.8) }));
-      else if (c === "Escape") { if (E.current.md) setEstado((x) => ({ ...x, md: null })); else if (LC.current) fecharLocal(); else if (!document.fullscreenElement) onFechar(); }
+      else if (c === "Escape") { if (LC.current) fecharLocal(); else if (!document.fullscreenElement) onFechar(); }
       if (LC.current) mostrarBarra();
     };
     window.addEventListener("keydown", k);
@@ -14781,142 +14182,17 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
   // ----- adicionar à lista (só na tela Projeção) -----
   const [busca, setBusca] = useState("");
   const [urlVid, setUrlVid] = useState("");
-  let n = 0;
-  const corKind = { Harpa: "#D6B46A", Louvor: "#B78CFF", Vídeo: "#FF7A6B", Salva: "#6FD3C1" };
-  const ehVideo = !!(it && it.video);
-  const atualRotulo = it ? (it.slides[s] && it.slides[s].capa ? "Capa" : it.slides[s] && it.slides[s].video ? "Vídeo" : `Quadro ${it.slides.slice(0, s + 1).filter((x) => !x.capa && !x.video).length}`) : "";
-  const soltarNaLista = (e) => { e.preventDefault(); setSobreLista(false); const p = amLerArraste(e); if (p && p.z === "lista" && p.a && editor) editor.add(p.a); };
-
-  // ----- peças da tela (montadas aqui para poderem mudar de lugar conforme a largura) -----
-  const setaCls = "absolute z-10 top-1/2 -translate-y-1/2 w-9 h-12 rounded-xl flex items-center justify-center focus:outline-none focus:ring-2";
-  const setaSty = { background: "rgba(0,0,0,.5)", color: "#fff", border: "1px solid rgba(255,255,255,.28)" };
-  const pecaPrevia = (
-    <div className="relative mx-auto" style={{ width: "min(100%, 62vh)" }}>
-      <div onClick={cliquePrevia} className="cursor-pointer rounded-xl overflow-hidden shadow-lg" style={{ aspectRatio: "16 / 9", border: "2px solid #D6B46A" }} data-testid="console-preview" aria-label="Prévia do telão: clique para avançar">
-        {(it || est.av || est.rel || est.logo || est.md) ? <AmSaida est={est} lista={lista} semVideo className="w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-sm text-white/70 text-center px-14">{editor ? "A lista do culto está vazia. Escolha um louvor na biblioteca e clique nele (ou arraste para a lista)." : "A lista do culto está vazia."}</div>}
-      </div>
-      <button onClick={ant} className={setaCls + " left-1.5"} style={setaSty} aria-label="Quadro anterior" data-testid="seta-esq"><ChevronLeft size={22} /></button>
-      <button onClick={prox} className={setaCls + " right-1.5"} style={setaSty} aria-label="Próximo quadro" data-testid="seta-dir"><ChevronRight size={22} /></button>
-      {est.md && <span className="absolute z-10 top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold pointer-events-none" style={{ background: "#D6B46A", color: "#351052" }} data-testid="badge-midia">NO AR: {est.md.titulo}</span>}
-    </div>
-  );
-  const pecaNav = (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      <button onClick={itemAnt} className={amCBtn} style={amCFundo} aria-label="Item anterior" disabled={est.i === 0}><SkipForward size={16} className="rotate-180" /></button>
-      <button onClick={ant} className={amCBtn + " min-w-[110px] !min-h-[52px] !text-sm"} style={amCFundo} data-testid="btn-recuar"><ChevronLeft size={22} /> Recuar</button>
-      <span className="text-sm font-mono px-2 min-w-[90px] text-center" data-testid="proj-contador">{it ? `${atualRotulo}` : "—"}</span>
-      <button onClick={prox} className={amCBtn + " min-w-[110px] !min-h-[52px] !text-sm"} style={amCOuro} data-testid="btn-avancar">Avançar <ChevronRight size={22} /></button>
-      <button onClick={itemProx} className={amCBtn} style={amCFundo} aria-label="Próximo item" disabled={est.i >= lista.length - 1}><SkipForward size={16} /></button>
-    </div>
-  );
-  const pecaToggles = (
-    <div className="flex flex-wrap items-center justify-center gap-1">
-      <button onClick={alternarPreto} className={amCBtnS} style={est.preto ? amCOuro : amCFundo} aria-pressed={est.preto} data-testid="btn-preto">Tela preta</button>
-      <button onClick={alternarLogo} className={amCBtnS} style={est.logo ? amCOuro : amCFundo} aria-pressed={est.logo}>Logo</button>
-      <button onClick={alternarRel} className={amCBtnS} style={est.rel ? amCOuro : amCFundo} aria-pressed={est.rel}><Clock size={12} /> Relógio</button>
-      <button onClick={est.av ? () => mod({ av: null }) : abrirAvisos} className={amCBtnS} style={est.av ? amCOuro : amCFundo} aria-pressed={!!est.av} data-testid="btn-aviso"><Megaphone size={12} /> {est.av ? "Tirar aviso" : "Aviso / Parabéns"}</button>
-      <button onClick={() => setAuto((a) => !a)} className={amCBtnS} style={auto ? amCOuro : amCFundo} aria-pressed={auto} data-testid="btn-auto"><Play size={12} /> Avanço automático</button>
-      {auto && <select value={autoSeg} onChange={(e) => setAutoSeg(Number(e.target.value))} className="min-h-[32px] rounded-lg px-2 text-[11px] bg-white/15 text-white" aria-label="Segundos por quadro">{[5, 8, 10, 15, 20, 30].map((x) => <option key={x} value={x} style={{ color: "#000" }}>{x} s por quadro</option>)}</select>}
-      {ehVideo && <><button onClick={() => video("play")} className={amCBtnS} style={amCFundo} data-testid="btn-video-play"><Play size={12} /> Reproduzir vídeo</button><button onClick={() => video("pause")} className={amCBtnS} style={amCFundo}><Pause size={12} /> Pausar vídeo</button></>}
-      {est.md && <button onClick={tirarMidia} className={amCBtnS} style={amCOuro} data-testid="btn-voltar-louvor"><X size={12} /> Voltar ao louvor</button>}
-    </div>
-  );
-  const pecaLista = (
-    <div className={"rounded-2xl p-3 flex flex-col min-h-0" + (larga ? " flex-1" : "")} style={{ ...amCCaixa, outline: sobreLista ? "2px dashed #D6B46A" : "none" }} data-testid="lista-culto"
-      onDragOver={editor ? (e) => { e.preventDefault(); setSobreLista(true); } : undefined} onDragLeave={() => setSobreLista(false)} onDrop={editor ? soltarNaLista : undefined}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Lista do culto ({lista.length})</p>
-        {editor && lista.length > 0 && <button onClick={() => { if (window.confirm("Limpar a lista do culto?")) editor.limpar(); }} className="text-[11px] underline text-white/70">Limpar</button>}
-      </div>
-      {lista.length === 0 && <p className="text-sm text-white/70 mt-2">Vazia.{editor ? " Clique num louvor da biblioteca ou arraste até aqui." : ""}</p>}
-      <ol className={"mt-2 space-y-1.5 " + (larga ? "flex-1 min-h-0 overflow-y-auto" : "max-h-[46vh] overflow-y-auto")}>
-        {lista.map((x, k) => (
-          <li key={x.id + k} className="rounded-xl flex items-stretch gap-1" style={{ background: k === est.i ? "#D6B46A" : "rgba(255,255,255,.08)", color: k === est.i ? "#351052" : "#fff" }}>
-            <button onClick={() => ir(k, 0)} className="flex-1 min-w-0 text-left px-2.5 py-2 min-h-[48px] flex items-center gap-2" aria-label={`Ir para ${x.titulo}`} data-testid="item-lista" aria-current={k === est.i ? "true" : undefined}>
-              <span className="w-5 text-center text-xs font-bold shrink-0">{k + 1}</span>
-              <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: k === est.i ? "#351052" : "rgba(0,0,0,.35)", color: k === est.i ? "#D6B46A" : corKind[x.kind] || "#fff" }}>{x.kind}</span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-tight line-clamp-2">{x.titulo}</span>
-                <span className="block text-[11px] opacity-75">{x.video ? "vídeo no projetor" : `${x.slides.filter((y) => !y.capa).length} quadro(s)`}</span>
-              </span>
-            </button>
-            {editor && (
-              <div className="flex flex-col justify-center shrink-0 pr-1">
-                <button aria-label="Subir" onClick={() => editor.mover(k, -1)} disabled={k === 0} className="w-8 h-6 flex items-center justify-center disabled:opacity-30"><ArrowUp size={14} /></button>
-                <button aria-label="Descer" onClick={() => editor.mover(k, 1)} disabled={k === lista.length - 1} className="w-8 h-6 flex items-center justify-center disabled:opacity-30"><ArrowDown size={14} /></button>
-              </div>
-            )}
-            {editor && <button aria-label={`Tirar ${x.titulo} da lista`} onClick={() => editor.remover(k)} className="w-9 flex items-center justify-center shrink-0" style={{ color: k === est.i ? "#8C1D18" : "#FF8A7A" }}><X size={16} /></button>}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-  const pecaBiblioteca = editor ? <AmBiblioteca editor={editor} base={base} bibVid={bibVid} bibImg={bibImg} bibApr={bibApr} aoBandeja={addBandeja} aoProjetar={(m) => { addBandeja(m); projetarMidia(m); }} subirImagens={subirImagens} envio={envio} noBandeja={(id) => bandeja.some((x) => x.id === id)} /> : null;
-  const pecaBandeja = editor ? <AmBandeja itens={bandeja} md={est.md} modo={modoMidia} aoModo={trocarModoMidia} aoSoltar={addBandeja} aoArquivos={(f) => subirImagens(f, { biblioteca: true, bandeja: true })} aoProjetar={projetarMidia} aoRemover={remBandeja} aoTirar={tirarMidia} aoPasso={midiaPasso} aoVideo={video} aoLimpar={() => { gravarBandeja(() => []); mod({ md: null }); }} /> : null;
   const q = semAcento(busca).trim();
   const achados = !editor || !q ? [] : [
     ...(editor.hinos || []).filter((h) => String(h.numero) === q || String(h.numero).startsWith(q) || semAcento(h.titulo).includes(q)).slice(0, 12).map((h) => ({ tipo: "hino", id: h.numero, titulo: `${h.numero} — ${h.titulo}`, kind: "Harpa" })),
     ...(editor.acervo || []).filter((m) => semAcento(m.titulo).includes(q) || semAcento(m.artista).includes(q)).slice(0, 12).map((m) => ({ tipo: "louvor", id: m.id, titulo: m.titulo, kind: "Louvor" })),
-    ...((editor.letras && editor.letras.itens) || []).filter((m) => semAcento(m.titulo).includes(q) || semAcento(m.artista).includes(q)).slice(0, 8).map((m) => ({ tipo: "texto", id: m.id, titulo: m.titulo, kind: "Salva" })),
     ...(editor.videos || []).filter((v) => !v.oculto && semAcento(v.titulo).includes(q)).slice(0, 8).map((v) => ({ tipo: "video", id: v.id, titulo: v.titulo, url: v.url, kind: "Vídeo" })),
   ];
   const temNaLista = (tipo, id) => !!(editor && editor.tem && editor.tem(tipo, id));
-  const pecaAdicionar = editor ? (
-    <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-adicionar">
-      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Adicionar à lista</p>
-      <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Hino (número/título), louvor ou vídeo…" className={amCInput + " mt-2"} aria-label="Buscar para adicionar" />
-      {achados.length > 0 && (
-        <div className="mt-2 space-y-1 max-h-56 overflow-y-auto">
-          {achados.map((a) => (
-            <button key={a.tipo + a.id} onClick={() => editor.add(a)} disabled={temNaLista(a.tipo, a.id)} className="w-full text-left rounded-lg px-2.5 py-2 min-h-[44px] flex items-center gap-2 disabled:opacity-40" style={{ background: "rgba(255,255,255,.1)" }}>
-              <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: "rgba(0,0,0,.35)", color: corKind[a.kind] }}>{a.kind}</span>
-              <span className="text-sm font-semibold line-clamp-2 flex-1">{a.titulo}</span><Plus size={15} className="shrink-0" />
-            </button>
-          ))}
-        </div>
-      )}
-      {q && achados.length === 0 && <p className="text-xs text-white/60 mt-2">Nada encontrado.</p>}
-      <p className="text-[11px] text-white/70 mt-3">Vídeo por link (YouTube, Instagram, Google Drive ou arquivo) — vai na sequência da lista:</p>
-      <div className="flex gap-1.5 mt-1">
-        <input value={urlVid} onChange={(e) => setUrlVid(e.target.value)} placeholder="Cole o link do vídeo" className={amCInput} aria-label="Link do vídeo" />
-        <button onClick={() => { if (editor.addVideoUrl(urlVid)) setUrlVid(""); }} className={amCBtnS} style={amCOuro} aria-label="Adicionar o vídeo"><Plus size={16} /></button>
-      </div>
-      <div className="flex flex-wrap gap-1.5 mt-3">
-        <button onClick={editor.doCulto} className={amCBtnS} style={amCFundo}><Calendar size={12} /> Louvores do próximo culto</button>
-        <button onClick={editor.doEnsaio} className={amCBtnS} style={amCFundo}><CheckCircle2 size={12} /> Marcados para o ensaio</button>
-      </div>
-      {editor.aviso && <p className="text-xs mt-2" style={{ color: "#D6B46A" }}>{editor.aviso}</p>}
-    </div>
-  ) : null;
-  const pecaFundos = (
-    <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-fundos">
-      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Fundo animado</p>
-      <div className="flex flex-wrap gap-1 mt-2">
-        {AM_FUNDOS.map((f) => <button key={f.k} onClick={() => mod({ fundo: f.k })} aria-pressed={est.fundo === f.k} data-fundo={f.k} className="min-h-[28px] px-2 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1 focus:outline-none focus:ring-2" style={est.fundo === f.k ? amCOuro : amCFundo}><span className="w-2 h-2 rounded-full shrink-0" style={{ background: f.cor }} />{f.r}</button>)}
-      </div>
-      <p className="text-xs font-bold uppercase tracking-wide mt-3" style={{ color: "#D6B46A" }}>Cor do fundo e letra</p>
-      <div className="flex flex-wrap items-center gap-1 mt-2">
-        {AM_PROJ_TEMAS.map((x) => <button key={x.k} onClick={() => mod({ tema: x.k })} aria-pressed={est.tema === x.k} className={amCBtnS} style={est.tema === x.k ? amCOuro : amCFundo}>{x.r}</button>)}
-        <button onClick={() => mod({ esc: amLimitar(Math.round((est.esc - 0.1) * 10) / 10, 0.5, 1.8) })} className={amCBtnS} style={amCFundo} aria-label="Diminuir letra">A−</button>
-        <span className="text-[11px] font-mono px-0.5">{Math.round(est.esc * 100)}%</span>
-        <button onClick={() => mod({ esc: amLimitar(Math.round((est.esc + 0.1) * 10) / 10, 0.5, 1.8) })} className={amCBtnS} style={amCFundo} aria-label="Aumentar letra">A+</button>
-      </div>
-    </div>
-  );
-  const pecaTelas = (
-    <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-telas">
-      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Telas do projetor (podem ser várias)</p>
-      <p className="text-xs text-white/75 mt-1 leading-snug">Em cada telão, computador ou TV com navegador, abra o link abaixo (ou, no app, Projeção &gt; Ser uma tela, e digite o código <b style={{ color: "#D6B46A" }}>{codigo}</b>). Todas mostram a mesma coisa que você passa aqui.</p>
-      <p className="text-[11px] mt-2 break-all rounded-lg px-2 py-1.5 bg-white/10" data-testid="link-tela">{linkTela}</p>
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        <button onClick={copiar} className={amCBtnS} style={amCFundo}><Copy size={12} /> {copiado ? "Link copiado!" : "Copiar link"}</button>
-        <button onClick={abrirExterna} className={amCBtnS} style={amCFundo}><Maximize size={12} /> Abrir nesta janela ao lado</button>
-        <AmZap texto={`Tela do projetor (letras do culto): abra este link no computador ligado ao telão e toque em “Iniciar esta tela”:\n${linkTela}`} rotulo="Enviar link por WhatsApp" />
-      </div>
-      <p className="text-[11px] text-white/60 mt-2 leading-snug">Teclado: → ou espaço avança · ← volta · ↓ ↑ troca de item · B tela preta · L logo · R relógio · F projetar neste aparelho · M tira o aviso · Esc tira a mídia (ou sai). Para controlar pelo celular: Projeção &gt; Controlar outra tela, com o código <b>{codigo}</b>.</p>
-    </div>
-  );
+  const corKind = { Harpa: "#D6B46A", Louvor: "#B78CFF", Vídeo: "#FF7A6B" };
+  const ehVideo = !!(it && it.video);
+  const atualRotulo = it ? (it.slides[s] && it.slides[s].capa ? "Capa" : it.slides[s] && it.slides[s].video ? "Vídeo" : `Quadro ${it.slides.slice(0, s + 1).filter((x) => !x.capa && !x.video).length}`) : "";
+  let n = 0;
   return (
     <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: "#140a22", color: "#fff" }} role="dialog" aria-modal="true" aria-label="Mesa de projeção" data-testid="mesa-projecao">
       <div className="px-3 py-2 flex flex-wrap items-center gap-1.5" style={{ background: "linear-gradient(90deg,#3A1260,#5B2394)", borderBottom: "2px solid #D6B46A" }}>
@@ -14931,16 +14207,30 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
       <div className="flex-1 overflow-y-auto lg:overflow-hidden">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_350px] gap-3 p-3 lg:h-full">
           <div className="space-y-3 lg:overflow-y-auto lg:pr-1 min-w-0">
-            <div className="lg:sticky lg:top-0 z-20 pb-2" style={{ background: "#140a22" }} data-testid="topo-mesa">
-              {larga && editor ? (
-                <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(200px,1fr) minmax(300px,min(62vh,34vw)) minmax(200px,1fr)" }}>
-                  <div className="relative min-h-[320px]"><div className="absolute inset-0 flex flex-col min-h-0">{pecaBiblioteca}</div></div>
-                  <div className="space-y-2 min-w-0">{pecaPrevia}{pecaNav}{pecaToggles}</div>
-                  <div className="relative min-h-[320px]"><div className="absolute inset-0 flex flex-col min-h-0">{pecaLista}</div></div>
-                </div>
-              ) : <div className="space-y-2">{pecaPrevia}{pecaNav}{pecaToggles}</div>}
+            <div className="lg:sticky lg:top-0 z-20 space-y-2 pb-2" style={{ background: "#140a22" }} data-testid="topo-mesa">
+            {/* prévia: o que está no telão agora */}
+            <div className="mx-auto" style={{ width: "min(100%, 62vh)" }}>
+              <div onClick={cliquePrevia} className="cursor-pointer rounded-xl overflow-hidden shadow-lg" style={{ aspectRatio: "16 / 9", border: "2px solid #D6B46A" }} data-testid="console-preview" aria-label="Prévia do telão: clique para avançar">
+                {(it || est.av || est.rel || est.logo) ? <AmSaida est={est} lista={lista} semVideo className="w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-sm text-white/70 text-center px-4">A lista do culto está vazia. Adicione hinos, louvores ou vídeos na coluna da direita.</div>}
+              </div>
             </div>
-            {!larga && editor && <div className="flex flex-col" style={{ height: "min(70vh,560px)" }} data-testid="biblioteca-estreita">{pecaBiblioteca}</div>}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button onClick={itemAnt} className={amCBtn} style={amCFundo} aria-label="Item anterior" disabled={est.i === 0}><SkipForward size={16} className="rotate-180" /></button>
+              <button onClick={ant} className={amCBtn + " min-w-[120px] !min-h-[56px] !text-sm"} style={amCFundo} data-testid="btn-recuar"><ChevronLeft size={22} /> Recuar</button>
+              <span className="text-sm font-mono px-2 min-w-[96px] text-center" data-testid="proj-contador">{it ? `${atualRotulo}` : "—"}</span>
+              <button onClick={prox} className={amCBtn + " min-w-[120px] !min-h-[56px] !text-sm"} style={amCOuro} data-testid="btn-avancar">Avançar <ChevronRight size={22} /></button>
+              <button onClick={itemProx} className={amCBtn} style={amCFundo} aria-label="Próximo item" disabled={est.i >= lista.length - 1}><SkipForward size={16} /></button>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <button onClick={alternarPreto} className={amCBtn} style={est.preto ? amCOuro : amCFundo} aria-pressed={est.preto} data-testid="btn-preto">Tela preta</button>
+              <button onClick={alternarLogo} className={amCBtn} style={est.logo ? amCOuro : amCFundo} aria-pressed={est.logo}>Logo</button>
+              <button onClick={alternarRel} className={amCBtn} style={est.rel ? amCOuro : amCFundo} aria-pressed={est.rel}><Clock size={14} /> Relógio</button>
+              <button onClick={est.av ? () => mod({ av: null }) : abrirAvisos} className={amCBtn} style={est.av ? amCOuro : amCFundo} aria-pressed={!!est.av} data-testid="btn-aviso"><Megaphone size={14} /> {est.av ? "Tirar aviso" : "Aviso / Parabéns"}</button>
+              <button onClick={() => setAuto((a) => !a)} className={amCBtn} style={auto ? amCOuro : amCFundo} aria-pressed={auto} data-testid="btn-auto"><Play size={14} /> Avanço automático</button>
+              {auto && <select value={autoSeg} onChange={(e) => setAutoSeg(Number(e.target.value))} className="min-h-[44px] rounded-xl px-2 text-xs bg-white/15 text-white" aria-label="Segundos por quadro">{[5, 8, 10, 15, 20, 30].map((x) => <option key={x} value={x} style={{ color: "#000" }}>{x} s por quadro</option>)}</select>}
+              {ehVideo && <><button onClick={() => video("play")} className={amCBtn} style={amCFundo} data-testid="btn-video-play"><Play size={14} /> Reproduzir vídeo</button><button onClick={() => video("pause")} className={amCBtn} style={amCFundo}><Pause size={14} /> Pausar vídeo</button></>}
+            </div>
+            </div>
             {/* quadros numerados do item atual */}
             {it && (
               <div className="rounded-2xl p-3" style={amCCaixa}>
@@ -14956,20 +14246,92 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
                 </div>
               </div>
             )}
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.25fr_1fr]">
-              {pecaFundos}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-fundos">
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Fundo animado</p>
+                <div className="grid grid-cols-2 gap-1.5 mt-2">
+                  {AM_FUNDOS.map((f) => <button key={f.k} onClick={() => mod({ fundo: f.k })} aria-pressed={est.fundo === f.k} data-fundo={f.k} className={amCBtn + " !justify-start"} style={est.fundo === f.k ? amCOuro : amCFundo}><span className="w-3 h-3 rounded-full shrink-0" style={{ background: f.cor }} />{f.r}</button>)}
+                </div>
+                <p className="text-xs font-bold uppercase tracking-wide mt-3" style={{ color: "#D6B46A" }}>Cor do fundo e letra</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {AM_PROJ_TEMAS.map((x) => <button key={x.k} onClick={() => mod({ tema: x.k })} aria-pressed={est.tema === x.k} className={amCBtn} style={est.tema === x.k ? amCOuro : amCFundo}>{x.r}</button>)}
+                  <button onClick={() => mod({ esc: amLimitar(Math.round((est.esc - 0.1) * 10) / 10, 0.5, 1.8) })} className={amCBtn} style={amCFundo} aria-label="Diminuir letra">A−</button>
+                  <span className="min-h-[44px] inline-flex items-center text-xs font-mono px-1">{Math.round(est.esc * 100)}%</span>
+                  <button onClick={() => mod({ esc: amLimitar(Math.round((est.esc + 0.1) * 10) / 10, 0.5, 1.8) })} className={amCBtn} style={amCFundo} aria-label="Aumentar letra">A+</button>
+                </div>
+              </div>
               <AmRelogioPainel cfg={est.relCfg} setCfg={(c) => mod({ relCfg: c })} ativo={est.rel} alternar={alternarRel} />
             </div>
-            <div className="grid gap-3 xl:grid-cols-2">
-              <div ref={avRef}><AmAvisosPainel est={est} mod={mod} base={base} /></div>
-              {pecaTelas}
+            <div ref={avRef}><AmAvisosPainel est={est} mod={mod} base={base} /></div>
+            <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-telas">
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Telas do projetor (podem ser várias)</p>
+              <p className="text-xs text-white/75 mt-1 leading-snug">Em cada telão, computador ou TV com navegador, abra o link abaixo (ou, no app, Projeção &gt; Ser uma tela, e digite o código <b style={{ color: "#D6B46A" }}>{codigo}</b>). Todas mostram a mesma coisa que você passa aqui.</p>
+              <p className="text-[11px] mt-2 break-all rounded-lg px-2 py-1.5 bg-white/10" data-testid="link-tela">{linkTela}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <button onClick={copiar} className={amCBtn} style={amCFundo}><Copy size={14} /> {copiado ? "Link copiado!" : "Copiar link"}</button>
+                <button onClick={abrirExterna} className={amCBtn} style={amCFundo}><Maximize size={14} /> Abrir nesta janela ao lado</button>
+                <AmZap texto={`Tela do projetor (letras do culto): abra este link no computador ligado ao telão e toque em “Iniciar esta tela”:\n${linkTela}`} rotulo="Enviar link por WhatsApp" />
+              </div>
+              <p className="text-[11px] text-white/60 mt-2 leading-snug">Teclado: → ou espaço avança · ← volta · ↓ ↑ troca de item · B tela preta · L logo · R relógio · F projetar neste aparelho · M tira o aviso · Esc sai. Para controlar pelo celular: Projeção &gt; Controlar outra tela, com o código <b>{codigo}</b>.</p>
             </div>
           </div>
-          {/* coluna da direita */}
-          <div className="space-y-3 lg:overflow-y-auto min-w-0" data-testid="coluna-direita">
-            {!(larga && editor) && pecaLista}
-            {pecaBandeja}
-            {pecaAdicionar}
+          {/* coluna da direita: lista do culto */}
+          <div className="space-y-3 lg:overflow-y-auto min-w-0" data-testid="lista-culto">
+            <div className="rounded-2xl p-3" style={amCCaixa}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Lista do culto ({lista.length})</p>
+                {editor && lista.length > 0 && <button onClick={() => { if (window.confirm("Limpar a lista do culto?")) editor.limpar(); }} className="text-[11px] underline text-white/70">Limpar</button>}
+              </div>
+              {lista.length === 0 && <p className="text-sm text-white/70 mt-2">Vazia.</p>}
+              <ol className="mt-2 space-y-1.5">
+                {lista.map((x, k) => (
+                  <li key={x.id + k} className="rounded-xl flex items-stretch gap-1" style={{ background: k === est.i ? "#D6B46A" : "rgba(255,255,255,.08)", color: k === est.i ? "#351052" : "#fff" }}>
+                    <button onClick={() => ir(k, 0)} className="flex-1 min-w-0 text-left px-2.5 py-2 min-h-[48px] flex items-center gap-2" aria-label={`Ir para ${x.titulo}`} data-testid="item-lista" aria-current={k === est.i ? "true" : undefined}>
+                      <span className="w-5 text-center text-xs font-bold shrink-0">{k + 1}</span>
+                      <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: k === est.i ? "#351052" : "rgba(0,0,0,.35)", color: k === est.i ? "#D6B46A" : corKind[x.kind] || "#fff" }}>{x.kind}</span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold leading-tight line-clamp-2">{x.titulo}</span>
+                        <span className="block text-[11px] opacity-75">{x.video ? "vídeo no projetor" : `${x.slides.filter((y) => !y.capa).length} quadro(s)`}</span>
+                      </span>
+                    </button>
+                    {editor && (
+                      <div className="flex flex-col justify-center shrink-0 pr-1">
+                        <button aria-label="Subir" onClick={() => editor.mover(k, -1)} disabled={k === 0} className="w-8 h-6 flex items-center justify-center disabled:opacity-30"><ArrowUp size={14} /></button>
+                        <button aria-label="Descer" onClick={() => editor.mover(k, 1)} disabled={k === lista.length - 1} className="w-8 h-6 flex items-center justify-center disabled:opacity-30"><ArrowDown size={14} /></button>
+                      </div>
+                    )}
+                    {editor && <button aria-label={`Tirar ${x.titulo} da lista`} onClick={() => editor.remover(k)} className="w-9 flex items-center justify-center shrink-0" style={{ color: k === est.i ? "#8C1D18" : "#FF8A7A" }}><X size={16} /></button>}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {editor && (
+              <div className="rounded-2xl p-3" style={amCCaixa} data-testid="painel-adicionar">
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#D6B46A" }}>Adicionar à lista</p>
+                <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Hino (número/título), louvor ou vídeo…" className={amCInput + " mt-2"} aria-label="Buscar para adicionar" />
+                {achados.length > 0 && (
+                  <div className="mt-2 space-y-1 max-h-56 overflow-y-auto">
+                    {achados.map((a) => (
+                      <button key={a.tipo + a.id} onClick={() => editor.add(a)} disabled={temNaLista(a.tipo, a.id)} className="w-full text-left rounded-lg px-2.5 py-2 min-h-[44px] flex items-center gap-2 disabled:opacity-40" style={{ background: "rgba(255,255,255,.1)" }}>
+                        <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 shrink-0" style={{ background: "rgba(0,0,0,.35)", color: corKind[a.kind] }}>{a.kind}</span>
+                        <span className="text-sm font-semibold line-clamp-2 flex-1">{a.titulo}</span><Plus size={15} className="shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {q && achados.length === 0 && <p className="text-xs text-white/60 mt-2">Nada encontrado.</p>}
+                <p className="text-[11px] text-white/70 mt-3">Vídeo por link (YouTube, Instagram, Google Drive ou arquivo):</p>
+                <div className="flex gap-1.5 mt-1">
+                  <input value={urlVid} onChange={(e) => setUrlVid(e.target.value)} placeholder="Cole o link do vídeo" className={amCInput} aria-label="Link do vídeo" />
+                  <button onClick={() => { if (editor.addVideoUrl(urlVid)) setUrlVid(""); }} className={amCBtn} style={amCOuro} aria-label="Adicionar o vídeo"><Plus size={16} /></button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  <button onClick={editor.doCulto} className={amCBtn} style={amCFundo}><Calendar size={14} /> Louvores do próximo culto</button>
+                  <button onClick={editor.doEnsaio} className={amCBtn} style={amCFundo}><CheckCircle2 size={14} /> Marcados para o ensaio</button>
+                </div>
+                {editor.aviso && <p className="text-xs mt-2" style={{ color: "#D6B46A" }}>{editor.aviso}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -14978,8 +14340,6 @@ function AmConsole({ itens, inicio = 0, onFechar, editor }) {
           <AmSaida est={est} lista={lista} className="absolute inset-0" />
           <button aria-label="Quadro anterior" onClick={() => { ant(); mostrarBarra(); }} className="absolute left-0 top-[12%] bottom-[14%] w-[30%] opacity-0" />
           <button aria-label="Próximo quadro" onClick={() => { prox(); mostrarBarra(); }} className="absolute right-0 top-[12%] bottom-[14%] w-[70%] opacity-0" />
-          <button onClick={() => { ant(); mostrarBarra(); }} aria-label="Seta: quadro anterior" data-testid="seta-local-esq" className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-14 h-20 rounded-2xl flex items-center justify-center transition-opacity" style={{ background: "rgba(0,0,0,.5)", color: "#fff", opacity: barra ? 0.9 : 0, pointerEvents: barra ? "auto" : "none" }}><ChevronLeft size={34} /></button>
-          <button onClick={() => { prox(); mostrarBarra(); }} aria-label="Seta: próximo quadro" data-testid="seta-local-dir" className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-14 h-20 rounded-2xl flex items-center justify-center transition-opacity" style={{ background: "rgba(0,0,0,.5)", color: "#fff", opacity: barra ? 0.9 : 0, pointerEvents: barra ? "auto" : "none" }}><ChevronRight size={34} /></button>
           <div className="absolute top-0 inset-x-0 z-10 px-3 py-2 flex items-center gap-1.5 transition-opacity" style={{ background: "linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0))", opacity: barra ? 1 : 0, pointerEvents: barra ? "auto" : "none" }}>
             <button onClick={fecharLocal} className={amCBtn} style={amCFundo}><X size={16} /> Voltar à mesa</button>
             <span className="flex-1" />
@@ -15157,14 +14517,12 @@ function AmProjetorTela({ t, dados, hinos, lider, musico, userKey, irPara }) {
   const [codTela, setCodTela] = useState("");
   const [aviso, setAviso] = useState("");
   const acervo = dados.acervo || [];
-  const letras = useAmBib("txt", base, podeLer);
   const salvarLS = (n) => { try { localStorage.setItem(chave, JSON.stringify(n)); } catch (e) { /* sem storage */ } };
   const gravar = (n) => { setRefs(n); salvarLS(n); };
   const gravarF = (fn) => setRefs((p) => { const n = fn(p); salvarLS(n); return n; });
   const resolver = (r) => {
     if (r.tipo === "hino") { const h = (hinos || []).find((x) => x.numero === r.id); return h ? amItemHino(h) : null; }
     if (r.tipo === "video") return amItemVideo(r);
-    if (r.tipo === "texto") { const m = letras.itens.find((x) => x.id === r.id); return m ? amItemLetra(m) : null; }
     const m = acervo.find((x) => x.id === r.id); return m ? amItemLouvor(m) : null;
   };
   const itens = refs.map((r) => ({ r, it: resolver(r) })).filter((x) => x.it);
@@ -15207,7 +14565,7 @@ function AmProjetorTela({ t, dados, hinos, lider, musico, userKey, irPara }) {
     [n[ia], n[ib]] = [n[ib], n[ia]]; gravar(n);
   };
   const remover = (k) => { const a = itens[k]; if (a) gravar(refs.filter((x) => !mesmo(x, a.r))); };
-  const editor = { hinos, acervo, letras, videos: dados.videos || [], tem, add: addItem, addVideoUrl, doCulto, doEnsaio, mover, remover, limpar: () => gravar([]), aviso };
+  const editor = { hinos, acervo, videos: dados.videos || [], tem, add: addItem, addVideoUrl, doCulto, doEnsaio, mover, remover, limpar: () => gravar([]), aviso };
   const serTela = () => { const c = String(codTela).replace(/\D/g, "").slice(0, 4); if (c.length < 4) { setAviso("Digite os 4 números do código que aparece na mesa de projeção."); return; } window.location.href = `${amLinkApp(AM_UNIDADE_ID)}&tela=${encodeURIComponent(`${base}-${c}`)}`; };
   if (!podeLer) return <AmSoMusicos t={t} irPara={irPara} titulo="Projeção" />;
   const corKind = { Harpa: "Harpa", Louvor: "Louvor", Vídeo: "Vídeo" };
