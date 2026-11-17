@@ -4,11 +4,12 @@
 //   acao "status"      público  -> { ok, ligada }            (a tela usa para mostrar ou esconder os botões de IA)
 //   acao "interpretar" público* -> { ref, versiculos:[{n,t}], traducao? }
 //   acao "palavra"     público* -> { termo, ref?, trecho? }   (aprofundar uma palavra difícil)
-//   acao "temas"       ADMIN    -> { tipo, publico?, quantidade? }
+//   acao "temas"       ADMIN*   -> { tipo, publico?, quantidade? }
 //   acao "sermao"      ADMIN    -> { tema, textoBase?, passagens?, tipo?, duracaoMin?, publico?, estilo?, observacoes? }
 //   acao "reescrever"  ADMIN    -> { secao, texto, instrucao }
 //   (* limitado por aparelho/endereço para não gerar custo à toa)
 // Administrador = quem entrou com a senha de administrador (Authorization: Bearer <token>, o mesmo de /api/privado).
+// ADMIN* = também quem recebeu o código da área de sermões (token "sermonista" de /api/conta, conferido a cada pedido).
 //
 // DESLIGADA POR PADRÃO: sem a chave abaixo, responde { ok:false, motivo:"ia_desligada" } e o app mostra um aviso amigável.
 // Variáveis de ambiente (Vercel > Settings > Environment Variables):
@@ -18,6 +19,7 @@
 //   IA_LIMITE_DIA       (opcional) teto de pedidos públicos por dia, somando todos (padrão 300)
 //   TOKEN_SECRET        já existe (confere o login do administrador)
 import { verificar, ORIGENS } from "./privado.js";
+import { sermonistaAtivo } from "./conta.js";
 
 const MODELO_PADRAO = "claude-sonnet-5-5";
 const API_IA = "https://api.anthropic.com/v1/messages";
@@ -147,11 +149,14 @@ export default async function handler(req, res, ambiente = process.env, buscar =
   const auth = String((req.headers && req.headers.authorization) || "");
   const sessao = auth.startsWith("Bearer ") && segredo && segredo.length >= 16 ? verificar(auth.slice(7), segredo, agora) : null;
   const admin = !!(sessao && sessao.papel === "admin");
-  if (ADMIN.includes(acao) && !admin) return resposta(res, 401, { ok: false, motivo: "sem_sessao" });
+  // Quem recebeu o código da área de sermões também usa a IA de sermões (o servidor confere se o acesso continua liberado).
+  const sermonista = !admin && !!(sessao && sessao.papel === "sermonista") && (await sermonistaAtivo(sessao.i, agora));
+  if (ADMIN.includes(acao) && !admin && !sermonista) return resposta(res, 401, { ok: false, motivo: "sem_sessao" });
   if (!chave) return resposta(res, 200, { ok: false, motivo: "ia_desligada" });
 
   const ip = String((req.headers && (req.headers["x-forwarded-for"] || req.headers["x-real-ip"])) || "?").split(",")[0].trim();
   if (admin) { if (estourou("adm:" + ip, 60, agora)) return resposta(res, 429, { ok: false, motivo: "limite" }); }
+  else if (sermonista) { if (estourou("srm:" + sessao.i, 40, agora)) return resposta(res, 429, { ok: false, motivo: "limite" }); }
   else {
     if (estourou(ip, Math.max(1, Number(ambiente.IA_LIMITE_PUBLICO) || 8), agora)) return resposta(res, 429, { ok: false, motivo: "limite" });
     if (tetoDoDia(Math.max(1, Number(ambiente.IA_LIMITE_DIA) || 300), agora)) return resposta(res, 429, { ok: false, motivo: "limite_do_dia" });

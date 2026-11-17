@@ -1,0 +1,18 @@
+SERVIDOR DAS CONTAS E DOS SERMÕES (zip 63) - repositório do SITE: marcosfortal2015-dot/avivardoespirito
+
+SUBA ESTE ZIP PRIMEIRO (antes do zip 62, que é do app Bíblia Avivar).
+
+Arquivos (mantenha a pasta api/):
+  api/conta.js  (NOVO)  cadastro, entrada, pedido de acesso, código dos sermões, painel do administrador
+  api/ia.js     (muda)  quem recebeu o código dos sermões também usa a IA de sermões (conferido a cada pedido)
+
+Não precisa criar nada novo na Vercel nem no Supabase: usa as mesmas variáveis que já existem
+(SUPABASE_SERVICE_KEY, TOKEN_SECRET, ADMIN_PASSWORD) e a mesma tabela privada site_private.
+Depois do envio, a Vercel publica sozinha. Se pedir, faça "Redeploy".
+
+Como funciona
+- Senha de cada pessoa e código dos sermões ficam só como resumo criptografado (scrypt). Nem o administrador vê a senha.
+- O código dos sermões (ex.: SRM-7KQ-4M2) é gerado pelo administrador, aparece uma vez, e vale só para aquela conta.
+- Bloquear ou o fim da validade derrubam o acesso na hora, mesmo em aparelhos que marcaram "manter liberado".
+- Os sermões de cada pessoa ficam separados e só ela lê. Os sermões do ministério (administrador) continuam como antes.
+- Planos: cada conta tem "plano" e "validade". Quando você começar a cobrar, basta ligar o pagamento a esses dois campos.
