@@ -737,6 +737,8 @@ const ADMIN_MENU = [
   { key: "bens", label: "Bens", icon: Package },
   { key: "operadores", label: "Operadores", icon: KeyRound },
 ];
+// Rol de Disciplina: admin vê em "Administração"; operador só se o código dele tiver o setor "disciplina".
+const DISCIPLINA_MENU = { key: "disciplina", label: "Disciplina e observações", icon: ShieldCheck };
 
 /* Carrossel de notícias — busca ao vivo do Google News (RSS público, via
    proxy de CORS já que RSS não libera acesso direto do navegador). Se a
@@ -867,7 +869,7 @@ function NoticiasCarousel() {
   );
 }
 
-function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
+function NavBar({ page, setPage, adminMode, onAdminClick, churchName, menuExtra = [] }) {
   const [open, setOpen] = useState(false);           // menu do celular/tablet
   const [maisAberto, setMaisAberto] = useState(false); // submenu "MAIS" (telas grandes)
   const maisRef = useRef(null);
@@ -894,7 +896,7 @@ function NavBar({ page, setPage, adminMode, onAdminClick, churchName }) {
     setPage(k);
     setOpen(false);
   };
-  const grupos = adminMode ? [...SUBMENU_GRUPOS, { titulo: "Administração", itens: ADMIN_MENU }] : SUBMENU_GRUPOS;
+  const grupos = adminMode ? [...SUBMENU_GRUPOS, { titulo: "Administração", itens: [...ADMIN_MENU, DISCIPLINA_MENU] }] : menuExtra.length ? [...SUBMENU_GRUPOS, { titulo: "Pastoral", itens: menuExtra }] : SUBMENU_GRUPOS;
   const chavesMais = grupos.flatMap((g) => g.itens.map((i) => i.key));
   const maisAtivo = chavesMais.includes(page);
   // Botões do menu: cor CREME, letra preta, largura só do texto (a pedido do Marcos).
@@ -1169,6 +1171,7 @@ const SETORES_OPERADOR = [
   { key: "escala", label: "Escala de Obreiros" },
   { key: "loja", label: "Loja (editar produtos, frete e pedidos)" },
   { key: "caixa", label: "Caixa / Tesouraria (só se marcado explicitamente — não vem em \"Todos\")" },
+  { key: "disciplina", label: "Rol de Disciplina e observações dos obreiros (sigiloso — só se marcado explicitamente, não vem em \"Todos\")" },
 ];
 // Apelidos aceitos no campo "setores" de um código — o admin pode escrever do jeito
 // que fala no dia a dia (ex: "recepção"), com ou sem acento, que cai no setor certo.
@@ -1180,13 +1183,14 @@ const SETOR_APELIDOS = {
   escalas: "escala", obreiros: "escala",
   frete: "loja", tudo: "todos",
   tesouraria: "caixa", tesoureiro: "caixa", financeiro: "caixa", contabilidade: "caixa",
+  disciplinas: "disciplina", pastoral: "disciplina", "rol de disciplina": "disciplina", observacoes: "disciplina",
 };
 function parseSetoresOperador(texto) {
   const lista = String(texto || "").split(/[,;]/).map((s) => semAcento(s.trim())).filter(Boolean).map((s) => SETOR_APELIDOS[s] || s);
   return lista.length ? [...new Set(lista)] : ["todos"];
 }
 // Onde fica cada setor no site (id da seção) — usado pelos atalhos da barra de acesso.
-const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitantes: "visitantes", membros: "membros", escala: "escala", loja: "loja", caixa: "caixa" };
+const SETOR_DESTINO = { oracoes: "oracoes", avivarmusic: "avivarmusic", visitantes: "visitantes", membros: "membros", escala: "escala", loja: "loja", caixa: "caixa", disciplina: "disciplina" };
 
 // Barra de acesso do servidor — aparece no topo de cada seção que aceita código de
 // função (recepção, secretaria, louvor...). Sem código: botão pra entrar. Com código:
@@ -1195,7 +1199,7 @@ function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPa
   if (adminMode) return null;
   const info = SETORES_OPERADOR.find((x) => x.key === setor) || { label: setor };
   const liberados = operatorAuth
-    ? (operatorAuth.setores.includes("todos") ? SETORES_OPERADOR.filter((x) => x.key !== "todos" && x.key !== "caixa").map((x) => x.key) : operatorAuth.setores.filter((k) => SETOR_DESTINO[k]))
+    ? (operatorAuth.setores.includes("todos") ? SETORES_OPERADOR.filter((x) => x.key !== "todos" && x.key !== "caixa" && x.key !== "disciplina").map((x) => x.key) : operatorAuth.setores.filter((k) => SETOR_DESTINO[k]))
     : [];
   const temEste = liberados.includes(setor);
   return (
@@ -1228,10 +1232,539 @@ function SetorAcessoBar({ setor, adminMode, operatorAuth, onEntrar, onSair, irPa
   );
 }
 
+/* ---------------------------------------------------------------- */
+/* Rol de Disciplina e Observações de serviço dos obreiros — SIGILOSO */
+/* Guardado só no cofre privado do servidor (chave avivar:disciplina). */
+/* Só o administrador ou quem recebeu o setor "disciplina" lê e grava. */
+/* ---------------------------------------------------------------- */
+const DISC_VAZIO = { v: 1, casos: [], notas: [], log: [] };
+const DISC_MINISTERIOS = ["Louvor — músicos", "Louvor — vocal / altar", "Mídia", "Slides", "Recepção", "Ofertas", "Anjos de Luz", "Sala Kids", "Pregação", "Abertura e Semeadura", "Diaconia", "Células", "Coordenação", "Outro"];
+// Referências bíblicas sugeridas por tipo de pecado. Só a referência e o tema (resumido): o texto bíblico em si deve ser lido na Bíblia.
+// A liderança decide o enquadramento: tudo pode ser editado em cada caso.
+const DISC_PECADOS = [
+  { key: "fornicacao", label: "Imoralidade sexual / fornicação (relação sexual fora do casamento)", refs: [
+    ["1 Co 6:18-20", "fugir da imoralidade sexual; o corpo é templo do Espírito Santo"],
+    ["1 Ts 4:3-8", "a vontade de Deus é a santificação; abster-se da imoralidade"],
+    ["Hb 13:4", "o casamento deve ser honrado e o leito sem mácula; Deus julga os imorais"],
+    ["Ef 5:3-5", "imoralidade nem se nomeie entre os santos"],
+    ["Gl 5:19-21", "obras da carne, entre elas a imoralidade e a impureza"],
+    ["1 Co 6:9-11", "os imorais não herdarão o Reino — e o chamado à lavagem e santificação"],
+    ["1 Co 7:2, 8-9", "o remédio bíblico: casar-se em vez de se abrasar"],
+  ] },
+  { key: "adulterio", label: "Adultério", refs: [
+    ["Êx 20:14", "“não adulterarás”"],
+    ["Mt 5:27-28", "o adultério começa no coração"],
+    ["Pv 6:32", "o adúltero destrói a própria alma"],
+    ["Hb 13:4", "Deus julga os adúlteros"],
+    ["Jo 8:3-11", "misericórdia e o chamado a não pecar mais"],
+  ] },
+  { key: "impureza", label: "Impureza / pornografia", refs: [
+    ["Mt 5:28", "olhar com cobiça já é pecado no coração"],
+    ["Jó 31:1", "pacto com os próprios olhos"],
+    ["Sl 101:3", "não pôr diante dos olhos coisa injusta"],
+    ["Ef 5:3", "a impureza nem se nomeie entre os santos"],
+  ] },
+  { key: "embriaguez", label: "Embriaguez", refs: [
+    ["Ef 5:18", "não se embriagar com vinho; encher-se do Espírito"],
+    ["Pv 20:1", "o vinho é escarnecedor"],
+    ["1 Co 6:10", "os bêbados não herdarão o Reino"],
+    ["Gl 5:21", "embriaguez entre as obras da carne"],
+  ] },
+  { key: "ira", label: "Ira / contendas / brigas", refs: [
+    ["Gl 5:20", "inimizades, porfias e iras entre as obras da carne"],
+    ["Tg 1:19-20", "tardio para se irar; a ira do homem não produz justiça"],
+    ["Ef 4:26-27, 31", "irai-vos sem pecar; afastar toda amargura e ira"],
+    ["Pv 15:1", "a resposta branda desvia o furor"],
+  ] },
+  { key: "mentira", label: "Mentira / falso testemunho", refs: [
+    ["Êx 20:16", "não dar falso testemunho"],
+    ["Ef 4:25", "deixar a mentira e falar a verdade"],
+    ["Pv 12:22", "o Senhor abomina os lábios mentirosos"],
+    ["Cl 3:9", "não mentir uns aos outros"],
+  ] },
+  { key: "maledicencia", label: "Maledicência / fofoca / murmuração", refs: [
+    ["Tg 4:11", "não falar mal uns dos outros"],
+    ["Pv 16:28", "o difamador separa os maiores amigos"],
+    ["Ef 4:29", "nenhuma palavra torpe, mas a que edifica"],
+    ["Fp 2:14", "fazer tudo sem murmurações"],
+  ] },
+  { key: "furto", label: "Furto / desonestidade com bens ou ofertas", refs: [
+    ["Êx 20:15", "não furtar"],
+    ["Ef 4:28", "o que furtava, não furte mais"],
+    ["Ml 3:8-10", "roubar a Deus nos dízimos e ofertas"],
+  ] },
+  { key: "idolatria", label: "Idolatria / práticas ocultas", refs: [
+    ["Êx 20:3-5", "nenhum outro deus; nenhuma imagem de escultura"],
+    ["Dt 18:10-12", "abominação: adivinhação, feitiçaria e consulta aos mortos"],
+    ["1 Co 10:14", "fugir da idolatria"],
+    ["Gl 5:20", "idolatria e feitiçaria entre as obras da carne"],
+  ] },
+  { key: "orgulho", label: "Orgulho / rebeldia contra a autoridade", refs: [
+    ["Pv 16:18", "a soberba precede a ruína"],
+    ["Tg 4:6", "Deus resiste aos soberbos e dá graça aos humildes"],
+    ["Hb 13:17", "obedecer e submeter-se aos que velam pelas almas"],
+    ["1 Pe 5:5", "sede submissos e revesti-vos de humildade"],
+    ["Rm 13:1", "sujeitar-se às autoridades"],
+  ] },
+  { key: "divisao", label: "Divisão / discórdia / partidarismo", refs: [
+    ["Rm 16:17", "atentar para os que causam divisões"],
+    ["Pv 6:16-19", "o que semeia discórdia entre irmãos"],
+    ["Tt 3:10-11", "advertir o sectário"],
+    ["1 Co 1:10", "o chamado à unidade"],
+  ] },
+  { key: "cobica", label: "Cobiça / avareza", refs: [
+    ["1 Tm 6:10", "o amor ao dinheiro é raiz de males"],
+    ["Cl 3:5", "a avareza é idolatria"],
+    ["Lc 12:15", "guardar-se de toda avareza"],
+  ] },
+  { key: "negligencia", label: "Negligência no serviço / faltas", refs: [
+    ["Lc 16:10", "fiel no pouco, fiel no muito"],
+    ["1 Co 4:2", "exige-se dos despenseiros que sejam fiéis"],
+    ["Cl 3:23", "fazer tudo de coração, como para o Senhor"],
+    ["Hb 10:25", "não deixar de congregar"],
+  ] },
+  { key: "outro", label: "Outro (descrever no motivo)", refs: [] },
+];
+// Textos de apoio ao processo pastoral (restauração, quem serve, reincidência).
+const DISC_PROCESSO = [
+  { titulo: "Como tratar e restaurar", refs: [
+    ["Mt 18:15-17", "o caminho do cuidado: a sós, com testemunhas, com a igreja"],
+    ["Gl 6:1-2", "restaurar com espírito de mansidão, vigiando a si mesmo"],
+    ["1 Co 5:1-13", "disciplina na igreja"],
+    ["2 Co 2:5-8", "perdoar e confortar quem foi disciplinado, para não ser consumido de tristeza"],
+    ["Hb 12:5-11", "a disciplina do Senhor produz fruto de justiça"],
+    ["Pv 28:13", "quem confessa e deixa o pecado alcança misericórdia"],
+    ["Tg 5:16", "confessar os pecados e orar uns pelos outros"],
+    ["1 Jo 1:9", "confessando, ele é fiel e justo para perdoar"],
+  ] },
+  { titulo: "Quem serve ao Senhor", refs: [
+    ["1 Tm 3:1-13", "requisitos dos que servem (bispos e diáconos)"],
+    ["Tt 1:5-9", "requisitos dos presbíteros"],
+    ["2 Tm 2:19-22", "afastar-se da iniquidade e fugir das paixões da mocidade"],
+    ["Is 52:11", "purificai-vos os que levais os utensílios do Senhor"],
+  ] },
+  { titulo: "Reincidência", refs: [
+    ["Pv 24:16", "o justo cai sete vezes e se levanta"],
+    ["2 Pe 2:20-22", "o perigo de voltar ao que foi abandonado"],
+    ["Gl 6:1", "quem está firme, cuide para não cair também"],
+    ["Mt 18:21-22", "perdoar sempre"],
+  ] },
+];
+const DISC_TIPOS_OCORR = { inicio: "Início da disciplina", reincidencia: "Reincidência", conversa: "Conversa pastoral / aconselhamento", visita: "Visita", progresso: "Acompanhamento", restauracao: "Cumprimento / restauração", outra: "Outra anotação" };
+const DISC_TIPOS_NOTA = { servico: "Serviço prestado", elogio: "Elogio / bom exemplo", atencao: "Ponto de atenção", falta: "Falta / ausência", ocorrencia: "Ocorrência" };
+const DISC_COR_NOTA = { servico: "#2E7D4F", elogio: "#2E7D4F", atencao: "#B7791F", falta: "#B03428", ocorrencia: "#B03428" };
+
+const discHoje = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const discDia = (iso) => { const [y, m, d] = String(iso || "").split("-").map(Number); return y ? Date.UTC(y, m - 1, d) : NaN; };
+const discDias = (de, ate) => Math.round((discDia(ate) - discDia(de)) / 86400000);
+const discSomar = (iso, dias) => { const t = new Date(discDia(iso) + dias * 86400000); return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`; };
+const discEsc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const discPlural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+function discNormalizar(d) {
+  const o = d && typeof d === "object" && !Array.isArray(d) ? d : {};
+  return { v: 1, casos: Array.isArray(o.casos) ? o.casos : [], notas: Array.isArray(o.notas) ? o.notas : [], log: Array.isArray(o.log) ? o.log : [] };
+}
+const discRefsDoTipo = (key) => ((DISC_PECADOS.find((p) => p.key === key) || { refs: [] }).refs).map(([r, t]) => `${r} — ${t}`).join("\n");
+// Situação calculada de um caso: tempo decorrido, reincidências, prazo e quanto falta.
+function discResumo(c) {
+  const hoje = discHoje();
+  const oc = (c.ocorrencias || []).slice().sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  const reincs = oc.filter((o) => o.tipo === "reincidencia");
+  const ultima = reincs.length ? reincs[reincs.length - 1].data : "";
+  const base = c.contarDesde === "ultima" && ultima ? ultima : c.inicio;
+  const prazo = parseInt(c.prazoDias, 10) > 0 ? parseInt(c.prazoDias, 10) : 0;
+  const fim = prazo && base ? discSomar(base, prazo) : "";
+  const restam = fim ? discDias(hoje, fim) : null;
+  const fimReal = c.situacao === "cumprida" && c.fimData ? c.fimData : hoje;
+  const decorridos = c.inicio ? Math.max(0, discDias(c.inicio, fimReal)) : 0;
+  const prog = prazo && base ? Math.min(100, Math.max(0, Math.round((discDias(base, hoje) / prazo) * 100))) : null;
+  let rotulo = "Em disciplina", cor = "#B7791F";
+  if (c.situacao === "cumprida") { rotulo = "Cumprida — restaurado(a)"; cor = "#2E7D4F"; }
+  else if (c.situacao === "suspensa") { rotulo = "Suspensa"; cor = "#6b6b6b"; }
+  else if (reincs.length) { rotulo = "Em disciplina — reincidente"; cor = "#B03428"; }
+  return { oc, reincs: reincs.length, ultima, base, prazo, fim, restam, decorridos, prog, rotulo, cor };
+}
+function discTextoPrazo(r, c) {
+  if (c.situacao === "cumprida") return c.fimData ? `Cumprida em ${fmtDate(c.fimData)}` : "Cumprida";
+  if (!r.prazo) return "Prazo: a definir pela liderança";
+  if (r.restam > 0) return `Prazo: até ${fmtDate(r.fim)} (faltam ${discPlural(r.restam, "dia", "dias")})`;
+  if (r.restam === 0) return `Prazo termina hoje (${fmtDate(r.fim)})`;
+  return `Prazo cumprido em ${fmtDate(r.fim)} — aguarda a decisão da liderança`;
+}
+
+function DisciplinaObreiros({ dados, save, adminMode, operador, colaboradores }) {
+  const d = useMemo(() => discNormalizar(dados), [dados]);
+  const [aba, setAba] = useState("rol");
+  const [filtro, setFiltro] = useState("ativas");
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(null);
+  const [form, setForm] = useState(null);
+  const [oc, setOc] = useState({ data: discHoje(), tipo: "conversa", texto: "" });
+  const notaVazia = { data: discHoje(), nome: "", funcao: "", tipo: "servico", texto: "" };
+  const [nota, setNota] = useState(notaVazia);
+  const [buscaNota, setBuscaNota] = useState("");
+  const [msg, setMsg] = useState("");
+  const [verLog, setVerLog] = useState(false);
+  const quem = operador || "Administração";
+  const nomesSugestao = useMemo(() => [...new Set([...(d.casos || []).map((c) => c.nome), ...((colaboradores || []).map((c) => c && c.nome))].filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [d.casos, colaboradores]);
+
+  // Sempre relê o que está no servidor antes de gravar, para duas pessoas autorizadas não se sobrescreverem.
+  const aplicar = async (fn, acao) => {
+    const atual = discNormalizar(await loadKey("avivar:disciplina", d));
+    const novo = discNormalizar(fn(atual));
+    novo.log = [{ id: uid(), quando: nowISO(), quem, acao }, ...(novo.log || [])].slice(0, 300);
+    save(novo);
+  };
+  const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 4000); };
+
+  if (!adminMode) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <Lock size={28} className="mx-auto" color={C.stone} />
+        <p className="text-sm mt-3" style={{ color: C.stone }}>Área restrita — só o administrador ou quem recebeu a função "disciplina".</p>
+      </div>
+    );
+  }
+
+  const novoCaso = () => setForm({ id: "", nome: "", ministerio: "Louvor — vocal / altar", funcao: "", whatsapp: "", tipo: "fornicacao", motivo: "", refsTxt: discRefsDoTipo("fornicacao"), inicio: discHoje(), prazoDias: "", contarDesde: "inicio", restricao: "Afastado(a) do altar e de todo serviço de culto durante a disciplina.", vinculo: "", situacao: "ativa" });
+  const editarCaso = (c) => setForm({ id: c.id, nome: c.nome || "", ministerio: c.ministerio || "Outro", funcao: c.funcao || "", whatsapp: c.whatsapp || "", tipo: c.tipo || "outro", motivo: c.motivo || "", refsTxt: (c.refs || []).join("\n"), inicio: c.inicio || "", prazoDias: c.prazoDias || "", contarDesde: c.contarDesde || "inicio", restricao: c.restricao || "", vinculo: c.vinculo || "", situacao: c.situacao || "ativa" });
+  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const trocarTipo = (k) => setForm((f) => ({ ...f, tipo: k, refsTxt: !f.refsTxt.trim() || f.refsTxt === discRefsDoTipo(f.tipo) ? discRefsDoTipo(k) : f.refsTxt }));
+  const salvarForm = async () => {
+    const f = form;
+    if (!f.nome.trim()) { avisar("Informe o nome da pessoa."); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.inicio)) { avisar("Informe a data de início."); return; }
+    const refs = f.refsTxt.split("\n").map((s) => s.trim()).filter(Boolean);
+    const campos = { nome: f.nome.trim(), ministerio: f.ministerio, funcao: f.funcao.trim(), whatsapp: f.whatsapp.trim(), tipo: f.tipo, motivo: f.motivo.trim(), refs, inicio: f.inicio, prazoDias: f.prazoDias === "" ? "" : String(Math.max(0, parseInt(f.prazoDias, 10) || 0)), contarDesde: f.contarDesde, restricao: f.restricao.trim(), vinculo: f.vinculo.trim(), situacao: f.situacao };
+    if (f.id) {
+      await aplicar((x) => ({ ...x, casos: x.casos.map((c) => (c.id === f.id ? { ...c, ...campos, atualizadoEm: nowISO(), atualizadoPor: quem } : c)) }), `Editou o caso de ${campos.nome}`);
+    } else {
+      const id = uid();
+      const novo = { id, ...campos, ocorrencias: [{ id: uid(), data: campos.inicio, tipo: "inicio", texto: "Início da disciplina." }], criadoEm: nowISO(), criadoPor: quem };
+      await aplicar((x) => ({ ...x, casos: [novo, ...x.casos] }), `Abriu o caso de ${campos.nome}`);
+      setAberto(id);
+    }
+    setForm(null);
+    avisar("Caso salvo no cofre privado.");
+  };
+  const registrarOc = async (c) => {
+    if (!oc.texto.trim() && oc.tipo !== "reincidencia") { avisar("Escreva a anotação."); return; }
+    const o = { id: uid(), data: oc.data || discHoje(), tipo: oc.tipo, texto: oc.texto.trim() || DISC_TIPOS_OCORR[oc.tipo] };
+    await aplicar((x) => ({ ...x, casos: x.casos.map((k) => (k.id === c.id ? { ...k, ocorrencias: [...(k.ocorrencias || []), o], atualizadoEm: nowISO(), atualizadoPor: quem } : k)) }), `${DISC_TIPOS_OCORR[oc.tipo]} registrada em ${c.nome}`);
+    setOc({ data: discHoje(), tipo: "conversa", texto: "" });
+    avisar("Ocorrência registrada.");
+  };
+  const apagarOc = async (c, id) => {
+    if (!window.confirm("Apagar esta anotação da linha do tempo?")) return;
+    await aplicar((x) => ({ ...x, casos: x.casos.map((k) => (k.id === c.id ? { ...k, ocorrencias: (k.ocorrencias || []).filter((o) => o.id !== id) } : k)) }), `Apagou uma anotação de ${c.nome}`);
+  };
+  const cumprir = async (c) => {
+    if (!window.confirm(`Marcar a disciplina de ${c.nome} como cumprida (restauração)?`)) return;
+    const hoje = discHoje();
+    await aplicar((x) => ({ ...x, casos: x.casos.map((k) => (k.id === c.id ? { ...k, situacao: "cumprida", fimData: hoje, ocorrencias: [...(k.ocorrencias || []), { id: uid(), data: hoje, tipo: "restauracao", texto: "Disciplina cumprida; restauração." }], atualizadoEm: nowISO(), atualizadoPor: quem } : k)) }), `Marcou como cumprida a disciplina de ${c.nome}`);
+  };
+  const reabrir = async (c) => {
+    await aplicar((x) => ({ ...x, casos: x.casos.map((k) => (k.id === c.id ? { ...k, situacao: "ativa", fimData: "", atualizadoEm: nowISO(), atualizadoPor: quem } : k)) }), `Reabriu a disciplina de ${c.nome}`);
+  };
+  const excluir = async (c) => {
+    if (!window.confirm(`Excluir DEFINITIVAMENTE o caso de ${c.nome}? Isso não pode ser desfeito. (Para só encerrar, use "Marcar como cumprida".)`)) return;
+    await aplicar((x) => ({ ...x, casos: x.casos.filter((k) => k.id !== c.id) }), `Excluiu o caso de ${c.nome}`);
+    setAberto(null);
+  };
+  const imprimirFicha = (c) => {
+    const r = discResumo(c);
+    const tipo = (DISC_PECADOS.find((p) => p.key === c.tipo) || {}).label || "";
+    const linhas = r.oc.map((o) => `<tr><td>${fmtDate(o.data)}</td><td>${discEsc(DISC_TIPOS_OCORR[o.tipo] || o.tipo)}</td><td>${discEsc(o.texto)}</td></tr>`).join("");
+    printReport(`Ficha de disciplina — ${discEsc(c.nome)}`, `
+      <p style="color:#B03428;font-size:11px"><strong>DOCUMENTO PASTORAL RESERVADO — não divulgar.</strong></p>
+      <table><tbody>
+        <tr><th>Pessoa</th><td>${discEsc(c.nome)}</td></tr>
+        <tr><th>Ministério / função que exercia</th><td>${discEsc(c.ministerio)} — ${discEsc(c.funcao)}</td></tr>
+        <tr><th>Situação</th><td>${discEsc(r.rotulo)}${r.reincs ? ` (${discPlural(r.reincs, "reincidência", "reincidências")}${r.ultima ? ", a última em " + fmtDate(r.ultima) : ""})` : ""}</td></tr>
+        <tr><th>Início</th><td>${fmtDate(c.inicio)} (${discPlural(r.decorridos, "dia", "dias")})</td></tr>
+        <tr><th>Prazo</th><td>${discEsc(discTextoPrazo(r, c))}</td></tr>
+        <tr><th>Restrições de serviço</th><td>${discEsc(c.restricao)}</td></tr>
+        <tr><th>O que motivou</th><td>${discEsc(c.motivo)}</td></tr>
+        <tr><th>Pecado a que se assemelha</th><td>${discEsc(tipo)}</td></tr>
+        <tr><th>Referências bíblicas</th><td>${(c.refs || []).map(discEsc).join("<br/>")}</td></tr>
+        ${c.vinculo ? `<tr><th>Caso ligado</th><td>${discEsc(c.vinculo)}</td></tr>` : ""}
+      </tbody></table>
+      <h3 style="margin-top:18px;font-size:14px">Linha do tempo</h3>
+      <table><thead><tr><th>Data</th><th>Tipo</th><th>Anotação</th></tr></thead><tbody>${linhas}</tbody></table>`);
+  };
+  const imprimirRol = () => {
+    const linhas = d.casos.map((c) => { const r = discResumo(c); return `<tr><td>${discEsc(c.nome)}</td><td>${discEsc(c.ministerio)}<br/>${discEsc(c.funcao)}</td><td>${fmtDate(c.inicio)}</td><td>${discEsc(r.rotulo)}${r.reincs ? `<br/>Última reincidência: ${fmtDate(r.ultima)}` : ""}</td><td>${discEsc(discTextoPrazo(r, c))}</td><td>${discEsc(c.motivo)}</td><td>${(c.refs || []).slice(0, 3).map(discEsc).join("<br/>")}</td></tr>`; }).join("");
+    printReport("Rol de disciplina — reservado", `<p style="color:#B03428;font-size:11px"><strong>DOCUMENTO PASTORAL RESERVADO — não divulgar.</strong></p><table><thead><tr><th>Pessoa</th><th>Função</th><th>Início</th><th>Situação</th><th>Prazo</th><th>Motivo</th><th>Referências</th></tr></thead><tbody>${linhas}</tbody></table>`);
+  };
+  const avisarZap = (c) => {
+    const msgz = `Paz do Senhor, ${c.nome.split(" ")[0]}. Mensagem reservada da liderança do Ministério Avivar do Espírito: seu afastamento das funções de ${c.ministerio}${c.inicio ? ` (desde ${fmtDate(c.inicio)})` : ""} continua em vigor. Procure o pastor para conversar e acompanhar o seu processo de restauração. Estamos orando por você.`;
+    window.open(waLink(c.whatsapp, msgz), "_blank", "noopener,noreferrer");
+  };
+
+  // ---- observações de serviço ----
+  const addNota = async () => {
+    if (!nota.nome.trim() || !nota.texto.trim()) { avisar("Informe o nome e a observação."); return; }
+    const n = { id: uid(), data: nota.data || discHoje(), nome: nota.nome.trim(), funcao: nota.funcao.trim(), tipo: nota.tipo, texto: nota.texto.trim(), por: quem, criadoEm: nowISO() };
+    await aplicar((x) => ({ ...x, notas: [n, ...x.notas] }), `Anotou observação de serviço de ${n.nome}`);
+    setNota({ ...notaVazia, data: nota.data });
+    avisar("Observação registrada.");
+  };
+  const apagarNota = async (n) => {
+    if (!window.confirm("Apagar esta observação?")) return;
+    await aplicar((x) => ({ ...x, notas: x.notas.filter((k) => k.id !== n.id) }), `Apagou observação de ${n.nome}`);
+  };
+  const emDisciplina = (nome) => d.casos.some((c) => c.situacao !== "cumprida" && semAcento(c.nome) === semAcento(nome));
+
+  // ---- backup / importação ----
+  const baixarBackup = () => {
+    const blob = new Blob([JSON.stringify({ formato: "avivar-disciplina-v1", geradoEm: nowISO(), casos: d.casos, notas: d.notas }, null, 2)], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `backup-rol-disciplina-${discHoje()}.txt`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const importar = async (e) => {
+    const arq = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!arq) return;
+    try {
+      const j = JSON.parse(await arq.text());
+      if (!j || j.formato !== "avivar-disciplina-v1") throw new Error("formato");
+      const casos = Array.isArray(j.casos) ? j.casos.filter((c) => c && c.id && c.nome) : [];
+      const notas = Array.isArray(j.notas) ? j.notas.filter((n) => n && n.id && n.nome) : [];
+      if (!window.confirm(`Importar ${discPlural(casos.length, "caso", "casos")} e ${discPlural(notas.length, "observação", "observações")}? O que já existir com o mesmo código será atualizado; o resto fica como está.`)) return;
+      await aplicar((x) => {
+        const porId = (lista, novos) => { const m = new Map(lista.map((i) => [i.id, i])); novos.forEach((i) => m.set(i.id, i)); return [...m.values()]; };
+        return { ...x, casos: porId(x.casos, casos), notas: porId(x.notas, notas) };
+      }, `Importou ${casos.length} caso(s) e ${notas.length} observação(ões) de arquivo`);
+      avisar("Importado para o cofre privado.");
+    } catch (err) { avisar("Arquivo inválido: use o .txt de backup/importação do Rol de Disciplina."); }
+  };
+
+  const casosFiltrados = d.casos.filter((c) => {
+    if (filtro === "ativas" && c.situacao === "cumprida") return false;
+    if (filtro === "cumpridas" && c.situacao !== "cumprida") return false;
+    return !busca.trim() || semAcento(c.nome + " " + c.ministerio + " " + c.funcao).includes(semAcento(busca));
+  }).sort((a, b) => String(b.inicio).localeCompare(String(a.inicio)));
+  const nAtivas = d.casos.filter((c) => c.situacao !== "cumprida").length;
+  const nReinc = d.casos.filter((c) => c.situacao !== "cumprida" && discResumo(c).reincs > 0).length;
+  const nCump = d.casos.filter((c) => c.situacao === "cumprida").length;
+  const notasFiltradas = d.notas.filter((n) => !buscaNota.trim() || semAcento(n.nome + " " + n.funcao + " " + n.texto).includes(semAcento(buscaNota))).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+
+  const Aba = ({ k, children }) => (
+    <button onClick={() => setAba(k)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide" style={{ background: aba === k ? C.purple : "#00000010", color: aba === k ? "#fff" : C.ink }}>{children}</button>
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <Eyebrow>Área pastoral reservada</Eyebrow>
+      <SectionTitle>Disciplina e observações dos obreiros</SectionTitle>
+      <div className="rounded-lg border px-3 py-2 text-xs flex items-start gap-2" style={{ borderColor: "#B0342860", background: "#B034280d", color: C.ink }}>
+        <Lock size={14} color="#B03428" className="mt-0.5 shrink-0" />
+        <span><b>Registro sigiloso.</b> Só o administrador e quem recebeu a função "disciplina" enxerga esta tela. Os dados ficam no cofre privado do servidor (nunca no código do site). Não compartilhe prints nem leia em voz alta; use para cuidar, restaurar e orientar a escala de serviços.</span>
+      </div>
+      {msg && <p className="mt-3 text-sm font-semibold" style={{ color: C.purple }} role="status">{msg}</p>}
+
+      <div className="flex flex-wrap gap-2 mt-4">
+        <Aba k="rol">Rol de disciplina</Aba>
+        <Aba k="notas">Observações de serviço</Aba>
+        <Aba k="refs">Referências bíblicas</Aba>
+        <Aba k="backup">Backup e importação</Aba>
+      </div>
+
+      {aba === "rol" && (
+        <div className="mt-5">
+          <div className="grid grid-cols-3 gap-2 max-w-xl">
+            {[["Em disciplina", nAtivas, "#B7791F"], ["Reincidentes", nReinc, "#B03428"], ["Cumpridas", nCump, "#2E7D4F"]].map(([t, n, cor]) => (
+              <div key={t} className="rounded-lg border p-3 text-center" style={{ borderColor: cor + "66", background: "#fff" }}>
+                <p className="text-2xl font-display font-bold" style={{ color: cor }}>{n}</p>
+                <p className="text-[11px] font-mono" style={{ color: C.ink }}>{t}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <Btn color={C.purple} onClick={novoCaso}><Plus size={14} /> Novo caso de disciplina</Btn>
+            <select value={filtro} onChange={(e) => setFiltro(e.target.value)} className="rounded-md border px-2 py-2 text-sm bg-white" style={{ borderColor: C.line }} aria-label="Filtrar situação">
+              <option value="ativas">Em disciplina</option><option value="todas">Todos</option><option value="cumpridas">Cumpridas</option>
+            </select>
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou função…" className="rounded-md border px-3 py-2 text-sm bg-white flex-1 min-w-[180px]" style={{ borderColor: C.line }} />
+            <Btn variant="ghost" color={C.purple} onClick={imprimirRol}><FileText size={14} /> Imprimir rol</Btn>
+          </div>
+
+          {form && (
+            <div className="mt-4 rounded-lg border p-4" style={{ borderColor: C.purple + "66", background: "#fff" }}>
+              <p className="font-display font-semibold mb-3" style={{ color: C.purpleDeep }}>{form.id ? "Editar caso" : "Novo caso de disciplina"}</p>
+              <datalist id="disc-nomes">{nomesSugestao.map((n) => <option key={n} value={n} />)}</datalist>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Nome da pessoa"><input list="disc-nomes" className={inputCls} style={{ borderColor: C.line }} value={form.nome} onChange={(e) => setF("nome", e.target.value)} /></Field>
+                <Field label="Ministério / setor em que servia"><select className={inputCls} style={{ borderColor: C.line }} value={form.ministerio} onChange={(e) => setF("ministerio", e.target.value)}>{DISC_MINISTERIOS.map((m) => <option key={m}>{m}</option>)}</select></Field>
+                <Field label="Função que exercia (ex.: músico, líder do grupo de louvor)"><input className={inputCls} style={{ borderColor: C.line }} value={form.funcao} onChange={(e) => setF("funcao", e.target.value)} /></Field>
+                <Field label="WhatsApp (opcional, para comunicado reservado)"><input type="tel" className={inputCls} style={{ borderColor: C.line }} value={form.whatsapp} onChange={(e) => setF("whatsapp", e.target.value)} /></Field>
+                <Field label="Data de início da disciplina"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={form.inicio} onChange={(e) => setF("inicio", e.target.value)} /></Field>
+                <Field label="Prazo em dias (vazio = a definir pela liderança)"><input type="number" min="0" className={inputCls} style={{ borderColor: C.line }} value={form.prazoDias} onChange={(e) => setF("prazoDias", e.target.value)} /></Field>
+                <Field label="Contar o prazo a partir de"><select className={inputCls} style={{ borderColor: C.line }} value={form.contarDesde} onChange={(e) => setF("contarDesde", e.target.value)}><option value="inicio">Data de início</option><option value="ultima">Última reincidência (o prazo recomeça)</option></select></Field>
+                <Field label="Situação"><select className={inputCls} style={{ borderColor: C.line }} value={form.situacao} onChange={(e) => setF("situacao", e.target.value)}><option value="ativa">Em disciplina</option><option value="suspensa">Suspensa</option><option value="cumprida">Cumprida / restaurado(a)</option></select></Field>
+                <div className="sm:col-span-2"><Field label="Pecado a que se assemelha, segundo a Bíblia"><select className={inputCls} style={{ borderColor: C.line }} value={form.tipo} onChange={(e) => trocarTipo(e.target.value)}>{DISC_PECADOS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select></Field></div>
+                <div className="sm:col-span-2"><Field label="O que motivou a disciplina"><textarea rows={3} className={inputCls} style={{ borderColor: C.line }} value={form.motivo} onChange={(e) => setF("motivo", e.target.value)} /></Field></div>
+                <div className="sm:col-span-2"><Field label="Referências bíblicas (uma por linha — pode editar)"><textarea rows={4} className={inputCls + " font-mono text-xs"} style={{ borderColor: C.line }} value={form.refsTxt} onChange={(e) => setF("refsTxt", e.target.value)} /></Field></div>
+                <div className="sm:col-span-2"><Field label="Restrições de serviço durante a disciplina"><input className={inputCls} style={{ borderColor: C.line }} value={form.restricao} onChange={(e) => setF("restricao", e.target.value)} /></Field></div>
+                <div className="sm:col-span-2"><Field label="Caso ligado a outro (opcional — ex.: mesmo caso de outra pessoa)"><input className={inputCls} style={{ borderColor: C.line }} value={form.vinculo} onChange={(e) => setF("vinculo", e.target.value)} /></Field></div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Btn color={C.purple} onClick={salvarForm}><Save size={14} /> Salvar no cofre</Btn>
+                <Btn variant="ghost" color={C.purple} onClick={() => setForm(null)}>Cancelar</Btn>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 mt-5">
+            {casosFiltrados.length === 0 && <Empty text={d.casos.length === 0 ? "Nenhum caso registrado. Use “Novo caso de disciplina” ou importe o arquivo na aba Backup e importação." : "Nenhum caso neste filtro."} />}
+            {casosFiltrados.map((c) => {
+              const r = discResumo(c);
+              const tipo = (DISC_PECADOS.find((p) => p.key === c.tipo) || {}).label;
+              const aberta = aberto === c.id;
+              return (
+                <div key={c.id} className="rounded-lg border bg-white overflow-hidden" style={{ borderColor: C.line, borderLeft: `5px solid ${r.cor}` }} data-testid="disc-caso">
+                  <button onClick={() => setAberto(aberta ? null : c.id)} className="w-full text-left p-4 focus:outline-none focus:ring-2" aria-expanded={aberta}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-display font-semibold text-lg" style={{ color: C.ink }}>{c.nome}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: r.cor }}>{r.rotulo.toUpperCase()}</span>
+                      {r.reincs > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#B034281a", color: "#B03428" }}>{discPlural(r.reincs, "REINCIDÊNCIA", "REINCIDÊNCIAS")}</span>}
+                    </div>
+                    <p className="text-sm mt-1" style={{ color: C.ink }}>{c.ministerio}{c.funcao ? ` — ${c.funcao}` : ""}</p>
+                    <p className="text-xs mt-1 font-mono" style={{ color: C.stone }}>Início {fmtDate(c.inicio)} · {discPlural(r.decorridos, "dia", "dias")}{r.ultima ? ` · reincidência em ${fmtDate(r.ultima)}` : ""} · {discTextoPrazo(r, c)}</p>
+                    {r.prog !== null && c.situacao !== "cumprida" && <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "#0000001a" }}><div className="h-full" style={{ width: r.prog + "%", background: r.cor }} /></div>}
+                  </button>
+                  {aberta && (
+                    <div className="px-4 pb-4 border-t" style={{ borderColor: C.line }}>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div>
+                          <p className="text-[11px] font-mono uppercase" style={{ color: C.stone }}>O que motivou</p>
+                          <p className="text-sm mt-0.5 whitespace-pre-line" style={{ color: C.ink }}>{c.motivo || "—"}</p>
+                          <p className="text-[11px] font-mono uppercase mt-3" style={{ color: C.stone }}>Restrições de serviço</p>
+                          <p className="text-sm mt-0.5" style={{ color: C.ink }}>{c.restricao || "—"}</p>
+                          {c.vinculo && <><p className="text-[11px] font-mono uppercase mt-3" style={{ color: C.stone }}>Caso ligado</p><p className="text-sm mt-0.5" style={{ color: C.ink }}>{c.vinculo}</p></>}
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-mono uppercase" style={{ color: C.stone }}>Pecado a que se assemelha</p>
+                          <p className="text-sm font-semibold mt-0.5" style={{ color: C.purpleDeep }}>{tipo || "—"}</p>
+                          <ul className="mt-1.5 space-y-1">
+                            {(c.refs || []).map((x, i) => <li key={i} className="text-xs rounded-md px-2 py-1" style={{ background: C.parchment, color: C.ink }}>{x}</li>)}
+                            {(c.refs || []).length === 0 && <li className="text-xs" style={{ color: C.stone }}>Sem referências cadastradas.</li>}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] font-mono uppercase mt-4" style={{ color: C.stone }}>Linha do tempo</p>
+                      <ol className="mt-1.5 space-y-1.5 border-l-2 pl-3" style={{ borderColor: C.purple + "55" }}>
+                        {r.oc.map((o) => (
+                          <li key={o.id} className="text-sm flex items-start gap-2" style={{ color: C.ink }}>
+                            <span className="font-mono text-xs shrink-0 pt-0.5" style={{ color: o.tipo === "reincidencia" ? "#B03428" : C.stone }}>{fmtDate(o.data)}</span>
+                            <span className="flex-1"><b style={{ color: o.tipo === "reincidencia" ? "#B03428" : C.purpleDeep }}>{DISC_TIPOS_OCORR[o.tipo] || o.tipo}.</b> {o.texto}</span>
+                            {o.tipo !== "inicio" && <button onClick={() => apagarOc(c, o.id)} aria-label="Apagar anotação" title="Apagar anotação"><Trash2 size={12} color={C.stone} /></button>}
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="grid sm:grid-cols-[130px_220px_1fr_auto] gap-2 mt-3 items-end">
+                        <Field label="Data"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={oc.data} onChange={(e) => setOc({ ...oc, data: e.target.value })} /></Field>
+                        <Field label="Tipo"><select className={inputCls} style={{ borderColor: C.line }} value={oc.tipo} onChange={(e) => setOc({ ...oc, tipo: e.target.value })}>{Object.entries(DISC_TIPOS_OCORR).filter(([k]) => k !== "inicio").map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                        <Field label="Anotação"><input className={inputCls} style={{ borderColor: C.line }} value={oc.texto} onChange={(e) => setOc({ ...oc, texto: e.target.value })} placeholder="Ex.: reincidência confirmada em conversa com o pastor" /></Field>
+                        <Btn color={C.purple} onClick={() => registrarOc(c)}><Plus size={14} /> Registrar</Btn>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <Btn variant="ghost" color={C.purple} onClick={() => { editarCaso(c); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={13} /> Editar</Btn>
+                        {c.situacao === "cumprida" ? <Btn variant="ghost" color={C.purple} onClick={() => reabrir(c)}>Reabrir</Btn> : <Btn color="#2E7D4F" onClick={() => cumprir(c)}><CheckCircle2 size={14} /> Marcar como cumprida</Btn>}
+                        <Btn variant="ghost" color={C.purple} onClick={() => imprimirFicha(c)}><FileText size={13} /> Ficha / PDF</Btn>
+                        {c.whatsapp && <Btn variant="ghost" color="#2E7D4F" onClick={() => avisarZap(c)}><MessageCircle size={13} /> Comunicado reservado</Btn>}
+                        <Btn variant="danger" onClick={() => excluir(c)} className="ml-auto"><Trash2 size={13} /> Excluir</Btn>
+                      </div>
+                      <p className="text-[10px] font-mono mt-3" style={{ color: C.stone }}>Aberto por {c.criadoPor || "—"}{c.criadoEm ? ` em ${fmtDateTime(c.criadoEm)}` : ""}{c.atualizadoPor ? ` · última alteração por ${c.atualizadoPor}${c.atualizadoEm ? " em " + fmtDateTime(c.atualizadoEm) : ""}` : ""}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button onClick={() => setVerLog((v) => !v)} className="mt-6 text-xs underline" style={{ color: C.purple }}>{verLog ? "Ocultar" : "Ver"} histórico de alterações ({d.log.length})</button>
+          {verLog && (
+            <ul className="mt-2 text-xs space-y-1 max-h-64 overflow-y-auto rounded-lg border p-3 bg-white" style={{ borderColor: C.line, color: C.ink }}>
+              {d.log.map((l) => <li key={l.id}><span className="font-mono">{fmtDateTime(l.quando)}</span> — <b>{l.quem}</b>: {l.acao}</li>)}
+              {d.log.length === 0 && <li>Nenhuma alteração registrada ainda.</li>}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {aba === "notas" && (
+        <div className="mt-5">
+          <p className="text-sm" style={{ color: C.ink }}>Anote o dia, a função que a pessoa exerceu e a observação do serviço (bom exemplo, ponto de atenção, falta, ocorrência).</p>
+          <div className="mt-3 rounded-lg border p-4 bg-white" style={{ borderColor: C.line }}>
+            <datalist id="disc-nomes2">{nomesSugestao.map((n) => <option key={n} value={n} />)}</datalist>
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <Field label="Dia do serviço"><input type="date" className={inputCls} style={{ borderColor: C.line }} value={nota.data} onChange={(e) => setNota({ ...nota, data: e.target.value })} /></Field>
+              <Field label="Obreiro(a)"><input list="disc-nomes2" className={inputCls} style={{ borderColor: C.line }} value={nota.nome} onChange={(e) => setNota({ ...nota, nome: e.target.value })} /></Field>
+              <Field label="Função que exerceu"><input list="disc-funcoes" className={inputCls} style={{ borderColor: C.line }} value={nota.funcao} onChange={(e) => setNota({ ...nota, funcao: e.target.value })} /><datalist id="disc-funcoes">{DISC_MINISTERIOS.map((m) => <option key={m} value={m} />)}</datalist></Field>
+              <Field label="Tipo"><select className={inputCls} style={{ borderColor: C.line }} value={nota.tipo} onChange={(e) => setNota({ ...nota, tipo: e.target.value })}>{Object.entries(DISC_TIPOS_NOTA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+              <div className="sm:col-span-2 md:col-span-4"><Field label="Observação"><textarea rows={2} className={inputCls} style={{ borderColor: C.line }} value={nota.texto} onChange={(e) => setNota({ ...nota, texto: e.target.value })} /></Field></div>
+            </div>
+            <Btn className="mt-3" color={C.purple} onClick={addNota}><Plus size={14} /> Registrar observação</Btn>
+          </div>
+          <input value={buscaNota} onChange={(e) => setBuscaNota(e.target.value)} placeholder="Buscar por nome, função ou texto…" className="mt-4 rounded-md border px-3 py-2 text-sm bg-white w-full max-w-md" style={{ borderColor: C.line }} />
+          <div className="grid gap-2 mt-3">
+            {notasFiltradas.length === 0 && <Empty text="Nenhuma observação registrada." />}
+            {notasFiltradas.map((n) => (
+              <div key={n.id} className="rounded-lg border bg-white p-3 flex items-start gap-3" style={{ borderColor: C.line, borderLeft: `4px solid ${DISC_COR_NOTA[n.tipo] || C.purple}` }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm" style={{ color: C.ink }}><b>{n.nome}</b>{n.funcao ? ` · ${n.funcao}` : ""} <span className="font-mono text-xs" style={{ color: C.stone }}>· {fmtDate(n.data)}</span>
+                    {emDisciplina(n.nome) && <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#B03428" }}>EM DISCIPLINA</span>}</p>
+                  <p className="text-xs font-semibold mt-0.5" style={{ color: DISC_COR_NOTA[n.tipo] || C.purple }}>{DISC_TIPOS_NOTA[n.tipo] || n.tipo}</p>
+                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: C.ink }}>{n.texto}</p>
+                  <p className="text-[10px] font-mono mt-1" style={{ color: C.stone }}>Registrado por {n.por || "—"}</p>
+                </div>
+                <button onClick={() => apagarNota(n)} aria-label="Apagar observação"><Trash2 size={14} color={C.stone} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {aba === "refs" && (
+        <div className="mt-5 grid md:grid-cols-2 gap-4">
+          <p className="md:col-span-2 text-xs" style={{ color: C.ink }}>Sugestões de referências para enquadrar cada caso — só a referência e o tema. Leia sempre o texto na Bíblia; o enquadramento doutrinário é decisão da liderança (tudo pode ser editado em cada caso).</p>
+          {[...DISC_PECADOS.filter((p) => p.refs.length).map((p) => ({ titulo: p.label, refs: p.refs })), ...DISC_PROCESSO].map((g) => (
+            <div key={g.titulo} className="rounded-lg border bg-white p-4" style={{ borderColor: C.line }}>
+              <p className="font-display font-semibold text-sm" style={{ color: C.purpleDeep }}>{g.titulo}</p>
+              <ul className="mt-2 space-y-1">{g.refs.map(([r, t]) => <li key={r} className="text-xs" style={{ color: C.ink }}><b>{r}</b> — {t}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {aba === "backup" && (
+        <div className="mt-5 max-w-2xl space-y-4">
+          <div className="rounded-lg border bg-white p-4" style={{ borderColor: C.line }}>
+            <p className="font-display font-semibold" style={{ color: C.purpleDeep }}>Baixar cópia de segurança</p>
+            <p className="text-xs mt-1" style={{ color: C.ink }}>Gera um arquivo .txt com todos os casos e observações. Guarde em lugar seguro (pen drive ou e-mail só seu), pois contém dados sigilosos.</p>
+            <Btn className="mt-3" color={C.purple} onClick={baixarBackup}><Download size={14} /> Baixar backup (.txt)</Btn>
+          </div>
+          <div className="rounded-lg border bg-white p-4" style={{ borderColor: C.line }}>
+            <p className="font-display font-semibold" style={{ color: C.purpleDeep }}>Importar de um arquivo</p>
+            <p className="text-xs mt-1" style={{ color: C.ink }}>Escolha o arquivo .txt de importação do Rol de Disciplina (o que Claude entrega, ou um backup seu). O que já existir é atualizado; nada é apagado.</p>
+            <label className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-md text-sm font-semibold cursor-pointer" style={{ background: C.purple, color: "#fff" }}>
+              <ArrowUp size={14} /> Escolher arquivo
+              <input type="file" accept=".txt,.json,text/plain,application/json" className="hidden" onChange={importar} data-testid="disc-importar" />
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const OPERADOR_FIELDS = [
   { key: "nome", label: "Nome da pessoa ou função (ex: Portaria, RH — Maria)" },
   { key: "codigo", label: "Código de acesso" },
-  { key: "setores", label: "Setores liberados — separe por vírgula (em branco ou 'todos' libera tudo): oracoes, avivarmusic, visitantes (ou recepção), membros, escala, loja" },
+  { key: "setores", label: "Setores liberados — separe por vírgula (em branco ou 'todos' libera tudo): oracoes, avivarmusic, visitantes (ou recepção), membros, escala, loja. Sigilosos (só se escritos de propósito, não entram em 'todos'): caixa, disciplina" },
 ];
 
 function OperadoresAdmin({ codes, save, adminMode }) {
@@ -18761,7 +19294,7 @@ export default function App() {
   // código de acesso restrito a só um setor (ex: só Oração nos Lares, só Avivar Music).
   const [operatorAuth, setOperatorAuth] = useState(null);
   // "caixa" (finanças) nunca vem em "todos": precisa estar marcado explicitamente no código do operador.
-  const podeSetor = (setor) => adminMode || (!!operatorAuth && ((setor !== "caixa" && operatorAuth.setores.includes("todos")) || operatorAuth.setores.includes(setor)));
+  const podeSetor = (setor) => adminMode || (!!operatorAuth && ((setor !== "caixa" && setor !== "disciplina" && operatorAuth.setores.includes("todos")) || operatorAuth.setores.includes(setor)));
   const [operatorGateOpen, setOperatorGateOpen] = useState(false);
   // Oração nos Lares abre como página própria (não rola mais a Home); ?oracao=... também.
   const [paginaOracaoOpen, setPaginaOracaoOpen] = useState(() => !!new URLSearchParams(window.location.search).get("oracao"));
@@ -18779,6 +19312,7 @@ export default function App() {
     setCaixa(await loadKey("avivar:caixa", []));
     setCaixaExtra({ ...CAIXA_EXTRA_VAZIO, ...(await loadKey("avivar:caixaextra", CAIXA_EXTRA_VAZIO)) });
     setBens(await loadKey("avivar:bens", []));
+    setDisciplina(discNormalizar(await loadKey("avivar:disciplina", DISC_VAZIO)));
     setMembros(await loadKey("avivar:membros", []));
     setPedidosOracao(await loadKey("avivar:pedidosOracao", []));
     setPedidosFisicos(await loadKey("avivar:pedidosfisicos", []));
@@ -18814,6 +19348,7 @@ export default function App() {
   const [mensagens, setMensagens] = useState([]);
   const [forumPosts, setForumPosts] = useState([]);
   const [caixa, setCaixa] = useState([]);
+  const [disciplina, setDisciplina] = useState(DISC_VAZIO);
   const [caixaExtra, setCaixaExtra] = useState(CAIXA_EXTRA_VAZIO);
   const [bens, setBens] = useState([]);
   const [membros, setMembros] = useState([]);
@@ -20436,6 +20971,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
     forum: (v) => { setForumPosts(v); saveKey("avivar:forum", v); },
     caixa: (v) => { setCaixa(v); saveKey("avivar:caixa", v); },
     caixaExtra: (v) => { setCaixaExtra(v); saveKey("avivar:caixaextra", v); },
+    disciplina: (v) => { setDisciplina(v); saveKey("avivar:disciplina", v); },
     bens: (v) => { setBens(v); saveKey("avivar:bens", v); },
     membros: (v) => { setMembros(v); saveKey("avivar:membros", v); },
     repertorio: (v) => { setRepertorio(v); saveKey("avivar:repertorio", v); },
@@ -20735,7 +21271,7 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         @media (prefers-reduced-motion: reduce) { .noticias-marquee { animation: none; } }
       `}</style>
 
-      <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
+      <NavBar page={page} setPage={scrollToSection} adminMode={adminMode} menuExtra={!adminMode && podeSetor("disciplina") ? [DISCIPLINA_MENU] : []} churchName={site.churchName} onAdminClick={() => (adminMode ? setAdminMode(false) : setGateOpen(true))} />
       {NOTICIAS_BARRA_ATIVA && <NoticiasCarousel />}
       {SIDE_CAROUSEL_ATIVO && <SideCarousel photos={sideCarouselPhotos} setPage={scrollToSection} />}
 
@@ -20759,6 +21295,9 @@ Buscar poder espiritual é legítimo — a própria Igreja primitiva orava por s
         <section id="pedidooracao" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><PedidoOracao items={pedidosOracao} save={persist.pedidosOracao} adminMode={adminMode} /></section>
         <section id="membros" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="membros" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Membros items={membros} save={persist.membros} adminMode={adminMode} operatorMode={podeSetor("membros")} onRequestOperator={() => setOperatorGateOpen(true)} /><PrestacaoPublica area="membros" items={caixa} extra={caixaExtra} /></section>
         <section id="caixa" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="caixa" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><Caixa items={caixa} save={persist.caixa} extra={caixaExtra} saveExtra={persist.caixaExtra} adminMode={adminMode || podeSetor("caixa")} operador={operatorAuth?.nome || "Administração"} cidadePadrao={doacoes?.cidade || ""} /></section>
+        {(adminMode || podeSetor("disciplina")) && (
+          <section id="disciplina" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><SetorAcessoBar setor="disciplina" adminMode={adminMode} operatorAuth={operatorAuth} onEntrar={() => setOperatorGateOpen(true)} onSair={() => setOperatorAuth(null)} irPara={scrollToSection} /><DisciplinaObreiros dados={disciplina} save={persist.disciplina} adminMode={adminMode || podeSetor("disciplina")} operador={operatorAuth?.nome || "Administração"} colaboradores={colaboradores} /></section>
+        )}
         <section id="operadores" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><OperadoresAdmin codes={operatorCodes} save={persist.operatorCodes} adminMode={adminMode} /></section>
         <section id="bens" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Bens items={bens} save={persist.bens} adminMode={adminMode} /></section>
         <section id="contato" className="scroll-mt-24"><VoltarBar onVoltar={voltar} /><Contato items={mensagens} save={persist.mensagens} adminMode={adminMode} /></section>

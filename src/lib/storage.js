@@ -15,7 +15,7 @@ const API_PRIVADO = "/api/privado";
 const CHAVES_PRIVADAS = [
   "avivar:operatorcodes", "avivar:caixa", "avivar:caixaextra", "avivar:bens",
   "avivar:membros", "avivar:visitantes", "avivar:pedidosOracao", "avivar:pedidosfisicos",
-  "avivar:mensagens", "avivar:oracoes",
+  "avivar:mensagens", "avivar:oracoes", "avivar:disciplina",
 ];
 const PREFIXOS_PRIVADOS = ["avivar:escalapins:"];
 // Visitantes (sem login) só podem ACRESCENTAR nestas; nunca ler nem alterar o que já existe.

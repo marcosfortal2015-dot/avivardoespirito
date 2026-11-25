@@ -50,6 +50,7 @@ const REGRAS = [
   { teste: (k) => k === CHAVE_OPERADORES, setores: [] }, // só administrador
   { teste: (k) => k === "biblia:sermoes", setores: [] }, // sermões dos pastores (Bíblia Avivar): só o administrador lê e grava, nunca público
   { teste: (k) => ["avivar:caixa", "avivar:caixaextra", "avivar:bens"].includes(k), setores: ["caixa"], semTodos: true },
+  { teste: (k) => k === "avivar:disciplina", setores: ["disciplina"], semTodos: true },       // Rol de Disciplina e observações dos obreiros: SIGILOSO, só admin ou setor "disciplina" marcado explicitamente
   { teste: (k) => k === "avivar:membros", setores: ["membros"] },
   { teste: (k) => k === "avivar:visitantes", setores: ["visitantes"] },
   { teste: (k) => k.startsWith("avivar:escalapins:"), setores: ["escala"] },
@@ -70,6 +71,7 @@ const SETOR_APELIDOS = {
   escalas: "escala", obreiros: "escala",
   frete: "loja", tudo: "todos",
   tesouraria: "caixa", tesoureiro: "caixa", financeiro: "caixa", contabilidade: "caixa",
+  disciplinas: "disciplina", pastoral: "disciplina", "rol de disciplina": "disciplina", observacoes: "disciplina",
 };
 export function parseSetores(texto) {
   const lista = String(texto || "").split(/[,;]/).map((s) => semAcento(s.trim())).filter(Boolean).map((s) => SETOR_APELIDOS[s] || s);
